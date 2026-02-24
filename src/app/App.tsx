@@ -12,21 +12,26 @@ import { Toaster } from "@/app/components/ui/sonner";
 export default function App() {
   const [currentPage, setCurrentPage] = useState("home");
   const [selectedReportId, setSelectedReportId] = useState<string | undefined>();
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const handleNavigate = (page: string, reportId?: string) => {
-    setCurrentPage(page);
-    if (reportId) {
-      setSelectedReportId(reportId);
-    }
-    // Scroll to top when navigating
-    window.scrollTo(0, 0);
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentPage(page);
+      if (reportId) {
+        setSelectedReportId(reportId);
+      }
+      setIsTransitioning(false);
+      // Scroll to top when navigating
+      window.scrollTo(0, 0);
+    }, 300);
   };
 
   return (
     <div className="flex flex-col min-h-screen">
       <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
       
-      <main className="flex-1">
+      <main className={`flex-1 page-transition ${isTransitioning ? 'slide-out' : 'slide-in'}`}>
         {currentPage === "home" && <HomePage onNavigate={handleNavigate} />}
         {currentPage === "report" && <ReportPage onNavigate={handleNavigate} />}
         {currentPage === "consultation" && <ConsultationPage onNavigate={handleNavigate} />}
