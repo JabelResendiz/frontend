@@ -1,12 +1,14 @@
 import { Shield, FileText, Search, BarChart3, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { useAuth } from "@/app/context/AuthContext";
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
 }
 
 export function HomePage({ onNavigate }: HomePageProps) {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Hero Section */}
@@ -35,23 +37,37 @@ export function HomePage({ onNavigate }: HomePageProps) {
               Contribuya a la seguridad y eficacia de las inmunizaciones en Cuba.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                size="lg"
-                className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
-                onClick={() => onNavigate("report")}
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Reportar Evento Adverso
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
-                onClick={() => onNavigate("consultation")}
-              >
-                <Search className="w-5 h-5 mr-2" />
-                Consultar Reportes
-              </Button>
+              {user?.role === 'doctor' && (
+                <Button
+                  size="lg"
+                  className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
+                  onClick={() => onNavigate("report")}
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  Reportar Evento Adverso
+                </Button>
+              )}
+              {user?.role === 'doctor' ? (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
+                  onClick={() => onNavigate("doctor-dashboard")}
+                >
+                  <BarChart3 className="w-5 h-5 mr-2" />
+                  Ver Mi Panel
+                </Button>
+              ) : user?.role === 'admin' ? (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
+                  onClick={() => onNavigate("consultation")}
+                >
+                  <Search className="w-5 h-5 mr-2" />
+                  Consultar Reportes
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -179,34 +195,36 @@ export function HomePage({ onNavigate }: HomePageProps) {
         </div>
       </div>
 
-      {/* CTA Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
-        <Card className="border-0 shadow-xl overflow-hidden" style={{ backgroundColor: "#E8F0F7" }}>
-          <CardContent className="p-8 sm:p-12">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-4" style={{ color: "#0A4B8F" }}>
-                ¿Ha experimentado un evento adverso post-vacunación?
-              </h2>
-              <p className="text-gray-700 mb-6">
-                Su reporte es fundamental para mejorar la seguridad de las vacunas. 
-                El proceso es confidencial, seguro y toma aproximadamente 10 minutos.
-              </p>
-              <Button
-                size="lg"
-                className="text-white font-semibold px-8 py-6 text-lg shadow-lg"
-                style={{ backgroundColor: "#0A4B8F" }}
-                onClick={() => onNavigate("report")}
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Comenzar Reporte Ahora
-              </Button>
-              <p className="text-xs text-gray-600 mt-4">
-                Todos los datos son tratados con estricta confidencialidad según normas éticas y legales
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* CTA Section - Solo para médicos */}
+      {user?.role === 'doctor' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
+          <Card className="border-0 shadow-xl overflow-hidden" style={{ backgroundColor: "#E8F0F7" }}>
+            <CardContent className="p-8 sm:p-12">
+              <div className="max-w-3xl mx-auto text-center">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-4" style={{ color: "#0A4B8F" }}>
+                  ¿Ha experimentado un evento adverso post-vacunación?
+                </h2>
+                <p className="text-gray-700 mb-6">
+                  Su reporte es fundamental para mejorar la seguridad de las vacunas. 
+                  El proceso es confidencial, seguro y toma aproximadamente 10 minutos.
+                </p>
+                <Button
+                  size="lg"
+                  className="text-white font-semibold px-8 py-6 text-lg shadow-lg"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={() => onNavigate("report")}
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  Comenzar Reporte Ahora
+                </Button>
+                <p className="text-xs text-gray-600 mt-4">
+                  Todos los datos son tratados con estricta confidencialidad según normas éticas y legales
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
