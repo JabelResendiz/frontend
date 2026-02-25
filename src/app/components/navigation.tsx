@@ -1,6 +1,7 @@
-import { Shield, FileText, BarChart3, Info, Menu, X } from "lucide-react";
+import { Shield, FileText, BarChart3, Info, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
+import { useAuth } from "@/app/context/AuthContext";
 
 interface NavigationProps {
   currentPage: string;
@@ -9,14 +10,25 @@ interface NavigationProps {
 
 export function Navigation({ currentPage, onNavigate }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const navItems = [
     { id: "home", label: "Inicio", icon: Shield },
-    { id: "report", label: "Reportar Evento", icon: FileText },
-    { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+    ...(user?.role === 'doctor' ? [
+      { id: "report", label: "Reportar Evento", icon: FileText },
+      { id: "doctor-dashboard", label: "Mi Panel", icon: BarChart3 },
+    ] : []),
+    ...(user?.role === 'admin' ? [
+      { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
+      { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },
+    ] : []),
     { id: "information", label: "Información", icon: Info },
   ];
+
+  const handleLogout = () => {
+    logout();
+    onNavigate('login');
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
@@ -62,6 +74,31 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                 </Button>
               );
             })}
+            {user && (
+              <div className="ml-4 pl-4 border-l border-gray-200 flex items-center gap-3">
+                <span className="text-sm text-gray-700">
+                  {user.name} <span className="text-xs text-gray-500">({user.role})</span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Salir
+                </Button>
+              </div>
+            )}
+            {!user && (
+              <Button
+                onClick={() => onNavigate('login')}
+                className="ml-4"
+                style={{ backgroundColor: "#0A4B8F" }}
+              >
+                Iniciar Sesión
+              </Button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -105,6 +142,38 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                 </button>
               );
             })}
+            {user && (
+              <>
+                <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">{user.name}</p>
+                    <p className="text-xs text-gray-500">{user.role}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm">Salir</span>
+                </button>
+              </>
+            )}
+            {!user && (
+              <button
+                onClick={() => {
+                  onNavigate('login');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-white"
+                style={{ backgroundColor: "#0A4B8F" }}
+              >
+                <span className="text-sm">Iniciar Sesión</span>
+              </button>
+            )}
           </div>
         )}
       </div>
