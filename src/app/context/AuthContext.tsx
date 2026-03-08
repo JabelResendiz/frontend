@@ -1,80 +1,109 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export interface User {
-  id: string;
+  id: number;
   email: string;
-  name: string;
-  role: 'doctor' | 'admin' | 'patient';
+  userName: string;
+  userRole: 'Physician' | 'Admin';
+  role?: 'doctor' | 'admin'; // Mapeado para compatibilidad
+}
+
+interface LoginResponse {
+  id: number;
+  userName: string;
+  email: string;
+  userRole: 'Physician' | 'Admin';
+  token: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: 'doctor' | 'admin' | 'patient') => Promise<void>;
+  register: (email: string, password: string, name: string, userName: string, userRole: 'Physician' | 'Admin') => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_BASE_URL = 'http://0.0.0.0:8080/api/Authentication';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Restaurar sesión desde localStorage
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-    }
-  }, []);
-
   const login = async (email: string, password: string) => {
-    // Simulamos una llamada a la API
-    // En producción, esto sería una llamada real a tu backend
-    const users = JSON.parse(localStorage.getItem('allUsers') || '[]');
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
-    if (!foundUser) {
-      throw new Error('Email o contraseña inválidos');
+      if (!response.ok) {
+        throw new Error('Email o contraseña inválidos');
+      }
+
+      const data: LoginResponse = await response.json();
+
+      // Mapear el rol de backend a nuestro sistema
+      const mappedUser: User = {
+        id: data.id,
+        email: data.email,
+        userName: data.userName,
+        userRole: data.userRole,
+        role: data.userRole === 'Physician' ? 'doctor' : 'admin',
+      };
+
+      setUser(mappedUser);
+      setIsAuthenticated(true);
+      
+      // Guardar token en sessionStorage (se limpia al cerrar la pestaña)
+      sessionStorage.setItem('token', data.token);
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Error en el inicio de sesión');
     }
-
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
   };
 
-  const register = async (email: string, password: string, name: string, role: 'doctor' | 'admin' | 'patient') => {
-    // Verificar si el usuario ya existe
-    const users = JSON.parse(localStorage.getItem('allUsers') || '[]');
-    if (users.some((u: any) => u.email === email)) {
-      throw new Error('El email ya está registrado');
+  const register = async (email: string, password: string, name: string, userName: string, userRole: 'Physician' | 'Admin') => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          userName,
+          email,
+          password,
+          userRole,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al registrarse');
+      }
+
+      // El registro no devuelve token, solo el mensaje de éxito
+      // No guardamos nada en el frontend
+      const data = await response.json();
+      console.log('Registro exitoso:', data.message);
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Error al registrarse');
     }
-
-    const newUser = {
-      id: Date.now().toString(),
-      email,
-      password,
-      name,
-      role,
-    };
-
-    users.push(newUser);
-    localStorage.setItem('allUsers', JSON.stringify(users));
-
-    // Auto-login después del registro
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
   };
 
   return (

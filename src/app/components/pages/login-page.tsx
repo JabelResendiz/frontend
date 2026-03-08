@@ -19,7 +19,8 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'doctor' | 'admin' | 'patient'>('patient');
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState<'Physician' | 'Admin'>('Physician');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +43,15 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
     setLoading(true);
 
     try {
-      await register(email, password, name, role);
-      onNavigate('home');
+      await register(email, password, name, userName, userRole);
+      // Después de registrarse exitosamente, volver a la pantalla de login
+      setIsRegister(false);
+      setName('');
+      setUserName('');
+      setEmail('');
+      setPassword('');
+      setError('');
+      setError('Registro exitoso. Por favor inicia sesión.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
     } finally {
@@ -66,23 +74,36 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
         </CardHeader>
         <CardContent>
           {error && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant={isRegister && error.includes('exitoso') ? 'default' : 'destructive'} className="mb-4">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
             {isRegister && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre Completo</Label>
-                <Input
-                  id="name"
-                  placeholder="Tu nombre"
-                  value={name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre Completo</Label>
+                  <Input
+                    id="name"
+                    placeholder="Tu nombre completo"
+                    value={name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="username">Nombre de Usuario</Label>
+                  <Input
+                    id="username"
+                    placeholder="Nombre de usuario único"
+                    value={userName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserName(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -112,13 +133,13 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
             {isRegister && (
               <div className="space-y-2">
                 <Label htmlFor="role">Rol</Label>
-                <Select value={role} onValueChange={(value: any) => setRole(value)}>
+                <Select value={userRole} onValueChange={(value: any) => setUserRole(value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="doctor">Médico</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="Physician">Médico (Physician)</SelectItem>
+                    <SelectItem value="Admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -149,7 +170,8 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
                   setEmail('');
                   setPassword('');
                   setName('');
-                  setRole('patient');
+                  setUserName('');
+                  setUserRole('Physician');
                 }}
                 className="ml-1 text-indigo-600 hover:text-indigo-700 font-semibold"
               >

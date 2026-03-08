@@ -143,7 +143,7 @@ export const DoctorDashboard = ({ onNavigate }: DoctorDashboardProps) => {
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Panel del Médico</h1>
-        <p className="text-gray-600">Bienvenido, Dr. {user.name}</p>
+        <p className="text-gray-600">Bienvenido, Dr. {user.userName}</p>
       </div>
 
       <div className="mb-6">

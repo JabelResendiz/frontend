@@ -45,7 +45,7 @@ export const ReportProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (currentUser) {
       const user = JSON.parse(currentUser);
       doctorId = user.id;
-      doctorName = user.name;
+      doctorName = user.userName;
     }
 
     const exampleReports: Report[] = [

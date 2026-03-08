@@ -77,7 +77,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             {user && (
               <div className="ml-4 pl-4 border-l border-gray-200 flex items-center gap-3">
                 <span className="text-sm text-gray-700">
-                  {user.name} <span className="text-xs text-gray-500">({user.role})</span>
+                  {user.userName} <span className="text-xs text-gray-500">({user.role})</span>
                 </span>
                 <Button
                   variant="ghost"
@@ -146,7 +146,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
               <>
                 <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-gray-700">{user.name}</p>
+                    <p className="text-sm font-semibold text-gray-700">{user.userName}</p>
                     <p className="text-xs text-gray-500">{user.role}</p>
                   </div>
                 </div>
