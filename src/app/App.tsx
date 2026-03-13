@@ -13,6 +13,8 @@ import { LoginPage } from "@/app/components/pages/login-page";
 import { DoctorDashboard } from "@/app/components/pages/doctor-dashboard";
 import { EditReportPage } from "@/app/components/pages/edit-report-page";
 import { AdminDashboard } from "@/app/components/pages/admin-dashboard";
+import { ManageDoctorsPage } from "@/app/components/pages/manage-doctors-page";
+import { SectionManagerDashboard } from "@/app/components/pages/section-manager-dashboard";
 import { Toaster } from "@/app/components/ui/sonner";
 
 function AppContent() {
@@ -39,7 +41,7 @@ function AppContent() {
   };
 
   // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
-  if (!isAuthenticated && (currentPage === "report" || currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation")) {
+  if (!isAuthenticated && (currentPage === "report" || currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" || currentPage === "section-manager-dashboard")) {
     return <LoginPage onNavigate={handleNavigate} />;
   }
 
@@ -50,14 +52,16 @@ function AppContent() {
       <main className={`flex-1 page-transition ${isTransitioning ? 'slide-out' : 'slide-in'}`}>
         {currentPage === "login" && <LoginPage onNavigate={handleNavigate} contextAction={contextAction} />}
         {currentPage === "home" && <HomePage onNavigate={handleNavigate} />}
-        {currentPage === "report" && isAuthenticated && user?.role === 'doctor' && <ReportPage onNavigate={handleNavigate} />}
+        {currentPage === "report" && isAuthenticated && (user?.role === 'doctor' || user?.role === 'paciente') && <ReportPage onNavigate={handleNavigate} />}
         {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
         {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'doctor' && <DoctorDashboard onNavigate={handleNavigate} />}
         {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'admin' && <AdminDashboard />}
+        {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'responsable-seccion' && <ManageDoctorsPage onNavigate={handleNavigate} />}
+        {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'responsable-seccion' && <SectionManagerDashboard />}
         {currentPage === "edit-report" && isAuthenticated && <EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
-        {currentPage === "information" && isAuthenticated && <InformationPage />}
+        {currentPage === "information" && <InformationPage />}
       </main>
 
       <Footer />

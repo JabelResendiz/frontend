@@ -18,6 +18,13 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
       { id: "report", label: "Reportar Evento", icon: FileText },
       { id: "doctor-dashboard", label: "Mi Panel", icon: BarChart3 },
     ] : []),
+    ...(user?.role === 'paciente' ? [
+      { id: "report", label: "Reportar Evento", icon: FileText },
+    ] : []),
+    ...(user?.role === 'responsable-seccion' ? [
+      { id: "manage-doctors", label: "Gestionar Médicos", icon: FileText },
+      { id: "section-manager-dashboard", label: "Dashboard", icon: BarChart3 },
+    ] : []),
     ...(user?.role === 'admin' ? [
       { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
       { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },

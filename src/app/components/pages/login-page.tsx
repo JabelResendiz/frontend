@@ -20,7 +20,7 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'doctor' | 'admin' | 'patient'>('patient');
+  const [role, setRole] = useState<'doctor' | 'admin' | 'patient' | 'paciente' | 'responsable-seccion'>('patient');
 
   // Si viene del contexto de reportar, pre-seleccionar como médico y mostrar registro
   useEffect(() => {
@@ -127,6 +127,8 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="doctor">Médico</SelectItem>
+                    <SelectItem value="paciente">Paciente</SelectItem>
+                    <SelectItem value="responsable-seccion">Responsable de Sección</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
