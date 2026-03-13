@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
+  contextAction?: string;
 }
 
-export const LoginPage = ({ onNavigate }: LoginPageProps) => {
+export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
   const { login, register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +21,14 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<'doctor' | 'admin' | 'patient'>('patient');
+
+  // Si viene del contexto de reportar, pre-seleccionar como médico y mostrar registro
+  useEffect(() => {
+    if (contextAction === 'registerAsDoctor') {
+      setIsRegister(true);
+      setRole('doctor');
+    }
+  }, [contextAction]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

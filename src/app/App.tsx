@@ -19,14 +19,18 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState("home");
   const [selectedReportId, setSelectedReportId] = useState<string | undefined>();
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [contextAction, setContextAction] = useState<string | undefined>();
   const { isAuthenticated, user } = useAuth();
 
-  const handleNavigate = (page: string, reportId?: string) => {
+  const handleNavigate = (page: string, reportId?: string, action?: string) => {
     setIsTransitioning(true);
     setTimeout(() => {
       setCurrentPage(page);
       if (reportId) {
         setSelectedReportId(reportId);
+      }
+      if (action) {
+        setContextAction(action);
       }
       setIsTransitioning(false);
       // Scroll to top when navigating
@@ -34,8 +38,8 @@ function AppContent() {
     }, 300);
   };
 
-  // Redirigir a login si no está autenticado
-  if (!isAuthenticated && currentPage !== "login") {
+  // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
+  if (!isAuthenticated && (currentPage === "report" || currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation")) {
     return <LoginPage onNavigate={handleNavigate} />;
   }
 
@@ -44,8 +48,8 @@ function AppContent() {
       <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
       
       <main className={`flex-1 page-transition ${isTransitioning ? 'slide-out' : 'slide-in'}`}>
-        {currentPage === "login" && <LoginPage onNavigate={handleNavigate} />}
-        {currentPage === "home" && isAuthenticated && <HomePage onNavigate={handleNavigate} />}
+        {currentPage === "login" && <LoginPage onNavigate={handleNavigate} contextAction={contextAction} />}
+        {currentPage === "home" && <HomePage onNavigate={handleNavigate} />}
         {currentPage === "report" && isAuthenticated && user?.role === 'doctor' && <ReportPage onNavigate={handleNavigate} />}
         {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}

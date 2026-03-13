@@ -5,7 +5,7 @@ import { useAuth } from "@/app/context/AuthContext";
 
 interface NavigationProps {
   currentPage: string;
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
 export function Navigation({ currentPage, onNavigate }: NavigationProps) {
@@ -91,13 +91,21 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
               </div>
             )}
             {!user && (
-              <Button
-                onClick={() => onNavigate('login')}
-                className="ml-4"
-                style={{ backgroundColor: "#0A4B8F" }}
-              >
-                Iniciar Sesión
-              </Button>
+              <div className="ml-4 pl-4 border-l border-gray-200 flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => onNavigate('login')}
+                  className="text-gray-700 hover:bg-gray-100"
+                >
+                  Registrarse
+                </Button>
+                <Button
+                  onClick={() => onNavigate('login')}
+                  style={{ backgroundColor: "#0A4B8F" }}
+                >
+                  Iniciar Sesión
+                </Button>
+              </div>
             )}
           </div>
 
@@ -163,16 +171,27 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
               </>
             )}
             {!user && (
-              <button
-                onClick={() => {
-                  onNavigate('login');
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-white"
-                style={{ backgroundColor: "#0A4B8F" }}
-              >
-                <span className="text-sm">Iniciar Sesión</span>
-              </button>
+              <div className="border-t border-gray-200 py-2">
+                <button
+                  onClick={() => {
+                    onNavigate('login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-gray-700 hover:bg-gray-100"
+                >
+                  <span className="text-sm">Registrarse</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onNavigate('login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-white"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                >
+                  <span className="text-sm">Iniciar Sesión</span>
+                </button>
+              </div>
             )}
           </div>
         )}
