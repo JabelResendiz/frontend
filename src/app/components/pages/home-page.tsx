@@ -88,18 +88,10 @@ export function HomePage({ onNavigate }: HomePageProps) {
                   <Button
                     size="lg"
                     className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
-                    onClick={() => onNavigate("login", undefined, "registerAsDoctor")}
+                    onClick={() => onNavigate("report")}
                   >
                     <FileText className="w-5 h-5 mr-2" />
                     Reportar Evento Adverso
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
-                    onClick={() => onNavigate("login")}
-                  >
-                    Registrarse / Iniciar Sesión
                   </Button>
                 </>
               )}

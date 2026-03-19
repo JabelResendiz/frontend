@@ -29,6 +29,9 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
       { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
       { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },
     ] : []),
+    ...(!user ? [
+      { id: "report", label: "Reportar Evento", icon: FileText },
+    ] : []),
     { id: "information", label: "Información", icon: Info },
   ];
 

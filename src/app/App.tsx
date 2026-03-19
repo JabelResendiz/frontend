@@ -41,7 +41,8 @@ function AppContent() {
   };
 
   // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
-  if (!isAuthenticated && (currentPage === "report" || currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" || currentPage === "section-manager-dashboard")) {
+  // Nota: "report" NO está incluido aquí porque cualquiera puede crear un reporte sin autenticarse
+  if (!isAuthenticated && (currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" || currentPage === "section-manager-dashboard")) {
     return <LoginPage onNavigate={handleNavigate} />;
   }
 
@@ -52,7 +53,7 @@ function AppContent() {
       <main className={`flex-1 page-transition ${isTransitioning ? 'slide-out' : 'slide-in'}`}>
         {currentPage === "login" && <LoginPage onNavigate={handleNavigate} contextAction={contextAction} />}
         {currentPage === "home" && <HomePage onNavigate={handleNavigate} />}
-        {currentPage === "report" && isAuthenticated && (user?.role === 'doctor' || user?.role === 'paciente') && <ReportPage onNavigate={handleNavigate} />}
+        {currentPage === "report" && <ReportPage onNavigate={handleNavigate} />}
         {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
