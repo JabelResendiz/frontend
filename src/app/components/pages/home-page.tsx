@@ -1,14 +1,14 @@
-import { Shield, FileText, Search, BarChart3, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Shield, FileText, Search, BarChart3, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { useAuth } from "@/app/context/AuthContext";
 
 interface HomePageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
 export function HomePage({ onNavigate }: HomePageProps) {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Hero Section */}
@@ -37,101 +37,66 @@ export function HomePage({ onNavigate }: HomePageProps) {
               Contribuya a la seguridad y eficacia de las inmunizaciones en Cuba.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {user?.role === 'doctor' && (
-                <Button
-                  size="lg"
-                  className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
-                  onClick={() => onNavigate("report")}
-                >
-                  <FileText className="w-5 h-5 mr-2" />
-                  Reportar Evento Adverso
-                </Button>
+              {isAuthenticated ? (
+                // Botones para usuarios autenticados
+                <>
+                  {(user?.role === 'doctor' || user?.role === 'paciente') && (
+                    <Button
+                      size="lg"
+                      className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
+                      onClick={() => onNavigate("report")}
+                    >
+                      <FileText className="w-5 h-5 mr-2" />
+                      Reportar Evento Adverso
+                    </Button>
+                  )}
+                  {user?.role === 'doctor' ? (
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
+                      onClick={() => onNavigate("doctor-dashboard")}
+                    >
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Ver Mi Panel
+                    </Button>
+                  ) : user?.role === 'admin' ? (
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
+                      onClick={() => onNavigate("consultation")}
+                    >
+                      <Search className="w-5 h-5 mr-2" />
+                      Consultar Reportes
+                    </Button>
+                  ) : user?.role === 'responsable-seccion' ? (
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
+                      onClick={() => onNavigate("section-manager-dashboard")}
+                    >
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Ver Mi Panel
+                    </Button>
+                  ) : null}
+                </>
+              ) : (
+                // Botones para usuarios no autenticados
+                <>
+                  <Button
+                    size="lg"
+                    className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
+                    onClick={() => onNavigate("report")}
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    Reportar Evento Adverso
+                  </Button>
+                </>
               )}
-              {user?.role === 'doctor' ? (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
-                  onClick={() => onNavigate("doctor-dashboard")}
-                >
-                  <BarChart3 className="w-5 h-5 mr-2" />
-                  Ver Mi Panel
-                </Button>
-              ) : user?.role === 'admin' ? (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
-                  onClick={() => onNavigate("consultation")}
-                >
-                  <Search className="w-5 h-5 mr-2" />
-                  Consultar Reportes
-                </Button>
-              ) : null}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Statistics Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E8F0F7" }}>
-                  <FileText className="w-6 h-6" style={{ color: "#0A4B8F" }} />
-                </div>
-                <div className="text-3xl font-bold" style={{ color: "#0A4B8F" }}>
-                  2,847
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 font-medium">
-                Reportes Totales
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Desde enero 2024
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E8F5EB" }}>
-                  <CheckCircle2 className="w-6 h-6" style={{ color: "#2D7A3E" }} />
-                </div>
-                <div className="text-3xl font-bold" style={{ color: "#2D7A3E" }}>
-                  98.2%
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 font-medium">
-                Eventos Leves
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Recuperación completa
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-12 h-12 rounded-lg bg-orange-50 flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-orange-600" />
-                </div>
-                <div className="text-3xl font-bold text-orange-600">
-                  24h
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 font-medium">
-                Tiempo de Respuesta
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Promedio de evaluación
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
@@ -195,8 +160,8 @@ export function HomePage({ onNavigate }: HomePageProps) {
         </div>
       </div>
 
-      {/* CTA Section - Solo para médicos */}
-      {user?.role === 'doctor' && (
+      {/* CTA Section - Para usuarios autenticados médicos */}
+      {isAuthenticated && user?.role === 'doctor' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
           <Card className="border-0 shadow-xl overflow-hidden" style={{ backgroundColor: "#E8F0F7" }}>
             <CardContent className="p-8 sm:p-12">

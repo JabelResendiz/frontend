@@ -17,11 +17,29 @@ interface ReportPageProps {
 }
 
 type FormData = {
-  // Patient info
-  patientAge: string;
+  // Reportante info
+  reporterFullName: string;
+  reporterDateOfBirth: string;
+  reporterGender: string;
+  reporterProvince: string;
+  reporterMunicipality: string;
+  reporterPhoneNumber: string;
+  reporterEmail: string;
+  reporterRelationship: string;
+  
+  // Patient (VaccinatedSubject) info
+  patientFullName: string;
+  patientIdentityNumber: string;
+  patientDateOfBirth: string;
   patientGender: string;
   patientProvince: string;
-  patientMedicalHistory: string;
+  patientMunicipality: string;
+  patientAddress: string;
+  patientPhoneNumber: string;
+  patientEmail: string;
+  patientIsPregnant: string;
+  patientAge: string;
+  //patientMedicalHistory: string;
   
   // Vaccine info
   vaccineName: string;
@@ -40,25 +58,50 @@ type FormData = {
   eventHospitalization: string;
   eventMedicalAttention: string;
   
-  // Reporter info
+  // Reporter info (final step - required)
   reporterType: string;
-  reporterName: string;
-  reporterContact: string;
+  reporterCI: string;
+  // reporterName: string;
+  // reporterPhoneNumber: string;
+  // reporterEmail: string;
 };
 
 export function ReportPage({ onNavigate }: ReportPageProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
-    patientAge: "",
+    // Reportante info
+    reporterFullName: "",
+    reporterDateOfBirth: "",
+    reporterGender: "",
+    reporterProvince: "",
+    reporterMunicipality: "",
+    reporterPhoneNumber: "",
+    reporterEmail: "",
+    reporterRelationship: "",
+    
+    // Patient info
+    patientFullName: "",
+    patientIdentityNumber: "",
+    patientDateOfBirth: "",
     patientGender: "",
     patientProvince: "",
-    patientMedicalHistory: "",
+    patientMunicipality: "",
+    patientAddress: "",
+    patientPhoneNumber: "",
+    patientEmail: "",
+    patientIsPregnant: "",
+    patientAge: "",
+    //patientMedicalHistory: "",
+    
+    // Vaccine info
     vaccineName: "",
     vaccineManufacturer: "",
     vaccineBatchNumber: "",
     vaccinationDate: "",
     vaccinationSite: "",
     doseNumber: "",
+    
+    // Event info
     eventDate: "",
     eventDescription: "",
     eventSymptoms: [],
@@ -66,9 +109,13 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     eventOutcome: "",
     eventHospitalization: "",
     eventMedicalAttention: "",
+    
+    // Reporter info (final step - required)
     reporterType: "",
-    reporterName: "",
-    reporterContact: "",
+    reporterCI: "",
+    // reporterName: "",
+    // reporterPhoneNumber: "",
+    // reporterEmail: "",
   });
 
   const totalSteps = 4;
@@ -89,7 +136,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   };
 
   const stepTitles = [
-    "Información del Paciente",
+    "Datos del Sujeto Vacunado",
     "Información de la Vacuna",
     "Descripción del Evento Adverso",
     "Datos del Reportante"
@@ -128,28 +175,192 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
         <Card className="border-0 shadow-lg">
           <CardContent className="p-6 sm:p-8">
-            {/* Step 1: Patient Information */}
-            {currentStep === 1 && (
+            {/* Step 1: Reporter Information */}
+            {currentStep === 4 && (
               <div className="space-y-6">
                 <div>
-                  <CardTitle className="text-xl mb-2">Información del Paciente (Anónima)</CardTitle>
+                  <CardTitle className="text-xl mb-2">Datos del Reportante</CardTitle>
                   <CardDescription>
-                    No se requieren datos personales identificables. Proporcione información demográfica básica.
+                    Información de la persona que reporta el evento adverso.
                   </CardDescription>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="patientAge">Edad del Paciente *</Label>
+                    <Label htmlFor="reporterFullName">Nombre Completo *</Label>
                     <Input
-                      id="patientAge"
-                      type="number"
-                      placeholder="Ej: 45"
-                      value={formData.patientAge}
-                      onChange={(e) => updateFormData("patientAge", e.target.value)}
+                      id="reporterFullName"
+                      placeholder="Su nombre completo"
+                      value={formData.reporterFullName}
+                      onChange={(e) => updateFormData("reporterFullName", e.target.value)}
                       className="bg-white"
                     />
-                    <p className="text-xs text-gray-500">En años</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterDateOfBirth">Fecha de Nacimiento *</Label>
+                    <Input
+                      id="reporterDateOfBirth"
+                      type="date"
+                      value={formData.reporterDateOfBirth}
+                      onChange={(e) => updateFormData("reporterDateOfBirth", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterGender">Sexo *</Label>
+                    <Select value={formData.reporterGender} onValueChange={(value) => updateFormData("reporterGender", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="M">Masculino</SelectItem>
+                        <SelectItem value="F">Femenino</SelectItem>
+                        <SelectItem value="O">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterRelationship">Relación con el Sujeto Vacunado *</Label>
+                    <Select value={formData.reporterRelationship} onValueChange={(value) => updateFormData("reporterRelationship", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="medico">Médico</SelectItem>
+                        <SelectItem value="enfermera">Enfermero/a</SelectItem>
+                        <SelectItem value="farmaceutico">Farmacéutico/a</SelectItem>
+                        <SelectItem value="paciente">Sujeto Vacunado</SelectItem>
+                        <SelectItem value="familiar">Familiar</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterProvince">Provincia *</Label>
+                    <Select value={formData.reporterProvince} onValueChange={(value) => updateFormData("reporterProvince", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione provincia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="La Habana">La Habana</SelectItem>
+                        <SelectItem value="Artemisa">Artemisa</SelectItem>
+                        <SelectItem value="Mayabeque">Mayabeque</SelectItem>
+                        <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
+                        <SelectItem value="Matanzas">Matanzas</SelectItem>
+                        <SelectItem value="Villa Clara">Villa Clara</SelectItem>
+                        <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
+                        <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
+                        <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
+                        <SelectItem value="Camagüey">Camagüey</SelectItem>
+                        <SelectItem value="Las Tunas">Las Tunas</SelectItem>
+                        <SelectItem value="Holguín">Holguín</SelectItem>
+                        <SelectItem value="Granma">Granma</SelectItem>
+                        <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
+                        <SelectItem value="Guantánamo">Guantánamo</SelectItem>
+                        <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterMunicipality">Municipio</Label>
+                    <Input
+                      id="reporterMunicipality"
+                      placeholder="Municipio"
+                      value={formData.reporterMunicipality}
+                      onChange={(e) => updateFormData("reporterMunicipality", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterPhoneNumber">Teléfono</Label>
+                    
+                    <div className="flex">
+                      <span className="px-3 py-2 bg-gray-100 border border-r-0 rounded-l-md text-sm">
+                        +53
+                      </span>
+                      
+                      <Input
+                        id="reporterPhoneNumber"
+                        type="tel"
+                        placeholder="Teléfono"
+                        value={formData.reporterPhoneNumber}
+                        onChange={(e) => updateFormData("reporterPhoneNumber", e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reporterEmail">Email</Label>
+                    <Input
+                      id="reporterEmail"
+                      type="email"
+                      placeholder="correo@example.com"
+                      value={formData.reporterEmail}
+                      onChange={(e) => updateFormData("reporterEmail", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Patient (VaccinatedSubject) Information */}
+            {currentStep === 1 && (
+              <div className="space-y-6">
+                <div>
+                  <CardTitle className="text-xl mb-2">Información del Sujeto Vacunado</CardTitle>
+                  <CardDescription>
+                    Datos de la persona que recibió la vacuna.
+                  </CardDescription>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="patientFullName">Nombre Completo *</Label>
+                    <Input
+                      id="patientFullName"
+                      placeholder="Nombre del paciente"
+                      value={formData.patientFullName}
+                      onChange={(e) => updateFormData("patientFullName", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="patientIdentityNumber">Número de Identidad</Label>
+                    <Input
+                      id="patientIdentityNumber"
+                      placeholder="Carnet de identidad"
+                      value={formData.patientIdentityNumber}
+                      onChange={(e) => updateFormData("patientIdentityNumber", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="patientDateOfBirth">Fecha de Nacimiento *</Label>
+                    <Input
+                      id="patientDateOfBirth"
+                      type="date"
+                      value={formData.patientDateOfBirth}
+                      onChange={(e) => updateFormData("patientDateOfBirth", e.target.value)}
+                      className="bg-white"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -162,52 +373,112 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                         <SelectItem value="M">Masculino</SelectItem>
                         <SelectItem value="F">Femenino</SelectItem>
                         <SelectItem value="O">Otro</SelectItem>
-                        <SelectItem value="N">Prefiere no decir</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="patientProvince">Provincia *</Label>
-                  <Select value={formData.patientProvince} onValueChange={(value) => updateFormData("patientProvince", value)}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Seleccione provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="La Habana">La Habana</SelectItem>
-                      <SelectItem value="Artemisa">Artemisa</SelectItem>
-                      <SelectItem value="Mayabeque">Mayabeque</SelectItem>
-                      <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
-                      <SelectItem value="Matanzas">Matanzas</SelectItem>
-                      <SelectItem value="Villa Clara">Villa Clara</SelectItem>
-                      <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
-                      <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
-                      <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
-                      <SelectItem value="Camagüey">Camagüey</SelectItem>
-                      <SelectItem value="Las Tunas">Las Tunas</SelectItem>
-                      <SelectItem value="Holguín">Holguín</SelectItem>
-                      <SelectItem value="Granma">Granma</SelectItem>
-                      <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
-                      <SelectItem value="Guantánamo">Guantánamo</SelectItem>
-                      <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Embarazo - Solo si es femenino */}
+                {formData.patientGender === "F" && (
+                  <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <Label htmlFor="patientIsPregnant">¿Está embarazada? *</Label>
+                    <Select value={formData.patientIsPregnant} onValueChange={(value) => updateFormData("patientIsPregnant", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="si">Sí</SelectItem>
+                        <SelectItem value="desconocido">Desconocido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="patientProvince">Provincia *</Label>
+                    <Select value={formData.patientProvince} onValueChange={(value) => updateFormData("patientProvince", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione provincia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="La Habana">La Habana</SelectItem>
+                        <SelectItem value="Artemisa">Artemisa</SelectItem>
+                        <SelectItem value="Mayabeque">Mayabeque</SelectItem>
+                        <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
+                        <SelectItem value="Matanzas">Matanzas</SelectItem>
+                        <SelectItem value="Villa Clara">Villa Clara</SelectItem>
+                        <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
+                        <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
+                        <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
+                        <SelectItem value="Camagüey">Camagüey</SelectItem>
+                        <SelectItem value="Las Tunas">Las Tunas</SelectItem>
+                        <SelectItem value="Holguín">Holguín</SelectItem>
+                        <SelectItem value="Granma">Granma</SelectItem>
+                        <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
+                        <SelectItem value="Guantánamo">Guantánamo</SelectItem>
+                        <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="patientMunicipality">Municipio</Label>
+                    <Input
+                      id="patientMunicipality"
+                      placeholder="Municipio"
+                      value={formData.patientMunicipality}
+                      onChange={(e) => updateFormData("patientMunicipality", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientMedicalHistory">Antecedentes Médicos Relevantes</Label>
-                  <Textarea
-                    id="patientMedicalHistory"
-                    placeholder="Ej: Alergias conocidas, enfermedades crónicas, medicamentos actuales..."
-                    value={formData.patientMedicalHistory}
-                    onChange={(e) => updateFormData("patientMedicalHistory", e.target.value)}
-                    className="bg-white min-h-[100px]"
+                  <Label htmlFor="patientAddress">Dirección</Label>
+                  <Input
+                    id="patientAddress"
+                    placeholder="Dirección completa"
+                    value={formData.patientAddress}
+                    onChange={(e) => updateFormData("patientAddress", e.target.value)}
+                    className="bg-white"
                   />
-                  <p className="text-xs text-gray-500">
-                    Información médica relevante que pueda relacionarse con el evento adverso
-                  </p>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="patientPhoneNumber">Teléfono</Label>
+                    
+                     <div className="flex">
+                      <span className="px-3 py-2 bg-gray-100 border border-r-0 rounded-l-md text-sm">
+                        +53
+                      </span>
+                      <Input
+                        id="patientPhoneNumber"
+                        type="tel"
+                        placeholder="Teléfono"
+                        value={formData.patientPhoneNumber}
+                        onChange={(e) => updateFormData("patientPhoneNumber", e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="patientEmail">Email</Label>
+                    <Input
+                      id="patientEmail"
+                      type="email"
+                      placeholder="correo@example.com"
+                      value={formData.patientEmail}
+                      onChange={(e) => updateFormData("patientEmail", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+
+               
               </div>
             )}
 
@@ -457,77 +728,6 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                     className="bg-white min-h-[80px]"
                   />
                 </div>
-              </div>
-            )}
-
-            {/* Step 4: Reporter Information */}
-            {currentStep === 4 && (
-              <div className="space-y-6">
-                <div>
-                  <CardTitle className="text-xl mb-2">Datos del Reportante</CardTitle>
-                  <CardDescription>
-                    Información de contacto para seguimiento del caso (opcional pero recomendado).
-                  </CardDescription>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Tipo de Reportante *</Label>
-                  <RadioGroup value={formData.reporterType} onValueChange={(value) => updateFormData("reporterType", value)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="paciente" id="paciente" />
-                      <Label htmlFor="paciente" className="font-normal">Paciente o Familiar</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="medico" id="medico" />
-                      <Label htmlFor="medico" className="font-normal">Profesional de la Salud</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="enfermera" id="enfermera" />
-                      <Label htmlFor="enfermera" className="font-normal">Enfermero/a</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="farmaceutico" id="farmaceutico" />
-                      <Label htmlFor="farmaceutico" className="font-normal">Farmacéutico/a</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="otro" id="otro" />
-                      <Label htmlFor="otro" className="font-normal">Otro</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reporterName">Nombre Completo (Opcional)</Label>
-                  <Input
-                    id="reporterName"
-                    placeholder="Su nombre"
-                    value={formData.reporterName}
-                    onChange={(e) => updateFormData("reporterName", e.target.value)}
-                    className="bg-white"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Solo se utilizará para contacto de seguimiento si es necesario
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reporterContact">Teléfono o Email (Opcional)</Label>
-                  <Input
-                    id="reporterContact"
-                    placeholder="Teléfono o correo electrónico"
-                    value={formData.reporterContact}
-                    onChange={(e) => updateFormData("reporterContact", e.target.value)}
-                    className="bg-white"
-                  />
-                </div>
-
-                <Alert className="border-green-200 bg-green-50">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-sm text-gray-700">
-                    <strong>Casi listo:</strong> Revise la información ingresada y presione "Enviar Reporte" 
-                    para completar el proceso. Recibirá un número de confirmación.
-                  </AlertDescription>
-                </Alert>
               </div>
             )}
 
