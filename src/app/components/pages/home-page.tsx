@@ -2,6 +2,7 @@ import { Shield, FileText, Search, BarChart3, AlertTriangle, CheckCircle2 } from
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { useAuth } from "@/app/context/AuthContext";
+import { ReportLookup } from "@/app/components/report-lookup";
 
 interface HomePageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
@@ -98,6 +99,19 @@ export function HomePage({ onNavigate }: HomePageProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Report Lookup Section - For anyone */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 border-b border-gray-200">
+        <div className="mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
+            Consultar Estado de Reporte
+          </h2>
+          <p className="text-gray-600">
+            Si ya ha realizado un reporte anterior, puede consultar su estado aquí
+          </p>
+        </div>
+        <ReportLookup onNavigate={onNavigate} />
       </div>
 
       {/* About System Section */}
