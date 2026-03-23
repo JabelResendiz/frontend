@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Progress } from "@/app/components/ui/progress";
-import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield } from "lucide-react";
+import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -245,18 +245,33 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#0A4B8F" }}>
-              <Shield className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#0A4B8F" }}>
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold" style={{ color: "#0A4B8F" }}>
+                  Reporte de Evento Adverso
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Paso {currentStep} de {totalSteps}: {stepTitles[currentStep - 1]}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: "#0A4B8F" }}>
-                Reporte de Evento Adverso
-              </h1>
-              <p className="text-sm text-gray-600">
-                Paso {currentStep} de {totalSteps}: {stepTitles[currentStep - 1]}
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                toast.info("Función de importación", {
+                  description: "Selecciona un archivo JSON para importar."
+                });
+              }}
+              className="gap-2"
+            >
+              <FileJson className="w-4 h-4" />
+              Importar
+            </Button>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
