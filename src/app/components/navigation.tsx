@@ -16,6 +16,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     { id: "home", label: "Inicio", icon: Shield },
     ...(user?.role === 'doctor' ? [
       { id: "report", label: "Reportar Evento", icon: FileText },
+      { id: "assigned-reports", label: "Reportes Asignados", icon: BarChart3 },
       { id: "doctor-dashboard", label: "Mi Panel", icon: BarChart3 },
     ] : []),
     ...(user?.role === 'paciente' ? [

@@ -15,6 +15,8 @@ import { EditReportPage } from "@/app/components/pages/edit-report-page";
 import { AdminDashboard } from "@/app/components/pages/admin-dashboard";
 import { ManageDoctorsPage } from "@/app/components/pages/manage-doctors-page";
 import { SectionManagerDashboard } from "@/app/components/pages/section-manager-dashboard";
+import { AssignedReportsPage } from "@/app/components/pages/assigned-reports-page";
+import { ReviewReportPage } from "@/app/components/pages/review-report-page";
 import { Toaster } from "@/app/components/ui/sonner";
 
 function AppContent() {
@@ -42,7 +44,7 @@ function AppContent() {
 
   // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
   // Nota: "report" NO está incluido aquí porque cualquiera puede crear un reporte sin autenticarse
-  if (!isAuthenticated && (currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" || currentPage === "section-manager-dashboard")) {
+  if (!isAuthenticated && (currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" || currentPage === "section-manager-dashboard" || currentPage === "assigned-reports" || currentPage === "review-report")) {
     return <LoginPage onNavigate={handleNavigate} />;
   }
 
@@ -58,6 +60,8 @@ function AppContent() {
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
         {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'doctor' && <DoctorDashboard onNavigate={handleNavigate} />}
+        {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'doctor' && <AssignedReportsPage onNavigate={handleNavigate} />}
+        {currentPage === "review-report" && isAuthenticated && user?.role === 'doctor' && <ReviewReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'admin' && <AdminDashboard />}
         {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'responsable-seccion' && <ManageDoctorsPage onNavigate={handleNavigate} />}
         {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'responsable-seccion' && <SectionManagerDashboard />}
