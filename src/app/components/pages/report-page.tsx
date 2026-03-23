@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -86,6 +86,8 @@ type FormData = {
 export function ReportPage({ onNavigate }: ReportPageProps) {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
+  const reporterFieldsRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<FormData>({
     // Reportante info
     reporterFullName: "",
@@ -152,8 +154,74 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const progress = (currentStep / totalSteps) * 100;
 
   const updateFormData = (field: keyof FormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Handle reporter relationship changes
+      if (field === "reporterRelationship") {
+        const isChangingToPaciente = value === "paciente" && prev.reporterRelationship !== "paciente";
+        const isChangingFromPaciente = prev.reporterRelationship === "paciente" && value !== "paciente";
+        
+        if (isChangingToPaciente) {
+          // Auto-fill reporter info when changing TO "paciente"
+          if (updated.patientFullName || updated.patientDateOfBirth) {
+            updated.reporterFullName = updated.patientFullName;
+            updated.reporterDateOfBirth = updated.patientDateOfBirth;
+            updated.reporterGender = updated.patientGender;
+            updated.reporterProvince = updated.patientProvince;
+            updated.reporterMunicipality = updated.patientMunicipality;
+            updated.reporterPhoneNumber = updated.patientPhoneNumber;
+            updated.reporterEmail = updated.patientEmail;
+            
+            // Mark as auto-filled and trigger scroll
+            setIsAutoFilled(true);
+            
+            // Scroll to the reporter fields after a brief delay to allow re-render
+            setTimeout(() => {
+              reporterFieldsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+            
+            toast.success("Información auto-completada", {
+              description: "Se han llenado los datos del reportante con la información del sujeto vacunado."
+            });
+          }
+        } else if (isChangingFromPaciente) {
+          // Clear all reporter fields when changing FROM "paciente" to another role
+          updated.reporterFullName = "";
+          updated.reporterDateOfBirth = "";
+          updated.reporterGender = "";
+          updated.reporterProvince = "";
+          updated.reporterMunicipality = "";
+          updated.reporterPhoneNumber = "";
+          updated.reporterEmail = "";
+          
+          setIsAutoFilled(false);
+          
+          toast.info("Campos limpiados", {
+            description: "Por favor, completa los datos del nuevo reportante."
+          });
+        }
+        // Si cambias entre otros roles (no paciente), no hay mensaje
+      }
+      
+      // Remove highlight when user edits any reporter field
+      if (field.startsWith('reporter') && field !== 'reporterRelationship') {
+        setIsAutoFilled(false);
+      }
+      
+      return updated;
+    });
   };
+
+  // Auto-remove highlight after 3 seconds
+  useEffect(() => {
+    if (isAutoFilled) {
+      const timer = setTimeout(() => {
+        setIsAutoFilled(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAutoFilled]);
 
   const handleSubmit = () => {
     // Mock submission
@@ -205,9 +273,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
         <Card className="border-0 shadow-lg">
           <CardContent className="p-6 sm:p-8">
-            {/* Step 1: Reporter Information */}
+            {/* Step 4: Reporter Information */}
             {currentStep === 4 && (
-              <div className="space-y-6">
+              <div className="space-y-6" ref={reporterFieldsRef}>
                 <div>
                   <CardTitle className="text-xl mb-2">Datos del Reportante</CardTitle>
                   <CardDescription>
@@ -215,133 +283,172 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   </CardDescription>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterFullName">Nombre Completo *</Label>
-                    <Input
-                      id="reporterFullName"
-                      placeholder="Su nombre completo"
-                      value={formData.reporterFullName}
-                      onChange={(e) => updateFormData("reporterFullName", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterDateOfBirth">Fecha de Nacimiento *</Label>
-                    <Input
-                      id="reporterDateOfBirth"
-                      type="date"
-                      value={formData.reporterDateOfBirth}
-                      onChange={(e) => updateFormData("reporterDateOfBirth", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
+                {/* Relación con el Sujeto Vacunado - PRIMERO */}
+                <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <Label htmlFor="reporterRelationship">Relación con el Sujeto Vacunado *</Label>
+                  <Select value={formData.reporterRelationship} onValueChange={(value) => updateFormData("reporterRelationship", value)}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Seleccione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="medico">Médico</SelectItem>
+                      <SelectItem value="enfermera">Enfermero/a</SelectItem>
+                      <SelectItem value="farmaceutico">Farmacéutico/a</SelectItem>
+                      <SelectItem value="paciente">Sujeto Vacunado</SelectItem>
+                      <SelectItem value="familiar">Familiar</SelectItem>
+                      <SelectItem value="otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterGender">Sexo *</Label>
-                    <Select value={formData.reporterGender} onValueChange={(value) => updateFormData("reporterGender", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="M">Masculino</SelectItem>
-                        <SelectItem value="F">Femenino</SelectItem>
-                        <SelectItem value="O">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Alert when reporter is the same as vaccinated subject */}
+                {formData.reporterRelationship === "paciente" && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-sm text-green-800">
+                      <strong>✓ Información auto-completada y protegida:</strong> Se están usando los datos del sujeto vacunado. 
+                      Estos campos no pueden ser modificados.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterRelationship">Relación con el Sujeto Vacunado *</Label>
-                    <Select value={formData.reporterRelationship} onValueChange={(value) => updateFormData("reporterRelationship", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="medico">Médico</SelectItem>
-                        <SelectItem value="enfermera">Enfermero/a</SelectItem>
-                        <SelectItem value="farmaceutico">Farmacéutico/a</SelectItem>
-                        <SelectItem value="paciente">Sujeto Vacunado</SelectItem>
-                        <SelectItem value="familiar">Familiar</SelectItem>
-                        <SelectItem value="otro">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterProvince">Provincia *</Label>
-                    <Select value={formData.reporterProvince} onValueChange={(value) => updateFormData("reporterProvince", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione provincia" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="La Habana">La Habana</SelectItem>
-                        <SelectItem value="Artemisa">Artemisa</SelectItem>
-                        <SelectItem value="Mayabeque">Mayabeque</SelectItem>
-                        <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
-                        <SelectItem value="Matanzas">Matanzas</SelectItem>
-                        <SelectItem value="Villa Clara">Villa Clara</SelectItem>
-                        <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
-                        <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
-                        <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
-                        <SelectItem value="Camagüey">Camagüey</SelectItem>
-                        <SelectItem value="Las Tunas">Las Tunas</SelectItem>
-                        <SelectItem value="Holguín">Holguín</SelectItem>
-                        <SelectItem value="Granma">Granma</SelectItem>
-                        <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
-                        <SelectItem value="Guantánamo">Guantánamo</SelectItem>
-                        <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterMunicipality">Municipio</Label>
-                    <Input
-                      id="reporterMunicipality"
-                      placeholder="Municipio"
-                      value={formData.reporterMunicipality}
-                      onChange={(e) => updateFormData("reporterMunicipality", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterPhoneNumber">Teléfono</Label>
-                    
-                    <div className="flex">
-                      <span className="px-3 py-2 bg-gray-100 border border-r-0 rounded-l-md text-sm">
-                        +53
-                      </span>
-                      
+                <div 
+                  className={`p-4 rounded-lg transition-colors duration-300 ${
+                    isAutoFilled ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-transparent border-0'
+                  }`}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterFullName">Nombre Completo *</Label>
                       <Input
-                        id="reporterPhoneNumber"
-                        type="tel"
-                        placeholder="Teléfono"
-                        value={formData.reporterPhoneNumber}
-                        onChange={(e) => updateFormData("reporterPhoneNumber", e.target.value)}
-                        className="bg-white"
+                        id="reporterFullName"
+                        placeholder="Su nombre completo"
+                        value={formData.reporterFullName}
+                        onChange={(e) => updateFormData("reporterFullName", e.target.value)}
+                        disabled={formData.reporterRelationship === "paciente"}
+                        className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterDateOfBirth">Fecha de Nacimiento *</Label>
+                      <Input
+                        id="reporterDateOfBirth"
+                        type="date"
+                        value={formData.reporterDateOfBirth}
+                        onChange={(e) => updateFormData("reporterDateOfBirth", e.target.value)}
+                        disabled={formData.reporterRelationship === "paciente"}
+                        className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="reporterEmail">Email</Label>
-                    <Input
-                      id="reporterEmail"
-                      type="email"
-                      placeholder="correo@example.com"
-                      value={formData.reporterEmail}
-                      onChange={(e) => updateFormData("reporterEmail", e.target.value)}
-                      className="bg-white"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterGender">Sexo *</Label>
+                      <Select 
+                        value={formData.reporterGender} 
+                        onValueChange={(value) => {
+                          if (formData.reporterRelationship !== "paciente") {
+                            updateFormData("reporterGender", value);
+                          }
+                        }}
+                        disabled={formData.reporterRelationship === "paciente"}
+                      >
+                        <SelectTrigger className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}>
+                          <SelectValue placeholder="Seleccione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="M">Masculino</SelectItem>
+                          <SelectItem value="F">Femenino</SelectItem>
+                          <SelectItem value="O">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterProvince">Provincia *</Label>
+                      <Select 
+                        value={formData.reporterProvince} 
+                        onValueChange={(value) => {
+                          if (formData.reporterRelationship !== "paciente") {
+                            updateFormData("reporterProvince", value);
+                          }
+                        }}
+                        disabled={formData.reporterRelationship === "paciente"}
+                      >
+                        <SelectTrigger className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}>
+                          <SelectValue placeholder="Seleccione provincia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="La Habana">La Habana</SelectItem>
+                          <SelectItem value="Artemisa">Artemisa</SelectItem>
+                          <SelectItem value="Mayabeque">Mayabeque</SelectItem>
+                          <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
+                          <SelectItem value="Matanzas">Matanzas</SelectItem>
+                          <SelectItem value="Villa Clara">Villa Clara</SelectItem>
+                          <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
+                          <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
+                          <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
+                          <SelectItem value="Camagüey">Camagüey</SelectItem>
+                          <SelectItem value="Las Tunas">Las Tunas</SelectItem>
+                          <SelectItem value="Holguín">Holguín</SelectItem>
+                          <SelectItem value="Granma">Granma</SelectItem>
+                          <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
+                          <SelectItem value="Guantánamo">Guantánamo</SelectItem>
+                          <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterMunicipality">Municipio</Label>
+                      <Input
+                        id="reporterMunicipality"
+                        placeholder="Municipio"
+                        value={formData.reporterMunicipality}
+                        onChange={(e) => updateFormData("reporterMunicipality", e.target.value)}
+                        disabled={formData.reporterRelationship === "paciente"}
+                        className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterPhoneNumber">Teléfono</Label>
+                      
+                      <div className="flex">
+                        <span className={`px-3 py-2 border border-r-0 rounded-l-md text-sm ${formData.reporterRelationship === "paciente" ? 'bg-gray-100' : 'bg-gray-100'}`}>
+                          +53
+                        </span>
+                        
+                        <Input
+                          id="reporterPhoneNumber"
+                          type="tel"
+                          placeholder="Teléfono"
+                          value={formData.reporterPhoneNumber}
+                          onChange={(e) => updateFormData("reporterPhoneNumber", e.target.value)}
+                          disabled={formData.reporterRelationship === "paciente"}
+                          className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reporterEmail">Email</Label>
+                      <Input
+                        id="reporterEmail"
+                        type="email"
+                        placeholder="correo@example.com"
+                        value={formData.reporterEmail}
+                        onChange={(e) => updateFormData("reporterEmail", e.target.value)}
+                        disabled={formData.reporterRelationship === "paciente"}
+                        className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
