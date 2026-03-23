@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Progress } from "@/app/components/ui/progress";
 import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/app/context/AuthContext";
 
 interface ReportPageProps {
   onNavigate: (page: string) => void;
@@ -67,6 +68,7 @@ type FormData = {
 };
 
 export function ReportPage({ onNavigate }: ReportPageProps) {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
     // Reportante info
@@ -512,29 +514,34 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="vaccineManufacturer">Fabricante *</Label>
-                    <Input
-                      id="vaccineManufacturer"
-                      placeholder="Ej: Instituto Finlay"
-                      value={formData.vaccineManufacturer}
-                      onChange={(e) => updateFormData("vaccineManufacturer", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
+                {/* Campos de vacuna solo para médicos especialistas */}
+                {(user?.role === 'doctor' || user?.role === 'admin') && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="vaccineManufacturer">Fabricante *</Label>
+                        <Input
+                          id="vaccineManufacturer"
+                          placeholder="Ej: Instituto Finlay"
+                          value={formData.vaccineManufacturer}
+                          onChange={(e) => updateFormData("vaccineManufacturer", e.target.value)}
+                          className="bg-white"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="vaccineBatchNumber">Número de Lote *</Label>
-                    <Input
-                      id="vaccineBatchNumber"
-                      placeholder="Ej: L-2024-001"
-                      value={formData.vaccineBatchNumber}
-                      onChange={(e) => updateFormData("vaccineBatchNumber", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="vaccineBatchNumber">Número de Lote *</Label>
+                        <Input
+                          id="vaccineBatchNumber"
+                          placeholder="Ej: L-2024-001"
+                          value={formData.vaccineBatchNumber}
+                          onChange={(e) => updateFormData("vaccineBatchNumber", e.target.value)}
+                          className="bg-white"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -548,33 +555,53 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="doseNumber">Número de Dosis *</Label>
-                    <Select value={formData.doseNumber} onValueChange={(value) => updateFormData("doseNumber", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Primera dosis</SelectItem>
-                        <SelectItem value="2">Segunda dosis</SelectItem>
-                        <SelectItem value="3">Tercera dosis</SelectItem>
-                        <SelectItem value="refuerzo">Dosis de refuerzo</SelectItem>
-                        <SelectItem value="unica">Dosis única</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {/* Número de Dosis solo para médicos especialistas */}
+                  {(user?.role === 'doctor' || user?.role === 'admin') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="doseNumber">Número de Dosis *</Label>
+                      <Select value={formData.doseNumber} onValueChange={(value) => updateFormData("doseNumber", value)}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Seleccione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Primera dosis</SelectItem>
+                          <SelectItem value="2">Segunda dosis</SelectItem>
+                          <SelectItem value="3">Tercera dosis</SelectItem>
+                          <SelectItem value="refuerzo">Dosis de refuerzo</SelectItem>
+                          <SelectItem value="unica">Dosis única</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Para reportantes: mostrar sitio de vacunación en su lugar */}
+                  {!(user?.role === 'doctor' || user?.role === 'admin') && (
+                    <div className="space-y-2">
+                      <Label htmlFor="vaccinationSite">Sitio de Vacunación *</Label>
+                      <Input
+                        id="vaccinationSite"
+                        placeholder="Ej: Policlínico Vedado, La Habana"
+                        value={formData.vaccinationSite}
+                        onChange={(e) => updateFormData("vaccinationSite", e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="vaccinationSite">Sitio de Vacunación *</Label>
-                  <Input
-                    id="vaccinationSite"
-                    placeholder="Ej: Policlínico Vedado, La Habana"
-                    value={formData.vaccinationSite}
-                    onChange={(e) => updateFormData("vaccinationSite", e.target.value)}
-                    className="bg-white"
-                  />
-                </div>
+                {/* Sitio de Vacunación para médicos */}
+                {(user?.role === 'doctor' || user?.role === 'admin') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="vaccinationSite">Sitio de Vacunación *</Label>
+                    <Input
+                      id="vaccinationSite"
+                      placeholder="Ej: Policlínico Vedado, La Habana"
+                      value={formData.vaccinationSite}
+                      onChange={(e) => updateFormData("vaccinationSite", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
