@@ -50,14 +50,30 @@ type FormData = {
   vaccinationSite: string;
   doseNumber: string;
   
-  // Event info
+  // Event info - General
   eventDate: string;
+  eventTime: string;
   eventDescription: string;
   eventSymptoms: string[];
-  eventSeverity: string;
   eventOutcome: string;
   eventHospitalization: string;
   eventMedicalAttention: string;
+  
+  // Event info - Reportante specific
+  eventSeverity: string;
+  patientMedicalHistory: string;
+  currentMedications: string;
+  allergies: string;
+  otherVaccinesLastMonth: string;
+  
+  // Event info - Doctor specific
+  professionalDiagnosis: string;
+  medicalTerminology: string;
+  retClassification: string;
+  laboratoryResults: string;
+  clinicalSignificance: string;
+  vaccinationFacilityType: string;
+  contraindicationCriterion: string;
   
   // Reporter info (final step - required)
   reporterType: string;
@@ -105,12 +121,24 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     
     // Event info
     eventDate: "",
+    eventTime: "",
     eventDescription: "",
     eventSymptoms: [],
-    eventSeverity: "",
     eventOutcome: "",
     eventHospitalization: "",
     eventMedicalAttention: "",
+    eventSeverity: "",
+    patientMedicalHistory: "",
+    currentMedications: "",
+    allergies: "",
+    otherVaccinesLastMonth: "",
+    professionalDiagnosis: "",
+    medicalTerminology: "",
+    retClassification: "",
+    laboratoryResults: "",
+    clinicalSignificance: "",
+    vaccinationFacilityType: "",
+    contraindicationCriterion: "",
     
     // Reporter info (final step - required)
     reporterType: "",
@@ -605,32 +633,43 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
               </div>
             )}
 
-            {/* Step 3: Event Description */}
-            {currentStep === 3 && (
+            {/* Step 3: Event Description - REPORTANTE VERSION */}
+            {currentStep === 3 && !(user?.role === 'doctor' || user?.role === 'admin') && (
               <div className="space-y-6">
                 <div>
                   <CardTitle className="text-xl mb-2">Descripción del Evento Adverso</CardTitle>
                   <CardDescription>
-                    Describa detalladamente el evento adverso experimentado después de la vacunación.
+                    Describa con detalle lo que sintió y cómo evolucionó después de la vacunación. Use sus propias palabras.
                   </CardDescription>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="eventDate">Fecha de Inicio del Evento *</Label>
-                  <Input
-                    id="eventDate"
-                    type="date"
-                    value={formData.eventDate}
-                    onChange={(e) => updateFormData("eventDate", e.target.value)}
-                    className="bg-white"
-                  />
-                  <p className="text-xs text-gray-500">
-                    ¿Cuándo comenzaron los síntomas?
-                  </p>
+                {/* Fecha y Hora del Evento */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="eventDate">Fecha de Inicio del Síntoma *</Label>
+                    <Input
+                      id="eventDate"
+                      type="date"
+                      value={formData.eventDate}
+                      onChange={(e: any) => updateFormData("eventDate", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="eventTime">Hora del Síntoma *</Label>
+                    <Input
+                      id="eventTime"
+                      type="time"
+                      value={formData.eventTime}
+                      onChange={(e: any) => updateFormData("eventTime", e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
                 </div>
 
+                {/* Síntomas */}
                 <div className="space-y-2">
-                  <Label>Síntomas Presentados *</Label>
+                  <Label>¿Qué síntomas presentó? *</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
                     {[
                       "Dolor en el sitio de inyección",
@@ -650,7 +689,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                         <Checkbox
                           id={symptom}
                           checked={formData.eventSymptoms.includes(symptom)}
-                          onCheckedChange={(checked) => {
+                          onCheckedChange={(checked: any) => {
                             if (checked) {
                               updateFormData("eventSymptoms", [...formData.eventSymptoms, symptom]);
                             } else {
@@ -669,91 +708,420 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   </div>
                 </div>
 
+                {/* Descripción Narrativa */}
                 <div className="space-y-2">
-                  <Label htmlFor="eventDescription">Descripción Detallada del Evento *</Label>
+                  <Label htmlFor="eventDescription">Cuéntenos en detalle qué ocurrió *</Label>
                   <Textarea
                     id="eventDescription"
-                    placeholder="Describa cómo se desarrolló el evento, duración de síntomas, evolución, etc."
+                    placeholder="Describa cómo empezaron los síntomas, cuánto tiempo duraron, cómo se sintió, qué hizo para mejorarse, si necesitó ir al médico, etc."
                     value={formData.eventDescription}
-                    onChange={(e) => updateFormData("eventDescription", e.target.value)}
-                    className="bg-white min-h-[120px]"
+                    onChange={(e: any) => updateFormData("eventDescription", e.target.value)}
+                    className="bg-white min-h-[140px]"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Severidad del Evento *</Label>
-                  <RadioGroup value={formData.eventSeverity} onValueChange={(value) => updateFormData("eventSeverity", value)}>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
-                      <RadioGroupItem value="leve" id="leve" />
-                      <label htmlFor="leve" className="flex-1 cursor-pointer">
-                        <div className="font-medium text-green-700">Leve</div>
-                        <div className="text-xs text-gray-600">
-                          Síntomas menores, sin afectación de actividades diarias
-                        </div>
+                {/* Impacto Objetivo */}
+                <div className="space-y-3">
+                  <Label>¿Cuál fue el impacto de este evento? *</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <Checkbox
+                        id="visited-doctor"
+                        checked={formData.eventHospitalization.includes('doctor')}
+                        onCheckedChange={(checked: any) => {
+                          let value = formData.eventHospitalization;
+                          if (checked) {
+                            value = value ? value + ',doctor' : 'doctor';
+                          } else {
+                            value = value.replace(',doctor', '').replace('doctor', '');
+                          }
+                          updateFormData("eventHospitalization", value);
+                        }}
+                      />
+                      <label htmlFor="visited-doctor" className="flex-1 cursor-pointer">
+                        ¿Tuvo que visitar al médico o clínica?
                       </label>
                     </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
-                      <RadioGroupItem value="moderado" id="moderado" />
-                      <label htmlFor="moderado" className="flex-1 cursor-pointer">
-                        <div className="font-medium text-yellow-700">Moderado</div>
-                        <div className="text-xs text-gray-600">
-                          Afectación de actividades diarias, requiere atención médica
-                        </div>
+
+                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <Checkbox
+                        id="emergency"
+                        checked={formData.eventHospitalization.includes('emergency')}
+                        onCheckedChange={(checked: any) => {
+                          let value = formData.eventHospitalization;
+                          if (checked) {
+                            value = value ? value + ',emergency' : 'emergency';
+                          } else {
+                            value = value.replace(',emergency', '').replace('emergency', '');
+                          }
+                          updateFormData("eventHospitalization", value);
+                        }}
+                      />
+                      <label htmlFor="emergency" className="flex-1 cursor-pointer">
+                        ¿Fue a la sala de emergencias?
                       </label>
                     </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
-                      <RadioGroupItem value="severo" id="severo" />
-                      <label htmlFor="severo" className="flex-1 cursor-pointer">
-                        <div className="font-medium text-red-700">Severo</div>
-                        <div className="text-xs text-gray-600">
-                          Requiere hospitalización o amenaza la vida
-                        </div>
+
+                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <Checkbox
+                        id="hospitalized"
+                        checked={formData.eventHospitalization.includes('hospitalized')}
+                        onCheckedChange={(checked: any) => {
+                          let value = formData.eventHospitalization;
+                          if (checked) {
+                            value = value ? value + ',hospitalized' : 'hospitalized';
+                          } else {
+                            value = value.replace(',hospitalized', '').replace('hospitalized', '');
+                          }
+                          updateFormData("eventHospitalization", value);
+                        }}
+                      />
+                      <label htmlFor="hospitalized" className="flex-1 cursor-pointer">
+                        ¿Fue hospitalizado?
                       </label>
                     </div>
-                  </RadioGroup>
+
+                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <Checkbox
+                        id="permanent-disability"
+                        checked={formData.eventHospitalization.includes('disability')}
+                        onCheckedChange={(checked: any) => {
+                          let value = formData.eventHospitalization;
+                          if (checked) {
+                            value = value ? value + ',disability' : 'disability';
+                          } else {
+                            value = value.replace(',disability', '').replace('disability', '');
+                          }
+                          updateFormData("eventHospitalization", value);
+                        }}
+                      />
+                      <label htmlFor="permanent-disability" className="flex-1 cursor-pointer">
+                        ¿Ha quedado con una discapacidad o limitación permanente?
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="eventHospitalization">¿Requirió Hospitalización? *</Label>
-                    <Select value={formData.eventHospitalization} onValueChange={(value) => updateFormData("eventHospitalization", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="si">Sí</SelectItem>
-                        <SelectItem value="urgencias">Solo urgencias</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="eventOutcome">Estado Actual *</Label>
-                    <Select value={formData.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recuperado">Totalmente recuperado</SelectItem>
-                        <SelectItem value="recuperando">En recuperación</SelectItem>
-                        <SelectItem value="secuelas">Recuperado con secuelas</SelectItem>
-                        <SelectItem value="sin_cambio">Sin cambio</SelectItem>
-                        <SelectItem value="desconocido">Desconocido</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Estado Actual */}
+                <div className="space-y-2">
+                  <Label htmlFor="eventOutcome">Estado Actual *</Label>
+                  <Select value={formData.eventOutcome} onValueChange={(value: any) => updateFormData("eventOutcome", value)}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Seleccione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recovered">Totalmente recuperado/a</SelectItem>
+                      <SelectItem value="recovering">Aún estoy recuperándome</SelectItem>
+                      <SelectItem value="sequelae">Recuperado/a pero con secuelas</SelectItem>
+                      <SelectItem value="unchanged">Sin cambios</SelectItem>
+                      <SelectItem value="unknown">Desconocido</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
+                {/* Antecedentes de Salud */}
                 <div className="space-y-2">
-                  <Label htmlFor="eventMedicalAttention">Tratamiento Recibido</Label>
+                  <Label htmlFor="patientMedicalHistory">Problemas de salud que tenía antes de la vacuna</Label>
                   <Textarea
-                    id="eventMedicalAttention"
-                    placeholder="Describa el tratamiento médico recibido, medicamentos administrados, etc."
-                    value={formData.eventMedicalAttention}
-                    onChange={(e) => updateFormData("eventMedicalAttention", e.target.value)}
+                    id="patientMedicalHistory"
+                    placeholder="Ej: diabetes, presión alta, asma, otras enfermedades..."
+                    value={formData.patientMedicalHistory}
+                    onChange={(e: any) => updateFormData("patientMedicalHistory", e.target.value)}
                     className="bg-white min-h-[80px]"
                   />
+                </div>
+
+                {/* Medicamentos Actuales */}
+                <div className="space-y-2">
+                  <Label htmlFor="currentMedications">¿Toma medicamentos regularmente? (Especifique cuáles)</Label>
+                  <Textarea
+                    id="currentMedications"
+                    placeholder="Ej: insulina, aspirina, antibióticos, etc..."
+                    value={formData.currentMedications}
+                    onChange={(e: any) => updateFormData("currentMedications", e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                </div>
+
+                {/* Alergias */}
+                <div className="space-y-2">
+                  <Label htmlFor="allergies">¿Tiene alergias conocidas? (Especifique a qué)</Label>
+                  <Textarea
+                    id="allergies"
+                    placeholder="Ej: penicilina, mariscos, látex, etc..."
+                    value={formData.allergies}
+                    onChange={(e: any) => updateFormData("allergies", e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                </div>
+
+                {/* Otras Vacunas */}
+                <div className="space-y-2">
+                  <Label htmlFor="otherVaccinesLastMonth">¿Recibió otras vacunas en el mes anterior a esta?</Label>
+                  <Textarea
+                    id="otherVaccinesLastMonth"
+                    placeholder="Especifique qué vacunas y cuándo las recibió..."
+                    value={formData.otherVaccinesLastMonth}
+                    onChange={(e: any) => updateFormData("otherVaccinesLastMonth", e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                </div>
+
+                {/* Tratamiento Recibido */}
+                <div className="space-y-2">
+                  <Label htmlFor="eventMedicalAttention">¿Qué tratamiento recibió?</Label>
+                  <Textarea
+                    id="eventMedicalAttention"
+                    placeholder="Describa si tomó medicinas, fue al médico, qué le recetaron, etc."
+                    value={formData.eventMedicalAttention}
+                    onChange={(e: any) => updateFormData("eventMedicalAttention", e.target.value)}
+                    className="bg-white min-h-[80px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Event Description - DOCTOR VERSION */}
+            {currentStep === 3 && (user?.role === 'doctor' || user?.role === 'admin') && (
+              <div className="space-y-6">
+                <div>
+                  <CardTitle className="text-xl mb-2">Crear Reporte del Evento Adverso</CardTitle>
+                  <CardDescription>
+                    Complete el reporte basado en su evaluación clínica del paciente en el consultorio.
+                  </CardDescription>
+                </div>
+
+                {/* SECCIÓN 1: INFORMACIÓN DEL EVENTO - EVALUACIÓN DEL MÉDICO */}
+                <div className="border-l-4 border-blue-500 bg-blue-50 p-4 rounded">
+                  <h3 className="font-semibold text-blue-900 mb-4">📋 Información del Evento Adverso</h3>
+
+                  {/* Fecha y Hora del Evento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="eventDate">Fecha de Inicio del Evento *</Label>
+                      <Input
+                        id="eventDate"
+                        type="date"
+                        value={formData.eventDate}
+                        onChange={(e: any) => updateFormData("eventDate", e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="eventTime">Hora de Inicio del Evento *</Label>
+                      <Input
+                        id="eventTime"
+                        type="time"
+                        value={formData.eventTime}
+                        onChange={(e: any) => updateFormData("eventTime", e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Síntomas Observados */}
+                  <div className="space-y-2 mb-4">
+                    <Label>Síntomas Observados en el Paciente *</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white rounded-lg border">
+                      {[
+                        "Dolor en el sitio de inyección",
+                        "Fiebre",
+                        "Fatiga",
+                        "Dolor de cabeza",
+                        "Náuseas/Vómitos",
+                        "Dolor muscular",
+                        "Escalofríos",
+                        "Hinchazón en sitio de inyección",
+                        "Mareos",
+                        "Reacción alérgica",
+                        "Dificultad respiratoria",
+                        "Otros"
+                      ].map((symptom) => (
+                        <div key={symptom} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`symptom-${symptom}`}
+                            checked={formData.eventSymptoms.includes(symptom)}
+                            onCheckedChange={(checked: any) => {
+                              if (checked) {
+                                updateFormData("eventSymptoms", [...formData.eventSymptoms, symptom]);
+                              } else {
+                                updateFormData("eventSymptoms", formData.eventSymptoms.filter(s => s !== symptom));
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`symptom-${symptom}`}
+                            className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {symptom}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Descripción Clínica */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="eventDescription">Descripción Clínica del Evento *</Label>
+                    <Textarea
+                      id="eventDescription"
+                      placeholder="Describa en detalle el evento: cómo comenzó, evolución, duración, síntomas observados, presentación clínica, etc."
+                      value={formData.eventDescription}
+                      onChange={(e: any) => updateFormData("eventDescription", e.target.value)}
+                      className="bg-white min-h-[120px]"
+                    />
+                  </div>
+                </div>
+
+                {/* SECCIÓN 2: EVALUACIÓN CLÍNICA Y DIAGNÓSTICO */}
+                <div className="border-l-4 border-green-500 bg-green-50 p-4 rounded">
+                  <h3 className="font-semibold text-green-900 mb-4">🏥 Evaluación Clínica y Diagnóstico</h3>
+
+                  {/* Diagnóstico Profesional */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="professionalDiagnosis">Diagnóstico Clínico Profesional *</Label>
+                    <Textarea
+                      id="professionalDiagnosis"
+                      placeholder="Diagnóstico basado en síntomas, antecedentes clínicos, hallazgos del examen físico y evaluación profesional..."
+                      value={formData.professionalDiagnosis}
+                      onChange={(e: any) => updateFormData("professionalDiagnosis", e.target.value)}
+                      className="bg-white min-h-[100px]"
+                    />
+                  </div>
+
+                  {/* Terminología Médica Estándar */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="medicalTerminology">Terminología Médica Estándar (MedDRA) *</Label>
+                    <Textarea
+                      id="medicalTerminology"
+                      placeholder="Expresar el evento en términos médicos estándar usados en farmacovigilancia (ej: 'Anafilaxia', 'Síncope vasovagal', etc.)..."
+                      value={formData.medicalTerminology}
+                      onChange={(e: any) => updateFormData("medicalTerminology", e.target.value)}
+                      className="bg-white min-h-[80px]"
+                    />
+                  </div>
+
+                  {/* Pruebas de Laboratorio */}
+                  <div className="space-y-2">
+                    <Label htmlFor="laboratoryResults">Resultados de Laboratorio y Pruebas Diagnósticas</Label>
+                    <Textarea
+                      id="laboratoryResults"
+                      placeholder="ECG, análisis de sangre, resonancia, biopsias, cultivos, etc. Incluya valores anormales relevantes..."
+                      value={formData.laboratoryResults}
+                      onChange={(e: any) => updateFormData("laboratoryResults", e.target.value)}
+                      className="bg-white min-h-[100px]"
+                    />
+                  </div>
+                </div>
+
+                {/* SECCIÓN 3: CLASIFICACIÓN RET Y ANÁLISIS TÉCNICO */}
+                <div className="border-l-4 border-purple-500 bg-purple-50 p-4 rounded">
+                  <h3 className="font-semibold text-purple-900 mb-4">📊 Clasificación RET y Análisis Técnico</h3>
+
+                  {/* Clasificación RET */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="retClassification">Clasificación RET (Tabla de Eventos Reportables) *</Label>
+                    <Select value={formData.retClassification} onValueChange={(value: any) => updateFormData("retClassification", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione clasificación RET" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="anafilaxis">Anafilaxia</SelectItem>
+                        <SelectItem value="miopericarditis">Miopericarditis o miocarditis</SelectItem>
+                        <SelectItem value="trombosis">Trombosis con síndrome de trombocitopenia</SelectItem>
+                        <SelectItem value="sindrome-guillain">Síndrome de Guillain-Barré</SelectItem>
+                        <SelectItem value="paralisis-bell">Parálisis de Bell</SelectItem>
+                        <SelectItem value="sincope">Síncope vasovagal</SelectItem>
+                        <SelectItem value="encefalopatia">Encefalopatía</SelectItem>
+                        <SelectItem value="convulsiones">Convulsiones/Episodios convulsivos</SelectItem>
+                        <SelectItem value="miocarditis">Miocarditis aguda</SelectItem>
+                        <SelectItem value="no-clasificado">No clasificado en RET</SelectItem>
+                        <SelectItem value="otro">Otro (especifique)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Significancia Clínica */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="clinicalSignificance">Evaluación de Significancia Clínica *</Label>
+                    <Select value={formData.clinicalSignificance} onValueChange={(value: any) => updateFormData("clinicalSignificance", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="clinically-significant">Clínicamente significativo e inesperado</SelectItem>
+                        <SelectItem value="expected">Evento esperado según prospecto</SelectItem>
+                        <SelectItem value="significant-unexpected">Significativo pero no en prospecto</SelectItem>
+                        <SelectItem value="minor">Evento menor</SelectItem>
+                        <SelectItem value="serious">Evento serio/potencialmente mortal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Pruebas de Laboratorio */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="laboratoryResults">Resultados de Laboratorio y Pruebas Diagnósticas</Label>
+                    <Textarea
+                      id="laboratoryResults"
+                      placeholder="ECG, análisis de sangre, resonancia, biopsias, cultivos, etc. Incluya valores anormales relevantes..."
+                      value={formData.laboratoryResults}
+                      onChange={(e: any) => updateFormData("laboratoryResults", e.target.value)}
+                      className="bg-white min-h-[100px]"
+                    />
+                  </div>
+                </div>
+
+                {/* SECCIÓN 4: INFORMACIÓN ADICIONAL */}
+                <div className="border-l-4 border-orange-500 bg-orange-50 p-4 rounded">
+                  <h3 className="font-semibold text-orange-900 mb-4">📝 Información Adicional</h3>
+
+                  {/* Tipo de Instalación */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="vaccinationFacilityType">Tipo de Centro de Vacunación *</Label>
+                    <Select value={formData.vaccinationFacilityType} onValueChange={(value: any) => updateFormData("vaccinationFacilityType", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hospital">Hospital</SelectItem>
+                        <SelectItem value="polyclinic">Policlínico/Centro de salud</SelectItem>
+                        <SelectItem value="private-clinic">Clínica privada</SelectItem>
+                        <SelectItem value="pharmacy">Farmacia</SelectItem>
+                        <SelectItem value="office">Consultorio privado</SelectItem>
+                        <SelectItem value="mobile-unit">Unidad móvil</SelectItem>
+                        <SelectItem value="unknown">Desconocido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Contraindicación */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="contraindicationCriterion">¿Constituye Contraindicación para Próximas Dosis?</Label>
+                    <Textarea
+                      id="contraindicationCriterion"
+                      placeholder="¿Este evento constituye una contraindicación según el prospecto del fabricante para administrar dosis futuras? Especifique..."
+                      value={formData.contraindicationCriterion}
+                      onChange={(e: any) => updateFormData("contraindicationCriterion", e.target.value)}
+                      className="bg-white min-h-[80px]"
+                    />
+                  </div>
+
+                  {/* Desenlace */}
+                  <div className="space-y-2">
+                    <Label htmlFor="eventOutcome">Desenlace del Evento al Momento del Reporte *</Label>
+                    <Select value={formData.eventOutcome} onValueChange={(value: any) => updateFormData("eventOutcome", value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="recovered">Recuperado sin secuelas</SelectItem>
+                        <SelectItem value="recovering">En recuperación</SelectItem>
+                        <SelectItem value="sequelae">Recuperado con secuelas</SelectItem>
+                        <SelectItem value="fatal">Fatal/Defunción</SelectItem>
+                        <SelectItem value="unknown">Desconocido/Pendiente de seguimiento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             )}
