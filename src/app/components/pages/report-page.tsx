@@ -12,6 +12,7 @@ import { Progress } from "@/app/components/ui/progress";
 import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/context/AuthContext";
+import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
 
 interface ReportPageProps {
   onNavigate: (page: string) => void;
@@ -390,6 +391,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                         onValueChange={(value) => {
                           if (formData.reporterRelationship !== "paciente") {
                             updateFormData("reporterProvince", value);
+                            // Reset municipio when province changes
+                            updateFormData("reporterMunicipality", "");
                           }
                         }}
                         disabled={formData.reporterRelationship === "paciente"}
@@ -398,36 +401,33 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                           <SelectValue placeholder="Seleccione provincia" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="La Habana">La Habana</SelectItem>
-                          <SelectItem value="Artemisa">Artemisa</SelectItem>
-                          <SelectItem value="Mayabeque">Mayabeque</SelectItem>
-                          <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
-                          <SelectItem value="Matanzas">Matanzas</SelectItem>
-                          <SelectItem value="Villa Clara">Villa Clara</SelectItem>
-                          <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
-                          <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
-                          <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
-                          <SelectItem value="Camagüey">Camagüey</SelectItem>
-                          <SelectItem value="Las Tunas">Las Tunas</SelectItem>
-                          <SelectItem value="Holguín">Holguín</SelectItem>
-                          <SelectItem value="Granma">Granma</SelectItem>
-                          <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
-                          <SelectItem value="Guantánamo">Guantánamo</SelectItem>
-                          <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
+                          {Object.keys(PROVINCES_AND_MUNICIPALITIES).sort().map((province) => (
+                            <SelectItem key={province} value={province}>{province}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reporterMunicipality">Municipio</Label>
-                      <Input
-                        id="reporterMunicipality"
-                        placeholder="Municipio"
+                      <Label htmlFor="reporterMunicipality">Municipio *</Label>
+                      <Select
                         value={formData.reporterMunicipality}
-                        onChange={(e) => updateFormData("reporterMunicipality", e.target.value)}
-                        disabled={formData.reporterRelationship === "paciente"}
-                        className={`bg-white ${formData.reporterRelationship === "paciente" ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}
-                      />
+                        onValueChange={(value) => {
+                          if (formData.reporterRelationship !== "paciente") {
+                            updateFormData("reporterMunicipality", value);
+                          }
+                        }}
+                        disabled={formData.reporterRelationship === "paciente" || !formData.reporterProvince}
+                      >
+                        <SelectTrigger className={`bg-white ${formData.reporterRelationship === "paciente" || !formData.reporterProvince ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}>
+                          <SelectValue placeholder={formData.reporterProvince ? "Seleccione municipio" : "Seleccione provincia primero"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.reporterProvince && getMunicipalitiesByProvince(formData.reporterProvince).map((municipality) => (
+                            <SelectItem key={municipality} value={municipality}>{municipality}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -550,40 +550,38 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="patientProvince">Provincia *</Label>
-                    <Select value={formData.patientProvince} onValueChange={(value) => updateFormData("patientProvince", value)}>
+                    <Select value={formData.patientProvince} onValueChange={(value) => {
+                      updateFormData("patientProvince", value);
+                      // Reset municipio when province changes
+                      updateFormData("patientMunicipality", "");
+                    }}>
                       <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleccione provincia" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="La Habana">La Habana</SelectItem>
-                        <SelectItem value="Artemisa">Artemisa</SelectItem>
-                        <SelectItem value="Mayabeque">Mayabeque</SelectItem>
-                        <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
-                        <SelectItem value="Matanzas">Matanzas</SelectItem>
-                        <SelectItem value="Villa Clara">Villa Clara</SelectItem>
-                        <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
-                        <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
-                        <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
-                        <SelectItem value="Camagüey">Camagüey</SelectItem>
-                        <SelectItem value="Las Tunas">Las Tunas</SelectItem>
-                        <SelectItem value="Holguín">Holguín</SelectItem>
-                        <SelectItem value="Granma">Granma</SelectItem>
-                        <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
-                        <SelectItem value="Guantánamo">Guantánamo</SelectItem>
-                        <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
+                        {Object.keys(PROVINCES_AND_MUNICIPALITIES).sort().map((province) => (
+                          <SelectItem key={province} value={province}>{province}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="patientMunicipality">Municipio</Label>
-                    <Input
-                      id="patientMunicipality"
-                      placeholder="Municipio"
+                    <Label htmlFor="patientMunicipality">Municipio *</Label>
+                    <Select
                       value={formData.patientMunicipality}
-                      onChange={(e) => updateFormData("patientMunicipality", e.target.value)}
-                      className="bg-white"
-                    />
+                      onValueChange={(value) => updateFormData("patientMunicipality", value)}
+                      disabled={!formData.patientProvince}
+                    >
+                      <SelectTrigger className={`bg-white ${!formData.patientProvince ? 'bg-gray-100 opacity-60 cursor-not-allowed' : ''}`}>
+                        <SelectValue placeholder={formData.patientProvince ? "Seleccione municipio" : "Seleccione provincia primero"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.patientProvince && getMunicipalitiesByProvince(formData.patientProvince).map((municipality) => (
+                          <SelectItem key={municipality} value={municipality}>{municipality}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
