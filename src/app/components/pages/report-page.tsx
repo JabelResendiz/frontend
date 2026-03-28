@@ -533,7 +533,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                 {/* Embarazo - Solo si es femenino */}
                 {formData.patientGender === "F" && (
                   <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                    <Label htmlFor="patientIsPregnant">¿Está embarazada? *</Label>
+                    <Label htmlFor="patientIsPregnant">¿Estaba la paciente embarazada en el momento de la vacunación? *</Label>
                     <Select value={formData.patientIsPregnant} onValueChange={(value) => updateFormData("patientIsPregnant", value)}>
                       <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleccione" />
@@ -975,29 +975,6 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   />
                 </div>
 
-                {/* Otras Vacunas */}
-                <div className="space-y-2">
-                  <Label htmlFor="otherVaccinesLastMonth">¿Recibió otras vacunas en el mes anterior a esta?</Label>
-                  <Textarea
-                    id="otherVaccinesLastMonth"
-                    placeholder="Especifique qué vacunas y cuándo las recibió..."
-                    value={formData.otherVaccinesLastMonth}
-                    onChange={(e: any) => updateFormData("otherVaccinesLastMonth", e.target.value)}
-                    className="bg-white min-h-[80px]"
-                  />
-                </div>
-
-                {/* Tratamiento Recibido */}
-                <div className="space-y-2">
-                  <Label htmlFor="eventMedicalAttention">¿Qué tratamiento recibió?</Label>
-                  <Textarea
-                    id="eventMedicalAttention"
-                    placeholder="Describa si tomó medicinas, fue al médico, qué le recetaron, etc."
-                    value={formData.eventMedicalAttention}
-                    onChange={(e: any) => updateFormData("eventMedicalAttention", e.target.value)}
-                    className="bg-white min-h-[80px]"
-                  />
-                </div>
               </div>
             )}
 
