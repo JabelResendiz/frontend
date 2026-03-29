@@ -78,6 +78,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const reporterFieldsRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
 
   const totalSteps = 4;
   const progress = (currentStep / totalSteps) * 100;
@@ -140,9 +141,232 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     }
   }, [isAutoFilled]);
 
+  // Validación dinámica de fechas en tiempo real
+  const validateDatesDynamic = (data: FormData): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Validar fecha de nacimiento del paciente
+    if (data.patientDateOfBirth) {
+      const patientBirthDate = new Date(data.patientDateOfBirth);
+      patientBirthDate.setHours(0, 0, 0, 0);
+
+      if (patientBirthDate > today) {
+        errors.patientDateOfBirth = "La fecha de nacimiento no puede ser en el futuro";
+      }
+
+      // Validar contra evento si existe
+      if (data.eventDate) {
+        const eventDateObj = new Date(data.eventDate);
+        eventDateObj.setHours(0, 0, 0, 0);
+        if (patientBirthDate >= eventDateObj) {
+          errors.patientDateOfBirth = "Debe ser anterior a la fecha del evento adverso";
+        }
+      }
+
+      // Validar contra vacunaciones
+      for (let i = 0; i < data.vaccinations.length; i++) {
+        if (data.vaccinations[i].vaccinationDate) {
+          const vaccinationDate = new Date(data.vaccinations[i].vaccinationDate);
+          vaccinationDate.setHours(0, 0, 0, 0);
+          if (patientBirthDate >= vaccinationDate) {
+            errors[`vaccination_${i}_date`] = "La vacunación debe ser posterior al nacimiento";
+            break;
+          }
+        }
+      }
+    }
+
+    // Validar fechas de vacunación
+    for (let i = 0; i < data.vaccinations.length; i++) {
+      const vaccination = data.vaccinations[i];
+
+      if (vaccination.vaccinationDate) {
+        const vaccinationDate = new Date(vaccination.vaccinationDate);
+        vaccinationDate.setHours(0, 0, 0, 0);
+
+        if (vaccinationDate > today) {
+          errors[`vaccination_${i}_date`] = "No puede ser en el futuro";
+        }
+
+        if (data.eventDate) {
+          const eventDateObj = new Date(data.eventDate);
+          eventDateObj.setHours(0, 0, 0, 0);
+          if (vaccinationDate >= eventDateObj) {
+            errors[`vaccination_${i}_date`] = "Debe ser anterior al evento adverso";
+          }
+        }
+      }
+    }
+
+    // Validar fecha del evento
+    if (data.eventDate) {
+      const eventDateObj = new Date(data.eventDate);
+      eventDateObj.setHours(0, 0, 0, 0);
+
+      if (eventDateObj > today) {
+        errors.eventDate = "No puede ser en el futuro";
+      }
+
+      // Validar que sea posterior a la fecha de nacimiento del paciente
+      if (data.patientDateOfBirth) {
+        const patientBirthDate = new Date(data.patientDateOfBirth);
+        patientBirthDate.setHours(0, 0, 0, 0);
+        if (eventDateObj <= patientBirthDate) {
+          errors.eventDate = "Debe ser posterior a la fecha de nacimiento del paciente";
+        }
+      }
+
+      // Validar que sea posterior a todas las fechas de vacunación
+      for (let i = 0; i < data.vaccinations.length; i++) {
+        if (data.vaccinations[i].vaccinationDate) {
+          const vaccinationDate = new Date(data.vaccinations[i].vaccinationDate);
+          vaccinationDate.setHours(0, 0, 0, 0);
+          if (eventDateObj <= vaccinationDate) {
+            errors.eventDate = "Debe ser posterior a todas las fechas de vacunación";
+            break;
+          }
+        }
+      }
+    }
+
+    // Validar fecha de nacimiento del reportante
+    if (!isDoctor && data.reporterRelationship !== "paciente" && data.reporterDateOfBirth) {
+      const reporterBirthDate = new Date(data.reporterDateOfBirth);
+      reporterBirthDate.setHours(0, 0, 0, 0);
+
+      if (reporterBirthDate > today) {
+        errors.reporterDateOfBirth = "La fecha de nacimiento no puede ser en el futuro";
+      } else {
+        // Validar edad mínima: debe ser mayor de 18 años
+        let age = today.getFullYear() - reporterBirthDate.getFullYear();
+        const monthDiff = today.getMonth() - reporterBirthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < reporterBirthDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          errors.reporterDateOfBirth = "El reportante debe ser mayor de 18 años";
+        }
+      }
+    }
+
+    return errors;
+  };
+
+  // Actualizar errores dinámicamente cuando formData cambie
+  useEffect(() => {
+    const errors = validateDatesDynamic(formData);
+    setDateErrors(errors);
+  }, [formData, isDoctor]);
+
+  const validateDates = (): string | null => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Validar que fecha de nacimiento del paciente sea válida
+    if (!formData.patientDateOfBirth) {
+      return "La fecha de nacimiento del paciente es obligatoria";
+    }
+
+    const patientBirthDate = new Date(formData.patientDateOfBirth);
+    patientBirthDate.setHours(0, 0, 0, 0);
+
+    // Validar que la fecha de nacimiento del paciente sea anterior a hoy
+    if (patientBirthDate > today) {
+      return "La fecha de nacimiento del paciente no puede ser en el futuro";
+    }
+
+    // Validar que la fecha de nacimiento sea anterior a la fecha del evento
+    const eventDateObj = new Date(formData.eventDate);
+    eventDateObj.setHours(0, 0, 0, 0);
+
+    if (patientBirthDate >= eventDateObj) {
+      return "La fecha de nacimiento del paciente debe ser anterior a la fecha del evento adverso";
+    }
+
+    // Validar que el evento sea anterior a hoy
+    if (eventDateObj > today) {
+      return "La fecha del evento adverso no puede ser en el futuro";
+    }
+
+    // Validar cada vacunación
+    for (let i = 0; i < formData.vaccinations.length; i++) {
+      const vaccination = formData.vaccinations[i];
+
+      if (!vaccination.vaccinationDate) {
+        return `La fecha de vacunación #${i + 1} es obligatoria`;
+      }
+
+      const vaccinationDate = new Date(vaccination.vaccinationDate);
+      vaccinationDate.setHours(0, 0, 0, 0);
+
+      // Validar que la vacunación sea anterior a hoy
+      if (vaccinationDate > today) {
+        return `La fecha de vacunación #${i + 1} no puede ser en el futuro`;
+      }
+
+      // Validar que fecha de nacimiento sea anterior a vacunación
+      if (patientBirthDate >= vaccinationDate) {
+        return `La fecha de nacimiento del paciente debe ser anterior a la fecha de vacunación #${i + 1}`;
+      }
+
+      // Validar que vacunación sea anterior al evento
+      if (vaccinationDate >= eventDateObj) {
+        return `La fecha de vacunación #${i + 1} debe ser anterior a la fecha del evento adverso`;
+      }
+    }
+
+    // Validar edad del reportante si no es doctor y no es autollenado
+    if (!isDoctor && formData.reporterRelationship !== "paciente") {
+      if (formData.reporterDateOfBirth) {
+        const reporterBirthDate = new Date(formData.reporterDateOfBirth);
+        reporterBirthDate.setHours(0, 0, 0, 0);
+
+        // Validar que la fecha de nacimiento del reportante sea anterior a hoy
+        if (reporterBirthDate > today) {
+          return "La fecha de nacimiento del reportante no puede ser en el futuro";
+        }
+
+        let age = today.getFullYear() - reporterBirthDate.getFullYear();
+        const monthDiff = today.getMonth() - reporterBirthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < reporterBirthDate.getDate())) {
+          age--;
+        }
+
+        if (age < 18) {
+          return "Los menores de edad no están autorizados para crear reportes. Por favor, solicita ayuda a un adulto.";
+        }
+      }
+    } else if (formData.reporterRelationship === "paciente") {
+      // Si el paciente es el reportante, validar que sea mayor de edad
+      const patientAge = today.getFullYear() - patientBirthDate.getFullYear();
+      const monthDiff = today.getMonth() - patientBirthDate.getMonth();
+      let finalAge = patientAge;
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < patientBirthDate.getDate())) {
+        finalAge--;
+      }
+
+      if (finalAge < 18) {
+        return "El paciente es menor de edad y no está autorizado para crear reportes por sí solo.";
+      }
+    }
+
+    return null;
+  };
+
   const handleSubmit = () => {
     if (!isDoctor && !captchaValue) {
       toast.error("Por favor verifica que no eres un robot");
+      return;
+    }
+
+    // Ejecutar validaciones
+    const dateError = validateDates();
+    if (dateError) {
+      toast.error("Error en la validación", {
+        description: dateError
+      });
       return;
     }
 
@@ -206,9 +430,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
         <Card className="border-0 shadow-lg">
           <CardContent className="p-6 sm:p-8">
-            {currentStep === 1 && <PatientInfoSection formData={formData} updateFormData={updateFormData} />}
-            {currentStep === 2 && <VaccineInfoSection formData={formData} updateFormData={updateFormData} userRole={user?.role} />}
-            {currentStep === 3 && <AdverseEventSection formData={formData} updateFormData={updateFormData} userRole={user?.role} />}
+            {currentStep === 1 && <PatientInfoSection formData={formData} updateFormData={updateFormData} dateErrors={dateErrors} />}
+            {currentStep === 2 && <VaccineInfoSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} />}
+            {currentStep === 3 && <AdverseEventSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} />}
             {currentStep === 4 && (
               <>
                 <ReporterInfoSection
@@ -216,6 +440,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   updateFormData={updateFormData}
                   isAutoFilled={isAutoFilled}
                   reporterFieldsRef={reporterFieldsRef}
+                  dateErrors={dateErrors}
                 />
 
                 {/* 🔐 CAPTCHA (solo usuarios no médicos/admin) */}

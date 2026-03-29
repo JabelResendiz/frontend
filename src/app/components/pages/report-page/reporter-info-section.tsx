@@ -11,9 +11,10 @@ interface ReporterInfoSectionProps {
   updateFormData: UpdateFormData;
   isAutoFilled: boolean;
   reporterFieldsRef: React.RefObject<HTMLDivElement>;
+  dateErrors?: Record<string, string>;
 }
 
-export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, reporterFieldsRef }: ReporterInfoSectionProps) {
+export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, reporterFieldsRef, dateErrors }: ReporterInfoSectionProps) {
   const isPatient = formData.reporterRelationship === "paciente";
 
   return (
@@ -69,8 +70,11 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
               value={formData.reporterDateOfBirth}
               onChange={(e) => updateFormData("reporterDateOfBirth", e.target.value)}
               disabled={isPatient}
-              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
+              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""} ${dateErrors?.reporterDateOfBirth ? "border-red-500" : ""}`}
             />
+            {dateErrors?.reporterDateOfBirth && !isPatient && (
+              <p className="text-sm text-red-600">{dateErrors.reporterDateOfBirth}</p>
+            )}
           </div>
         </div>
 

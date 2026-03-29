@@ -8,9 +8,10 @@ import { FormData, UpdateFormData } from "./types";
 interface PatientInfoSectionProps {
   formData: FormData;
   updateFormData: UpdateFormData;
+  dateErrors?: Record<string, string>;
 }
 
-export function PatientInfoSection({ formData, updateFormData }: PatientInfoSectionProps) {
+export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }: PatientInfoSectionProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -50,8 +51,11 @@ export function PatientInfoSection({ formData, updateFormData }: PatientInfoSect
             type="date"
             value={formData.patientDateOfBirth}
             onChange={(e) => updateFormData("patientDateOfBirth", e.target.value)}
-            className="bg-white"
+            className={`bg-white ${dateErrors.patientDateOfBirth ? "border-red-500" : ""}`}
           />
+          {dateErrors.patientDateOfBirth && (
+            <p className="text-sm text-red-600">{dateErrors.patientDateOfBirth}</p>
+          )}
         </div>
 
         <div className="space-y-2">

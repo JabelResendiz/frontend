@@ -9,6 +9,7 @@ interface VaccineInfoSectionProps {
   formData: FormData;
   updateFormData: UpdateFormData;
   userRole?: string | null;
+  dateErrors?: Record<string, string>;
 }
 
 const EMPTY_VACCINATION: VaccinationProcess = {
@@ -20,7 +21,7 @@ const EMPTY_VACCINATION: VaccinationProcess = {
   doseNumber: ""
 };
 
-export function VaccineInfoSection({ formData, updateFormData, userRole }: VaccineInfoSectionProps) {
+export function VaccineInfoSection({ formData, updateFormData, userRole, dateErrors = {} }: VaccineInfoSectionProps) {
   const isDoctor = userRole === "doctor" || userRole === "admin";
 
   const updateVaccination = (index: number, field: keyof VaccinationProcess, value: string) => {
@@ -113,8 +114,11 @@ export function VaccineInfoSection({ formData, updateFormData, userRole }: Vacci
                 type="date"
                 value={vaccination.vaccinationDate}
                 onChange={(e) => updateVaccination(index, "vaccinationDate", e.target.value)}
-                className="bg-white"
+                className={`bg-white ${dateErrors[`vaccination_${index}_date`] ? "border-red-500" : ""}`}
               />
+              {dateErrors[`vaccination_${index}_date`] && (
+                <p className="text-sm text-red-600">{dateErrors[`vaccination_${index}_date`]}</p>
+              )}
             </div>
 
             <div className="space-y-2">

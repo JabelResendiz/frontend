@@ -10,6 +10,7 @@ interface AdverseEventSectionProps {
   userRole?: string | null;
   formData: FormData;
   updateFormData: UpdateFormData;
+  dateErrors?: Record<string, string>;
 }
 
 const COMMON_SYMPTOMS = [
@@ -35,7 +36,7 @@ function toggleSymptom(symptom: string, formData: FormData, updateFormData: Upda
   }
 }
 
-export function AdverseEventSection({ userRole, formData, updateFormData }: AdverseEventSectionProps) {
+export function AdverseEventSection({ userRole, formData, updateFormData, dateErrors }: AdverseEventSectionProps) {
   const isDoctor = userRole === "doctor" || userRole === "admin";
 
   const isDeathSelected = formData.eventHospitalization?.includes("death");
@@ -56,8 +57,11 @@ export function AdverseEventSection({ userRole, formData, updateFormData }: Adve
               type="date"
               value={formData.eventDate}
               onChange={(e) => updateFormData("eventDate", e.target.value)}
-              className="bg-white"
+              className={`bg-white ${dateErrors?.eventDate ? "border-red-500" : ""}`}
             />
+            {dateErrors?.eventDate && (
+              <p className="text-sm text-red-600">{dateErrors.eventDate}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="eventTime">Hora del Síntoma *</Label>
@@ -234,7 +238,10 @@ export function AdverseEventSection({ userRole, formData, updateFormData }: Adve
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div className="space-y-2">
             <Label htmlFor="eventDate">Fecha de Inicio del Evento *</Label>
-            <Input id="eventDate" type="date" value={formData.eventDate} onChange={(e) => updateFormData("eventDate", e.target.value)} className="bg-white" />
+            <Input id="eventDate" type="date" value={formData.eventDate} onChange={(e) => updateFormData("eventDate", e.target.value)} className={`bg-white ${dateErrors?.eventDate ? "border-red-500" : ""}`} />
+            {dateErrors?.eventDate && (
+              <p className="text-sm text-red-600">{dateErrors.eventDate}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="eventTime">Hora de Inicio del Evento *</Label>
