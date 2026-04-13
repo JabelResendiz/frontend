@@ -70,6 +70,8 @@ export interface VaccinationProcess {
   vaccinationDate: string;
   vaccinationSite: string;
   doseNumber?: string;
+
+  administrationRoute?: string;
 }
 
 // export type UpdateFormData = (field: keyof FormData, value: any) => void;

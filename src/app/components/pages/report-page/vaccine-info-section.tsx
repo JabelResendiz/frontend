@@ -104,6 +104,32 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                 </Select>
               </div>
             )}
+
+            {isDoctor && (
+              <div className="space-y-2">
+                <Label htmlFor={`administrationRoute-${index}`}>Vía de Administración</Label>
+                <Select
+                  id={`administrationRoute-${index}`}
+                  value={vaccination.administrationRoute || ""}
+                  onValueChange={(value) => updateVaccination(index, "administrationRoute", value)}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Seleccione vía" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="intramuscular">Inyección intramuscular</SelectItem>
+                    <SelectItem value="subcutanea">Inyección subcutánea</SelectItem>
+                    <SelectItem value="intradermica">Inyección intradérmica</SelectItem>
+                    <SelectItem value="jet">Inyección por jet</SelectItem>
+                    <SelectItem value="oral">Oral (por la boca)</SelectItem>
+                    <SelectItem value="intranasal">Intranasal (por la nariz)</SelectItem>
+                    <SelectItem value="otra">Otra</SelectItem>
+                    <SelectItem value="desconocida">Desconocida</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
