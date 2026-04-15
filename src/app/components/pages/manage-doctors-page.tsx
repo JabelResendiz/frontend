@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/app/components/ui/alert-dialog";
 import { Plus, Edit2, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
 
 interface Doctor {
   id: string;
@@ -21,22 +22,7 @@ interface ManageDoctorsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
-const PROVINCES = [
-  "Pinar del Río",
-  "La Habana",
-  "Mayabeque",
-  "Matanzas",
-  "Cienfuegos",
-  "Villa Clara",
-  "Sancti Spíritus",
-  "Ciego de Ávila",
-  "Camagüey",
-  "Las Tunas",
-  "Holguín",
-  "Granma",
-  "Santiago de Cuba",
-  "Guantánamo",
-];
+const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES).sort();
 
 export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -149,7 +135,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="province">Provincia *</Label>
-                  <Select value={formData.province} onValueChange={(value) => setFormData({ ...formData, province: value })}>
+                  <Select value={formData.province} onValueChange={(value) => setFormData({ ...formData, province: value, municipality: "" })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona provincia" />
                     </SelectTrigger>
@@ -162,12 +148,20 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                 </div>
                 <div>
                   <Label htmlFor="municipality">Municipio</Label>
-                  <Input
-                    id="municipality"
-                    placeholder="Municipio"
+                  <Select
                     value={formData.municipality}
-                    onChange={(e) => setFormData({ ...formData, municipality: e.target.value })}
-                  />
+                    onValueChange={(value) => setFormData({ ...formData, municipality: value })}
+                    disabled={!formData.province}
+                  >
+                    <SelectTrigger disabled={!formData.province}>
+                      <SelectValue placeholder={formData.province ? "Selecciona municipio" : "Selecciona provincia primero"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formData.province && getMunicipalitiesByProvince(formData.province).map(m => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
