@@ -30,11 +30,15 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-start gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                <span>Calle 17 e/ 198 y 200, Atabey, Playa, La Habana</span>
+                <span>Avenida No.21, No. 19810, entre 198 y 200, Reparto Atabey, Playa, La Habana</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span>+53 7 271-5160</span>
+                <span>+53-7-2086086</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span>+53-7-2080976</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
