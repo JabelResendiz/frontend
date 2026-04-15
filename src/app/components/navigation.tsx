@@ -24,6 +24,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     ] : []),
     ...(user?.role === 'responsable-seccion' ? [
       { id: "manage-doctors", label: "Gestionar Médicos", icon: FileText },
+      { id: "manage-reports", label: "Gestionar Reportes", icon: FileText },
       { id: "section-manager-dashboard", label: "Dashboard", icon: BarChart3 },
     ] : []),
     ...(user?.role === 'admin' ? [
