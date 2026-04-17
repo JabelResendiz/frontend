@@ -37,7 +37,7 @@ function toggleSymptom(symptom: string, formData: FormData, updateFormData: Upda
 }
 
 export function AdverseEventSection({ userRole, formData, updateFormData, dateErrors }: AdverseEventSectionProps) {
-  const isDoctor = userRole === "doctor" || userRole === "admin";
+  const isDoctor = userRole === "MedicalReviewer" || userRole === "Admin";
 
   const isDeathSelected = formData.eventHospitalization?.includes("death");
 

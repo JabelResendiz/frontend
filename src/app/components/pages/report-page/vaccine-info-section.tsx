@@ -22,7 +22,7 @@ const EMPTY_VACCINATION: VaccinationProcess = {
 };
 
 export function VaccineInfoSection({ formData, updateFormData, userRole, dateErrors = {} }: VaccineInfoSectionProps) {
-  const isDoctor = userRole === "doctor" || userRole === "admin";
+  const isDoctor = userRole === "MedicalReviewer" || userRole === "Admin";
 
   const updateVaccination = (index: number, field: keyof VaccinationProcess, value: string) => {
     const updatedVaccinations = [...formData.vaccinations];

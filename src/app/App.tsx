@@ -60,13 +60,13 @@ function AppContent() {
         {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
-        {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'doctor' && <DoctorDashboard onNavigate={handleNavigate} />}
-        {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'doctor' && <AssignedReportsPage onNavigate={handleNavigate} />}
-        {currentPage === "review-report" && isAuthenticated && user?.role === 'doctor' && <ReviewReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
-        {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'admin' && <AdminDashboard />}
-        {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'responsable-seccion' && <ManageDoctorsPage onNavigate={handleNavigate} />}
-        {currentPage === "manage-reports" && isAuthenticated && user?.role === 'responsable-seccion' && <ManageReportsPage onNavigate={handleNavigate}/>}
-        {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'responsable-seccion' && <SectionManagerDashboard />}
+        {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'MedicalReviewer' && <DoctorDashboard onNavigate={handleNavigate} />}
+        {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'MedicalReviewer' && <AssignedReportsPage onNavigate={handleNavigate} />}
+        {currentPage === "review-report" && isAuthenticated && user?.role === 'MedicalReviewer' && <ReviewReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
+        {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'Admin' && <AdminDashboard />}
+        {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'SectionResponsible' && <ManageDoctorsPage onNavigate={handleNavigate} />}
+        {currentPage === "manage-reports" && isAuthenticated && user?.role === 'SectionResponsible' && <ManageReportsPage onNavigate={handleNavigate}/>}
+        {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'SectionResponsible' && <SectionManagerDashboard />}
         {currentPage === "edit-report" && isAuthenticated && <EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "information" && <InformationPage />}
       </main>
