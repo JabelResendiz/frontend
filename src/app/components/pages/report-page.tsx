@@ -72,7 +72,7 @@ const initialFormData: FormData = {
 
 export function ReportPage({ onNavigate }: ReportPageProps) {
   const { user } = useAuth();
-  const isDoctor = user?.role === "doctor" || user?.role === "admin";
+  const isDoctor = user?.role === "MedicalReviewer" || user?.role === "Admin";
   const [currentStep, setCurrentStep] = useState(1);
   const [isAutoFilled, setIsAutoFilled] = useState(false);
   const reporterFieldsRef = useRef<HTMLDivElement>(null);

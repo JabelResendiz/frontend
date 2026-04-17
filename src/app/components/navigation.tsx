@@ -30,6 +30,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     ...(user?.role === 'Admin' ? [
       { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
       { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },
+      { id: "manage-catalog", label: "Gestionar Catálogo", icon: FileText },
     ] : []),
     ...(!user ? [
       { id: "report", label: "Reportar Evento", icon: FileText },
