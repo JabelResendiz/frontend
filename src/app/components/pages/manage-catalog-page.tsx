@@ -127,8 +127,8 @@ export const ManageCatalogPage = () => {
     setSuccessMsg(null);
 
     try {
-      const newSymptom = await api.post('/Catalog/register/symptom', symptomForm);
-      setSymptoms([...symptoms, newSymptom.data]);
+      await api.post('/Catalog/register/symptom', symptomForm);
+
       setSuccessMsg(`✅ Síntoma "${symptomForm.name}" registrado exitosamente`);
       setSymptomForm({
         name: '',
@@ -155,20 +155,24 @@ export const ManageCatalogPage = () => {
     setSuccessMsg(null);
 
     try {
-      const newVaccine = await api.post('/Catalog/register/vaccine', {
+      await api.post('/Catalog/register/vaccine', {
         ...vaccineForm,
         approvalDate: new Date(vaccineForm.approvalDate).toISOString(),
       });
-      setVaccines([...vaccines, newVaccine.data]);
-      setSuccessMsg(`✅ Vacuna "${vaccineForm.name}" registrada exitosamente`);
-      setVaccineForm({
-        name: '',
-        type: 0,
-        code: '',
-        description: '',
-        approvalDate: new Date().toISOString().split('T')[0],
-        isActive: true,
-      });
+
+      // ✅ mensaje de éxito
+    setSuccessMsg(`✅ Vacuna "${vaccineForm.name}" registrada exitosamente`);
+
+    // ✅ limpiar formulario
+    setVaccineForm({
+      name: '',
+      type: 0,
+      code: '',
+      description: '',
+      approvalDate: new Date().toISOString().split('T')[0],
+      isActive: true,
+    });
+     //await fetchData();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       const errorMsg = err?.message || 'Error al registrar vacuna';

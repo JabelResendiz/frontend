@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "@/app/context/AuthContext";
 import { ReportProvider } from "@/app/context/ReportContext";
 import { Navigation } from "@/app/components/navigation";
@@ -27,6 +27,14 @@ function AppContent() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [contextAction, setContextAction] = useState<string | undefined>();
   const { isAuthenticated, user } = useAuth();
+
+  // 🔄 Resetear a home cada vez que se autentica o desautentica
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Usuario acaba de autenticarse - ir a home
+      setCurrentPage("home");
+    }
+  }, [isAuthenticated]);
 
   const handleNavigate = (page: string, reportId?: string, action?: string) => {
     setIsTransitioning(true);
