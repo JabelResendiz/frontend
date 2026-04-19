@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Badge } from '@/app/components/ui/badge';
-import { Plus, CheckCircle2, AlertCircle, Search, X } from 'lucide-react';
+import { Plus, CheckCircle2, AlertCircle, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/app/services/api';
 
 interface Symptom {
@@ -32,6 +32,24 @@ interface Vaccine {
   approvalDate: string;
   isActive: boolean;
   createdAt?: string;
+}
+
+interface PagedResultSymptoms {
+  items: Symptom[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  nextPageUrl?: string;
+  previousPageUrl?: string;
+}
+
+interface PagedResultVaccines {
+  items: Vaccine[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  nextPageUrl?: string;
+  previousPageUrl?: string;
 }
 
 interface SymptomFormData {
@@ -67,8 +85,18 @@ const symptomCategories = ['General', 'Respiratorio', 'Gastrointestinal', 'Neuro
 
 export const ManageCatalogPage = () => {
   // Estado de síntomas
-  const [symptoms, setSymptoms] = useState<Symptom[]>([]);
-  const [vaccines, setVaccines] = useState<Vaccine[]>([]);
+  const [symptomsPaged, setSymptomsPaged] = useState<PagedResultSymptoms>({
+    items: [],
+    totalCount: 0,
+    pageNumber: 1,
+    pageSize: 10,
+  });
+  const [vaccinesPaged, setVaccinesPaged] = useState<PagedResultVaccines>({
+    items: [],
+    totalCount: 0,
+    pageNumber: 1,
+    pageSize: 10,
+  });
   const [symSearchTerm, setSymSearchTerm] = useState('');
   const [symFilterActive, setSymFilterActive] = useState<string | null>(null);
   const [vacSearchTerm, setVacSearchTerm] = useState('');
@@ -100,23 +128,10 @@ export const ManageCatalogPage = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Cargar datos
+  // Cargar datos iniciales
   useEffect(() => {
-    const fetchData = async () => {
-      setLoadingData(true);
-      try {
-        // Aquí deberías tener endpoints GET si el backend los proporciona
-        // Por ahora, los arrays estarán vacíos
-        // await api.get('/Catalog/symptoms');
-        // await api.get('/Catalog/vaccines');
-      } catch (err) {
-        console.error('Error cargando datos:', err);
-      } finally {
-        setLoadingData(false);
-      }
-    };
-
-    fetchData();
+    fetchSymptoms(1);
+    fetchVaccines(1);
   }, []);
 
   // Manejar agregar síntoma
@@ -138,6 +153,8 @@ export const ManageCatalogPage = () => {
         description: '',
         isActive: true,
       });
+      // Recargar síntomas desde la primera página
+      fetchSymptoms(1, symSearchTerm, symFilterActive);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       const errorMsg = err?.message || 'Error al registrar síntoma';
@@ -161,18 +178,19 @@ export const ManageCatalogPage = () => {
       });
 
       // ✅ mensaje de éxito
-    setSuccessMsg(`✅ Vacuna "${vaccineForm.name}" registrada exitosamente`);
+      setSuccessMsg(`✅ Vacuna "${vaccineForm.name}" registrada exitosamente`);
 
-    // ✅ limpiar formulario
-    setVaccineForm({
-      name: '',
-      type: 0,
-      code: '',
-      description: '',
-      approvalDate: new Date().toISOString().split('T')[0],
-      isActive: true,
-    });
-     //await fetchData();
+      // ✅ limpiar formulario
+      setVaccineForm({
+        name: '',
+        type: 0,
+        code: '',
+        description: '',
+        approvalDate: new Date().toISOString().split('T')[0],
+        isActive: true,
+      });
+      // Recargar vacunas desde la primera página
+      fetchVaccines(1, vacSearchTerm, vacFilterActive);
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       const errorMsg = err?.message || 'Error al registrar vacuna';
@@ -182,19 +200,80 @@ export const ManageCatalogPage = () => {
     }
   };
 
+  const fetchVaccines = async (pageNumber = 1, search = '', status: string | null = null) => {
+    setLoadingData(true);
+    try {
+      const res = await api.get<PagedResultVaccines>('/GetCatalog/vaccine', {
+        params: {
+          pageNumber,
+          pageSize: 10,
+          search: search || undefined,
+          status: 
+            status === null
+              ? undefined
+              : status === 'active',
+        },
+      });
+
+      setVaccinesPaged(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const fetchSymptoms = async (pageNumber = 1, search = '', status: string | null = null) => {
+    setLoadingData(true);
+    try {
+      const res = await api.get<PagedResultSymptoms>('/GetCatalog/symptom', {
+        params: {
+          pageNumber,
+          pageSize: 10,
+          search: search || undefined,
+          status: 
+            status === null
+              ? undefined
+              : status === 'active',
+        },
+      });
+
+      setSymptomsPaged(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
   // Filtrar síntomas
-  const filteredSymptoms = symptoms.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(symSearchTerm.toLowerCase());
-    const matchesActive = symFilterActive === null || (symFilterActive === 'active' ? s.isActive : !s.isActive);
-    return matchesSearch && matchesActive;
-  });
+  // const filteredSymptoms = symptoms.filter(s => {
+  //   const matchesSearch = s.name.toLowerCase().includes(symSearchTerm.toLowerCase());
+  //   const matchesActive = symFilterActive === null || (symFilterActive === 'active' ? s.isActive : !s.isActive);
+  //   return matchesSearch && matchesActive;
+  // });
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      fetchVaccines(1, vacSearchTerm, vacFilterActive);
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [vacSearchTerm, vacFilterActive]);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      fetchSymptoms(1, symSearchTerm, symFilterActive);
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [symSearchTerm, symFilterActive]);
 
   // Filtrar vacunas
-  const filteredVaccines = vaccines.filter(v => {
-    const matchesSearch = v.name.toLowerCase().includes(vacSearchTerm.toLowerCase());
-    const matchesActive = vacFilterActive === null || (vacFilterActive === 'active' ? v.isActive : !v.isActive);
-    return matchesSearch && matchesActive;
-  });
+  // const filteredVaccines = vaccines.filter(v => {
+  //   const matchesSearch = v.name.toLowerCase().includes(vacSearchTerm.toLowerCase());
+  //   const matchesActive = vacFilterActive === null || (vacFilterActive === 'active' ? v.isActive : !v.isActive);
+  //   return matchesSearch && matchesActive;
+  // });
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -339,7 +418,7 @@ export const ManageCatalogPage = () => {
             <CardHeader>
               <CardTitle>Síntomas Registrados</CardTitle>
               <CardDescription>
-                {filteredSymptoms.length} síntoma(s) encontrado(s)
+                {symptomsPaged.totalCount} síntoma(s) encontrado(s) - Página {symptomsPaged.pageNumber} de {Math.ceil(symptomsPaged.totalCount / symptomsPaged.pageSize)}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -380,35 +459,64 @@ export const ManageCatalogPage = () => {
               {/* Tabla */}
               {loadingData ? (
                 <p className="text-center text-gray-500 py-4">Cargando síntomas...</p>
-              ) : filteredSymptoms.length === 0 ? (
+              ) : symptomsPaged.items.length === 0 ? (
                 <p className="text-center text-gray-500 py-4">No hay síntomas registrados</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSymptoms.map(sym => (
-                        <TableRow key={sym.id}>
-                          <TableCell className="font-medium">{sym.name}</TableCell>
-                          <TableCell>{sym.category}</TableCell>
-                          <TableCell className="text-sm text-gray-500">{sym.standardCode}</TableCell>
-                          <TableCell>
-                            <Badge variant={sym.isActive ? 'default' : 'secondary'}>
-                              {sym.isActive ? 'Activo' : 'Inactivo'}
-                            </Badge>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Categoría</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Estado</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {symptomsPaged.items.map(sym => (
+                          <TableRow key={sym.id}>
+                            <TableCell className="font-medium">{sym.name}</TableCell>
+                            <TableCell>{sym.category}</TableCell>
+                            <TableCell className="text-sm text-gray-500">{sym.standardCode}</TableCell>
+                            <TableCell>
+                              <Badge variant={sym.isActive ? 'default' : 'secondary'}>
+                                {sym.isActive ? 'Activo' : 'Inactivo'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Paginación */}
+                  <div className="flex items-center justify-between pt-4">
+                    <span className="text-sm text-gray-600">
+                      Mostrando {((symptomsPaged.pageNumber - 1) * symptomsPaged.pageSize) + 1} a {Math.min(symptomsPaged.pageNumber * symptomsPaged.pageSize, symptomsPaged.totalCount)} de {symptomsPaged.totalCount}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchSymptoms(symptomsPaged.pageNumber - 1, symSearchTerm, symFilterActive)}
+                        disabled={symptomsPaged.pageNumber <= 1 || loadingData}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchSymptoms(symptomsPaged.pageNumber + 1, symSearchTerm, symFilterActive)}
+                        disabled={symptomsPaged.pageNumber >= Math.ceil(symptomsPaged.totalCount / symptomsPaged.pageSize) || loadingData}
+                      >
+                        Siguiente
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -520,7 +628,7 @@ export const ManageCatalogPage = () => {
             <CardHeader>
               <CardTitle>Vacunas Registradas</CardTitle>
               <CardDescription>
-                {filteredVaccines.length} vacuna(s) encontrada(s)
+                {vaccinesPaged.totalCount} vacuna(s) encontrada(s) - Página {vaccinesPaged.pageNumber} de {Math.ceil(vaccinesPaged.totalCount / vaccinesPaged.pageSize)}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -561,37 +669,66 @@ export const ManageCatalogPage = () => {
               {/* Tabla */}
               {loadingData ? (
                 <p className="text-center text-gray-500 py-4">Cargando vacunas...</p>
-              ) : filteredVaccines.length === 0 ? (
+              ) : vaccinesPaged.items.length === 0 ? (
                 <p className="text-center text-gray-500 py-4">No hay vacunas registradas</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Aprobación</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredVaccines.map(vac => (
-                        <TableRow key={vac.id}>
-                          <TableCell className="font-medium">{vac.name}</TableCell>
-                          <TableCell>{vaccineTypes.find(t => t.id === vac.type)?.name || 'Otra'}</TableCell>
-                          <TableCell className="text-sm text-gray-500">{vac.code}</TableCell>
-                          <TableCell className="text-sm">{new Date(vac.approvalDate).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Badge variant={vac.isActive ? 'default' : 'secondary'}>
-                              {vac.isActive ? 'Activa' : 'Inactiva'}
-                            </Badge>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Aprobación</TableHead>
+                          <TableHead>Estado</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {vaccinesPaged.items.map(vac => (
+                          <TableRow key={vac.id}>
+                            <TableCell className="font-medium">{vac.name}</TableCell>
+                            <TableCell>{vaccineTypes.find(t => t.id === vac.type)?.name || 'Otra'}</TableCell>
+                            <TableCell className="text-sm text-gray-500">{vac.code}</TableCell>
+                            <TableCell className="text-sm">{new Date(vac.approvalDate).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <Badge variant={vac.isActive ? 'default' : 'secondary'}>
+                                {vac.isActive ? 'Activa' : 'Inactiva'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Paginación */}
+                  <div className="flex items-center justify-between pt-4">
+                    <span className="text-sm text-gray-600">
+                      Mostrando {((vaccinesPaged.pageNumber - 1) * vaccinesPaged.pageSize) + 1} a {Math.min(vaccinesPaged.pageNumber * vaccinesPaged.pageSize, vaccinesPaged.totalCount)} de {vaccinesPaged.totalCount}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchVaccines(vaccinesPaged.pageNumber - 1, vacSearchTerm, vacFilterActive)}
+                        disabled={vaccinesPaged.pageNumber <= 1 || loadingData}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchVaccines(vaccinesPaged.pageNumber + 1, vacSearchTerm, vacFilterActive)}
+                        disabled={vaccinesPaged.pageNumber >= Math.ceil(vaccinesPaged.totalCount / vaccinesPaged.pageSize) || loadingData}
+                      >
+                        Siguiente
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -600,3 +737,27 @@ export const ManageCatalogPage = () => {
     </div>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

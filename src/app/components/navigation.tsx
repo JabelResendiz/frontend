@@ -31,6 +31,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
       { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
       { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },
       { id: "manage-catalog", label: "Gestionar Catálogo", icon: FileText },
+      { id: "manage-section-responsible", label: "Gestionar Jefes Sección", icon: FileText },
     ] : []),
     ...(!user ? [
       { id: "report", label: "Reportar Evento", icon: FileText },
