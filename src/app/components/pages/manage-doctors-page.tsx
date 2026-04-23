@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
@@ -6,7 +6,10 @@ import { Label } from "@/app/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/app/components/ui/alert-dialog";
 import { Plus, Trash2, Users, ChevronDown, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { doctorService, type Doctor, type DoctorRegistrationData } from "@/app/services/doctor.service";
+import { doctorService, type Doctor, type DoctorRegistrationData, type MedicalReviewer, type PaginatedResponse } from "@/app/services/doctor.service";
+import { getMunicipalityNameById, getProvinceNameById } from "../../data/municipalities";
+
+
 
 interface ManageDoctorsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
@@ -23,10 +26,20 @@ const generatePassword = (): string => {
 
 export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [medicalReviewers, setMedicalReviewers] = useState<MedicalReviewer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(true);
+  const [expandedReviewers, setExpandedReviewers] = useState<Set<number>>(new Set());
   const [expandedDoctors, setExpandedDoctors] = useState<Set<number>>(new Set());
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize] = useState(3);
+  const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
+  const [previousPageUrl, setPreviousPageUrl] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     userName: "",
@@ -39,6 +52,28 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     dateOfBirth: "",
     specialty: "",
   });
+
+  // Load medical reviewers on mount and when page changes
+  useEffect(() => {
+    const fetchMedicalReviewers = async () => {
+      try {
+        setIsLoadingReviewers(true);
+        const response = await doctorService.getMedicalReviewersByCurrentUserMunicipality(currentPage, pageSize);
+        setMedicalReviewers(response.items);
+        setTotalCount(response.totalCount);
+        setNextPageUrl(response.nextPageUrl || null);
+        setPreviousPageUrl(response.previousPageUrl || null);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error al obtener médicos revisores';
+        toast.error(errorMessage);
+        console.error(error);
+      } finally {
+        setIsLoadingReviewers(false);
+      }
+    };
+
+    fetchMedicalReviewers();
+  }, [currentPage, pageSize]);
 
   const handleGeneratePassword = () => {
     const newPassword = generatePassword();
@@ -147,7 +182,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                 Gestionar Médicos Revisores
               </h1>
               <p className="text-gray-600">
-                Total de médicos registrados: {doctors.length}
+                Total de médicos revisores en el municipio: {totalCount}
               </p>
             </div>
             {!showForm && (
@@ -303,7 +338,138 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
           </Card>
         )}
 
+        {/* Medical Reviewers Section */}
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold mb-4" style={{ color: "#0A4B8F" }}>
+            Médicos Revisores del Municipio
+          </h2>
+          
+          {isLoadingReviewers ? (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">Cargando médicos revisores...</p>
+              </CardContent>
+            </Card>
+          ) : medicalReviewers.length === 0 ? (
+            <Card className="border border-dashed">
+              <CardContent className="p-8 text-center">
+                <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">No hay médicos revisores registrados para este municipio</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div>
+              <div className="space-y-2">
+                {medicalReviewers.map((reviewer, index) => {
+                  const isExpanded = expandedReviewers.has(index);
+
+                  return (
+                    <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-all">
+                      <CardContent className="p-4">
+                        {/* Compact View */}
+                        <div className="flex items-center justify-between cursor-pointer" onClick={() => {
+                          const newExpanded = new Set(expandedReviewers);
+                          if (newExpanded.has(index)) {
+                            newExpanded.delete(index);
+                          } else {
+                            newExpanded.add(index);
+                          }
+                          setExpandedReviewers(newExpanded);
+                        }}>
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="flex-shrink-0">
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {reviewer.fullName}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {reviewer.institution}
+                              </p>
+                            </div>
+
+                            <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-green-100 text-green-700">
+                              Registrado
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-2">
+                            <ChevronDown
+                              className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Expanded View */}
+                        {isExpanded && (
+                          <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Nombre Completo</p>
+                                <p className="text-sm text-gray-900">{reviewer.fullName}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
+                                <p className="text-sm text-gray-900">{reviewer.email}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Teléfono</p>
+                                <p className="text-sm text-gray-900">{reviewer.phoneNumber}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Institución</p>
+                                <p className="text-sm text-gray-900">{reviewer.institution}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Provincia</p>
+                                <p className="text-sm text-gray-900">{getProvinceNameById(reviewer.provinceId)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Municipio</p>
+                                <p className="text-sm text-gray-900">{getMunicipalityNameById(reviewer.provinceId,reviewer.municipalityId)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalCount > pageSize && (
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Mostrando página <span className="font-semibold">{currentPage}</span> de <span className="font-semibold">{Math.ceil(totalCount / pageSize)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={!previousPageUrl}
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!nextPageUrl}
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Doctors List */}
+        
         {doctors.length === 0 && !showForm ? (
           <Card className="border border-dashed">
             <CardContent className="p-8 text-center">
