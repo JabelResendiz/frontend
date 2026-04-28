@@ -64,7 +64,7 @@ export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) =>
   const { user } = useAuth();
   const [reports, setReports] = useState<AssignedReport[]>(mockAssignedReports);
 
-  if (!user || user.role !== 'doctor') {
+  if (!user || user.role !== 'MedicalReviewer') {
     return (
       <div className="text-center py-12">
         <p className="text-red-600 font-semibold">Acceso denegado. Solo médicos pueden acceder a este panel.</p>

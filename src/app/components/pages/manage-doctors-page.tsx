@@ -1,93 +1,167 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/app/components/ui/alert-dialog";
-import { Plus, Edit2, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, ChevronDown, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
+import { doctorService, type Doctor, type DoctorRegistrationData, type MedicalReviewer, type PaginatedResponse } from "@/app/services/doctor.service";
+import { getMunicipalityNameById, getProvinceNameById } from "../../data/municipalities";
 
-interface Doctor {
-  id: string;
-  name: string;
-  email: string;
-  province: string;
-  municipality: string;
-  specialty: string;
-}
+
 
 interface ManageDoctorsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
-const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES).sort();
+const generatePassword = (): string => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [medicalReviewers, setMedicalReviewers] = useState<MedicalReviewer[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(true);
+  const [expandedReviewers, setExpandedReviewers] = useState<Set<number>>(new Set());
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize] = useState(3);
+  const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
+  const [previousPageUrl, setPreviousPageUrl] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
-    name: "",
+    userName: "",
     email: "",
-    province: "",
-    municipality: "",
+    password: "",
+    phoneNumber: "",
+    institution: "",
+    professionalLicense: "",
+    identityNumber: "",
+    dateOfBirth: "",
     specialty: "",
   });
 
-  const handleAddDoctor = () => {
-    if (!formData.name || !formData.email || !formData.province) {
-      toast.error("Por favor completa los campos requeridos");
+  // Load medical reviewers on mount and when page changes
+  useEffect(() => {
+    const fetchMedicalReviewers = async () => {
+      try {
+        setIsLoadingReviewers(true);
+        const response = await doctorService.getMedicalReviewersByCurrentUserMunicipality(currentPage, pageSize);
+        setMedicalReviewers(response.items);
+        setTotalCount(response.totalCount);
+        setNextPageUrl(response.nextPageUrl || null);
+        setPreviousPageUrl(response.previousPageUrl || null);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error al obtener médicos revisores';
+        toast.error(errorMessage);
+        console.error(error);
+      } finally {
+        setIsLoadingReviewers(false);
+      }
+    };
+
+    fetchMedicalReviewers();
+  }, [currentPage, pageSize]);
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword();
+    setFormData({ ...formData, password: newPassword });
+    toast.success("Contraseña generada");
+  };
+
+  const handleAddDoctor = async () => {
+    if (!formData.userName || !formData.email || !formData.password || !formData.phoneNumber || 
+        !formData.institution || !formData.professionalLicense || !formData.identityNumber || 
+        !formData.dateOfBirth || !formData.specialty) {
+      toast.error("Por favor completa todos los campos requeridos");
       return;
     }
 
-    if (editingId) {
-      setDoctors(doctors.map(d => d.id === editingId ? { ...d, ...formData } : d));
-      toast.success("Médico actualizado exitosamente");
-    } else {
-      setDoctors([...doctors, { id: Date.now().toString(), ...formData }]);
-      toast.success("Médico agregado exitosamente");
-    }
+    try {
+      setIsLoading(true);
+      const registrationData: DoctorRegistrationData = {
+        userName: formData.userName,
+        email: formData.email,
+        password: formData.password,
+        phoneNumber: formData.phoneNumber,
+        institution: formData.institution,
+        professionalLicense: formData.professionalLicense,
+        identityNumber: formData.identityNumber,
+        dateOfBirth: formData.dateOfBirth,
+        specialty: formData.specialty,
+      };
 
-    setFormData({ name: "", email: "", province: "", municipality: "", specialty: "" });
-    setShowForm(false);
-    setEditingId(null);
-  };
+      const response = await doctorService.registerMedicalReviewer(registrationData);
 
-  const handleEdit = (doctor: Doctor) => {
-    setFormData(doctor);
-    setEditingId(doctor.id);
-    setShowForm(true);
-  };
+      // Determinar si es éxito o error basado en la respuesta
+      if (response.success === true || response.type === 'OperationSuccess' || response.type?.toLowerCase().includes('success')) {
+        toast.success(response.message || "Médico registrado exitosamente");
 
-  const handleDelete = () => {
-    if (deleteConfirm) {
-      setDoctors(doctors.filter(d => d.id !== deleteConfirm));
-      toast.success("Médico eliminado exitosamente");
-      setDeleteConfirm(null);
+        setFormData({
+          userName: "",
+          email: "",
+          password: "",
+          phoneNumber: "",
+          institution: "",
+          professionalLicense: "",
+          identityNumber: "",
+          dateOfBirth: "",
+          specialty: "",
+        });
+
+        // Recargar la lista de médicos revisores
+        const refreshed = await doctorService.getMedicalReviewersByCurrentUserMunicipality(currentPage, pageSize);
+        setMedicalReviewers(refreshed.items);
+        setTotalCount(refreshed.totalCount);
+
+        setShowForm(false);
+      } else {
+        toast.error(response.message || "Error al registrar el médico");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al registrar médico';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData({ name: "", email: "", province: "", municipality: "", specialty: "" });
+    setFormData({
+      userName: "",
+      email: "",
+      password: "",
+      phoneNumber: "",
+      institution: "",
+      professionalLicense: "",
+      identityNumber: "",
+      dateOfBirth: "",
+      specialty: "",
+    });
     setShowForm(false);
-    setEditingId(null);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
-                Gestionar Médicos
+                Gestionar Médicos Revisores
               </h1>
               <p className="text-gray-600">
-                Administra los médicos asignados a tu sección
+                Total de médicos revisores en el municipio: {totalCount}
               </p>
             </div>
             {!showForm && (
@@ -107,17 +181,17 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
         {showForm && (
           <Card className="border-0 shadow-lg mb-8">
             <CardHeader>
-              <CardTitle>{editingId ? "Editar Médico" : "Agregar Nuevo Médico"}</CardTitle>
+              <CardTitle>Agregar Nuevo Médico Revisor</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name">Nombre Completo *</Label>
+                  <Label htmlFor="userName">Nombre de Usuario *</Label>
                   <Input
-                    id="name"
-                    placeholder="Dr. Juan Pérez"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    id="userName"
+                    placeholder="juan.perez"
+                    value={formData.userName}
+                    onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
                   />
                 </div>
                 <div>
@@ -134,44 +208,84 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="province">Provincia *</Label>
-                  <Select value={formData.province} onValueChange={(value) => setFormData({ ...formData, province: value, municipality: "" })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVINCES.map(p => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="password">Contraseña *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="password"
+                      type="text"
+                      placeholder="Generar o escribir contraseña"
+                      value={formData.password}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleGeneratePassword}
+                      type="button"
+                    >
+                      Generar
+                    </Button>
+                  </div>
                 </div>
                 <div>
-                  <Label htmlFor="municipality">Municipio</Label>
-                  <Select
-                    value={formData.municipality}
-                    onValueChange={(value) => setFormData({ ...formData, municipality: value })}
-                    disabled={!formData.province}
-                  >
-                    <SelectTrigger disabled={!formData.province}>
-                      <SelectValue placeholder={formData.province ? "Selecciona municipio" : "Selecciona provincia primero"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.province && getMunicipalitiesByProvince(formData.province).map(m => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="phoneNumber">Teléfono *</Label>
+                  <Input
+                    id="phoneNumber"
+                    placeholder="55664266"
+                    value={formData.phoneNumber}
+                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="institution">Institución *</Label>
+                  <Input
+                    id="institution"
+                    placeholder="Hospital Provincial"
+                    value={formData.institution}
+                    onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="specialty">Especialidad *</Label>
+                  <Input
+                    id="specialty"
+                    placeholder="Medicina General"
+                    value={formData.specialty}
+                    onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="professionalLicense">Cédula Profesional *</Label>
+                  <Input
+                    id="professionalLicense"
+                    placeholder="334324eref"
+                    value={formData.professionalLicense}
+                    onChange={(e) => setFormData({ ...formData, professionalLicense: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="identityNumber">Cédula de Identidad *</Label>
+                  <Input
+                    id="identityNumber"
+                    placeholder="03040712121"
+                    value={formData.identityNumber}
+                    onChange={(e) => setFormData({ ...formData, identityNumber: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="specialty">Especialidad</Label>
+                <Label htmlFor="dateOfBirth">Fecha de Nacimiento *</Label>
                 <Input
-                  id="specialty"
-                  placeholder="Ej: Pediatría, Cardiología, etc."
-                  value={formData.specialty}
-                  onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                  id="dateOfBirth"
+                  type="datetime-local"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                 />
               </div>
 
@@ -180,12 +294,21 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                   className="text-white font-semibold"
                   style={{ backgroundColor: "#0A4B8F" }}
                   onClick={handleAddDoctor}
+                  disabled={isLoading}
                 >
-                  {editingId ? "Actualizar" : "Agregar"}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Registrando...
+                    </>
+                  ) : (
+                    "Registrar Médico"
+                  )}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleCancel}
+                  disabled={isLoading}
                 >
                   Cancelar
                 </Button>
@@ -194,100 +317,140 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
           </Card>
         )}
 
-        {/* Doctors List */}
-        <div className="space-y-4">
-          {doctors.length === 0 ? (
+        {/* Medical Reviewers Section */}
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold mb-4" style={{ color: "#0A4B8F" }}>
+            Médicos Revisores del Municipio
+          </h2>
+          
+          {isLoadingReviewers ? (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">Cargando médicos revisores...</p>
+              </CardContent>
+            </Card>
+          ) : medicalReviewers.length === 0 ? (
             <Card className="border border-dashed">
               <CardContent className="p-8 text-center">
                 <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 mb-4">No hay médicos agregados aún</p>
-                {!showForm && (
-                  <Button
-                    className="text-white font-semibold"
-                    style={{ backgroundColor: "#0A4B8F" }}
-                    onClick={() => setShowForm(true)}
-                  >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Agregar Primer Médico
-                  </Button>
-                )}
+                <p className="text-gray-500">No hay médicos revisores registrados para este municipio</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {doctors.map((doctor) => (
-                <Card key={doctor.id} className="border-0 shadow-md hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2">{doctor.name}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">Email:</span> {doctor.email}
-                          </div>
-                          <div>
-                            <span className="font-medium">Provincia:</span> {doctor.province}
-                          </div>
-                          {doctor.municipality && (
-                            <div>
-                              <span className="font-medium">Municipio:</span> {doctor.municipality}
+            <div>
+              <div className="space-y-2">
+                {medicalReviewers.map((reviewer, index) => {
+                  const isExpanded = expandedReviewers.has(index);
+
+                  return (
+                    <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-all">
+                      <CardContent className="p-4">
+                        {/* Compact View */}
+                        <div className="flex items-center justify-between cursor-pointer" onClick={() => {
+                          const newExpanded = new Set(expandedReviewers);
+                          if (newExpanded.has(index)) {
+                            newExpanded.delete(index);
+                          } else {
+                            newExpanded.add(index);
+                          }
+                          setExpandedReviewers(newExpanded);
+                        }}>
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="flex-shrink-0">
+                              <CheckCircle className="w-5 h-5 text-green-600" />
                             </div>
-                          )}
-                          {doctor.specialty && (
-                            <div>
-                              <span className="font-medium">Especialidad:</span> {doctor.specialty}
+
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {reviewer.fullName}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {reviewer.institution}
+                              </p>
                             </div>
-                          )}
+
+                            <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-green-100 text-green-700">
+                              Registrado
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-2">
+                            <ChevronDown
+                              className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(doctor)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => setDeleteConfirm(doctor.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                        {/* Expanded View */}
+                        {isExpanded && (
+                          <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Nombre Completo</p>
+                                <p className="text-sm text-gray-900">{reviewer.fullName}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
+                                <p className="text-sm text-gray-900">{reviewer.email}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Teléfono</p>
+                                <p className="text-sm text-gray-900">{reviewer.phoneNumber}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Institución</p>
+                                <p className="text-sm text-gray-900">{reviewer.institution}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Provincia</p>
+                                <p className="text-sm text-gray-900">{getProvinceNameById(reviewer.provinceId)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Municipio</p>
+                                <p className="text-sm text-gray-900">{getMunicipalityNameById(reviewer.provinceId,reviewer.municipalityId)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalCount > pageSize && (
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Mostrando página <span className="font-semibold">{currentPage}</span> de <span className="font-semibold">{Math.ceil(totalCount / pageSize)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={!previousPageUrl}
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!nextPageUrl}
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Médico</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar este médico? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex gap-3 justify-end">
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   );
 }

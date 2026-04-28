@@ -41,7 +41,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
               {isAuthenticated ? (
                 // Botones para usuarios autenticados
                 <>
-                  {(user?.role === 'doctor' || user?.role === 'paciente') && (
+                  {(user?.role === 'MedicalReviewer' || user?.role === 'paciente') && (
                     <Button
                       size="lg"
                       className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"

@@ -365,7 +365,7 @@ export function InformationPage() {
                   <div className="text-sm">
                     <div className="font-medium mb-1">Dirección</div>
                     <div className="text-gray-600">
-                      Calle 17 e/ 198 y 200, Atabey<br />
+                      Avenida No. 21, No. 19810, entre 198 y 200, Reparto Atabey<br />
                       Playa, La Habana, Cuba
                     </div>
                   </div>
@@ -376,7 +376,17 @@ export function InformationPage() {
                   <div className="text-sm">
                     <div className="font-medium mb-1">Teléfono</div>
                     <div className="text-gray-600">
-                      +53 7 271-5160
+                      +53 7 208-6086
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Phone className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <div className="font-medium mb-1">Teléfono</div>
+                    <div className="text-gray-600">
+                      +53 7 208-0976
                     </div>
                   </div>
                 </div>

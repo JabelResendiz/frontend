@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "@/app/context/AuthContext";
 import { ReportProvider } from "@/app/context/ReportContext";
 import { Navigation } from "@/app/components/navigation";
@@ -18,6 +18,8 @@ import { ManageReportsPage } from "@/app/components/pages/manage-reports-page";
 import { SectionManagerDashboard } from "@/app/components/pages/section-manager-dashboard";
 import { AssignedReportsPage } from "@/app/components/pages/assigned-reports-page";
 import { ReviewReportPage } from "@/app/components/pages/review-report-page";
+import { ManageCatalogPage } from "@/app/components/pages/manage-catalog-page";
+import { ManageSectionResponsiblePage } from "@/app/components/pages/manage-section-responsible-page";
 import { Toaster } from "@/app/components/ui/sonner";
 
 function AppContent() {
@@ -26,6 +28,14 @@ function AppContent() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [contextAction, setContextAction] = useState<string | undefined>();
   const { isAuthenticated, user } = useAuth();
+
+  // 🔄 Resetear a home cada vez que se autentica o desautentica
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Usuario acaba de autenticarse - ir a home
+      setCurrentPage("home");
+    }
+  }, [isAuthenticated]);
 
   const handleNavigate = (page: string, reportId?: string, action?: string) => {
     setIsTransitioning(true);
@@ -45,7 +55,7 @@ function AppContent() {
 
   // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
   // Nota: "report" NO está incluido aquí porque cualquiera puede crear un reporte sin autenticarse
-  if (!isAuthenticated && (currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" ||currentPage === "manage-reports" || currentPage === "section-manager-dashboard" || currentPage === "assigned-reports" || currentPage === "review-report")) {
+  if (!isAuthenticated && (currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" ||currentPage === "manage-reports" || currentPage === "section-manager-dashboard" || currentPage === "assigned-reports" || currentPage === "review-report" || currentPage === "manage-catalog" || currentPage === "manage-section-responsible")) {
     return <LoginPage onNavigate={handleNavigate} />;
   }
 
@@ -60,13 +70,15 @@ function AppContent() {
         {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
-        {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'doctor' && <DoctorDashboard onNavigate={handleNavigate} />}
-        {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'doctor' && <AssignedReportsPage onNavigate={handleNavigate} />}
-        {currentPage === "review-report" && isAuthenticated && user?.role === 'doctor' && <ReviewReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
-        {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'admin' && <AdminDashboard />}
-        {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'responsable-seccion' && <ManageDoctorsPage onNavigate={handleNavigate} />}
-        {currentPage === "manage-reports" && isAuthenticated && user?.role === 'responsable-seccion' && <ManageReportsPage onNavigate={handleNavigate}/>}
-        {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'responsable-seccion' && <SectionManagerDashboard />}
+        {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'MedicalReviewer' && <DoctorDashboard onNavigate={handleNavigate} />}
+        {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'MedicalReviewer' && <AssignedReportsPage onNavigate={handleNavigate} />}
+        {currentPage === "review-report" && isAuthenticated && user?.role === 'MedicalReviewer' && <ReviewReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
+        {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'Admin' && <AdminDashboard />}
+        {currentPage === "manage-catalog" && isAuthenticated && user?.role === 'Admin' && <ManageCatalogPage />}
+        {currentPage === "manage-section-responsible" && isAuthenticated && user?.role === 'Admin' && <ManageSectionResponsiblePage onNavigate={handleNavigate} />}
+        {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'SectionResponsible' && <ManageDoctorsPage onNavigate={handleNavigate} />}
+        {currentPage === "manage-reports" && isAuthenticated && user?.role === 'SectionResponsible' && <ManageReportsPage onNavigate={handleNavigate}/>}
+        {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'SectionResponsible' && <SectionManagerDashboard />}
         {currentPage === "edit-report" && isAuthenticated && <EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "information" && <InformationPage />}
       </main>

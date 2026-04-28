@@ -60,10 +60,11 @@ export interface FormData {
 
   // Reporter info (final step - required)
   reporterType: string;
-  reporterCI: string;
+  reporterIdentityNumber: string;
 }
 
 export interface VaccinationProcess {
+  vaccineId :string;
   vaccineName :string;
   vaccineManufacturer?: string;
   vaccineBatchNumber?: string;
@@ -72,6 +73,7 @@ export interface VaccinationProcess {
   doseNumber?: string;
 
   administrationRoute?: string;
+  administrationSite?: string; // Added for site like LeftArm
 }
 
 // export type UpdateFormData = (field: keyof FormData, value: any) => void;

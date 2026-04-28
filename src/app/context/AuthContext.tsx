@@ -1,84 +1,63 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../services/auth.service';
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'doctor' | 'admin' | 'patient';
+  role: 'Admin' | 'MedicalReviewer' | 'SectionResponsible';
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: 'doctor' | 'admin' | 'patient') => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+
+export const AuthProvider = ({ children }: any) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Restaurar sesión desde localStorage
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+
+    if (token && savedUser) {
       setUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
     }
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Simulamos una llamada a la API
-    // En producción, esto sería una llamada real a tu backend
-    const users = JSON.parse(localStorage.getItem('allUsers') || '[]');
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
+    const data = await authService.login(email, password);
 
-    if (!foundUser) {
-      throw new Error('Email o contraseña inválidos');
-    }
-
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-  };
-
-  const register = async (email: string, password: string, name: string, role: 'doctor' | 'admin' | 'patient') => {
-    // Verificar si el usuario ya existe
-    const users = JSON.parse(localStorage.getItem('allUsers') || '[]');
-    if (users.some((u: any) => u.email === email)) {
-      throw new Error('El email ya está registrado');
-    }
-
-    const newUser = {
-      id: Date.now().toString(),
+    const user: User = {
+      id: data.id.toString(),
+      name: data.userName,
       email,
-      password,
-      name,
-      role,
+      role: data.userRole as User['role'],
     };
 
-    users.push(newUser);
-    localStorage.setItem('allUsers', JSON.stringify(users));
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(user));
 
-    // Auto-login después del registro
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
+    setUser(user);
     setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -86,8 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth debe ser usado dentro de AuthProvider');
   }
+
   return context;
 };

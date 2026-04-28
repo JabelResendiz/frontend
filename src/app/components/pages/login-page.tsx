@@ -12,6 +12,8 @@ interface LoginPageProps {
   contextAction?: string;
 }
 
+type Role = 'Admin' | 'MedicalReviewer' | 'SectionResponsible';
+
 export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
   const { login, register } = useAuth();
   const [email, setEmail] = useState('');
@@ -20,13 +22,13 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'doctor' | 'admin' | 'responsable-seccion'>('doctor');
+  const [role, setRole] = useState<Role>('MedicalReviewer');
 
   // Si viene del contexto de reportar, pre-seleccionar como médico y mostrar registro
   useEffect(() => {
     if (contextAction === 'registerAsDoctor') {
       setIsRegister(true);
-      setRole('doctor');
+      setRole('MedicalReviewer');
     }
   }, [contextAction]);
 
@@ -126,9 +128,9 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="doctor">Médico</SelectItem>
-                    <SelectItem value="responsable-seccion">Responsable de Sección</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="MedicalReviewer">Médico</SelectItem>
+                    <SelectItem value="SectionResponsible">Responsable de Sección</SelectItem>
+                    <SelectItem value="Admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -159,7 +161,7 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
                   setEmail('');
                   setPassword('');
                   setName('');
-                  setRole('doctor');
+                  setRole('MedicalReviewer');
                 }}
                 className="ml-1 text-indigo-600 hover:text-indigo-700 font-semibold"
               >

@@ -14,7 +14,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
 
   const navItems = [
     { id: "home", label: "Inicio", icon: Shield },
-    ...(user?.role === 'doctor' ? [
+    ...(user?.role === 'MedicalReviewer' ? [
       { id: "report", label: "Reportar Evento", icon: FileText },
       { id: "assigned-reports", label: "Reportes Asignados", icon: BarChart3 },
       { id: "doctor-dashboard", label: "Mi Panel", icon: BarChart3 },
@@ -22,14 +22,16 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     ...(user?.role === 'paciente' ? [
       { id: "report", label: "Reportar Evento", icon: FileText },
     ] : []),
-    ...(user?.role === 'responsable-seccion' ? [
+    ...(user?.role === 'SectionResponsible' ? [
       { id: "manage-doctors", label: "Gestionar Médicos", icon: FileText },
       { id: "manage-reports", label: "Gestionar Reportes", icon: FileText },
       { id: "section-manager-dashboard", label: "Dashboard", icon: BarChart3 },
     ] : []),
-    ...(user?.role === 'admin' ? [
+    ...(user?.role === 'Admin' ? [
       { id: "consultation", label: "Consultar Reportes", icon: BarChart3 },
       { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },
+      { id: "manage-catalog", label: "Gestionar Catálogo", icon: FileText },
+      { id: "manage-section-responsible", label: "Gestionar Jefes Sección", icon: FileText },
     ] : []),
     ...(!user ? [
       { id: "report", label: "Reportar Evento", icon: FileText },

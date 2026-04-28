@@ -1,293 +1,268 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/app/components/ui/alert-dialog";
-import { Plus, Edit2, Trash2, Users } from "lucide-react";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { ChevronLeft, ChevronRight, Loader2, AlertTriangle, Heart, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
-
-interface Report {
-  id: string;
-  name: string;
-  email: string;
-  province: string;
-  municipality: string;
-  specialty: string;
-}
+import { reportService, type AssignedReport } from "@/app/services/report.service";
 
 interface ManageReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
-const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES).sort();
+const PAGE_SIZE = 10;
+
+// Función para determinar si un reporte es crítico
+const isCriticalReport = (report: AssignedReport): boolean => {
+  return report.adverseEvents.some(event =>
+    event.isLifeThreatening || event.resultedInDeath || event.permanentDisability || event.wentToEmergencyRoom
+  );
+};
+
+// Función para obtener el nivel de severidad
+const getSeverityLevel = (report: AssignedReport): 'critical' | 'warning' | 'normal' => {
+  if (report.adverseEvents.some(event => event.resultedInDeath || event.isLifeThreatening)) return 'critical';
+  if (report.adverseEvents.some(event => event.permanentDisability || event.wentToEmergencyRoom)) return 'warning';
+  return 'normal';
+};
 
 export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    province: "",
-    municipality: "",
-    specialty: "",
-  });
+  const [reports, setReports] = useState<AssignedReport[]>([]);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedReports, setExpandedReports] = useState<Set<number>>(new Set());
 
-  const handleAddReport = () => {
-    if (!formData.name || !formData.email || !formData.province) {
-      toast.error("Por favor completa los campos requeridos");
-      return;
-    }
+  // Cargar reportes cuando cambia la página
+  useEffect(() => {
+    const loadReports = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await reportService.getAssignedReports(pageNumber, PAGE_SIZE);
+        setReports(response.items);
+        setTotalCount(response.totalCount);
+        setExpandedReports(new Set()); // Reset expandidos al cambiar página
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Error al cargar reportes';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    if (editingId) {
-      setReports(reports.map(d => d.id === editingId ? { ...d, ...formData } : d));
-      toast.success("Reporte actualizado exitosamente");
+    loadReports();
+  }, [pageNumber]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const toggleExpandReport = (index: number) => {
+    const newExpanded = new Set(expandedReports);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
     } else {
-      setReports([...reports, { id: Date.now().toString(), ...formData }]);
-      toast.success("Reporte agregado exitosamente");
+      newExpanded.add(index);
     }
-
-    setFormData({ name: "", email: "", province: "", municipality: "", specialty: "" });
-    setShowForm(false);
-    setEditingId(null);
+    setExpandedReports(newExpanded);
   };
 
-  const handleEdit = (report: Report) => {
-    setFormData(report);
-    setEditingId(report.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = () => {
-    if (deleteConfirm) {
-      setReports(reports.filter(d => d.id !== deleteConfirm));
-      toast.success("Reporte eliminado exitosamente");
-      setDeleteConfirm(null);
+  const getSeverityColor = (severity: 'critical' | 'warning' | 'normal') => {
+    switch (severity) {
+      case 'critical':
+        return 'border-l-4 border-l-red-500 bg-red-50';
+      case 'warning':
+        return 'border-l-4 border-l-yellow-500 bg-yellow-50';
+      default:
+        return 'border-l-4 border-l-green-500 bg-white';
     }
   };
 
-  const handleCancel = () => {
-    setFormData({ name: "", email: "", province: "", municipality: "", specialty: "" });
-    setShowForm(false);
-    setEditingId(null);
+  const getSeverityIcon = (severity: 'critical' | 'warning' | 'normal') => {
+    switch (severity) {
+      case 'critical':
+        return <AlertTriangle className="w-5 h-5 text-red-600" />;
+      case 'warning':
+        return <Heart className="w-5 h-5 text-yellow-600" />;
+      default:
+        return null;
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
-                Gestionar Reportes
-              </h1>
-              <p className="text-gray-600">
-                Administra los reportes asignados a tu municipio
-              </p>
-            </div>
-            {!showForm && (
-              <Button
-                className="text-white font-semibold px-6 py-3"
-                style={{ backgroundColor: "#0A4B8F" }}
-                onClick={() => setShowForm(true)}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Agregar Reporte
-              </Button>
-            )}
-          </div>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
+            Reportes Asignados
+          </h1>
+          <p className="text-gray-600">
+            Total: {totalCount} | Página {pageNumber} de {totalPages}
+          </p>
         </div>
 
-        {/* Form */}
-        {showForm && (
-          <Card className="border-0 shadow-lg mb-8">
-            <CardHeader>
-              <CardTitle>{editingId ? "Editar Reporte" : "Agregar Nuevo Reporte"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Nombre Completo *</Label>
-                  <Input
-                    id="name"
-                    placeholder="Dr. Juan Pérez"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="juan@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="province">Provincia *</Label>
-                  <Select value={formData.province} onValueChange={(value) => setFormData({ ...formData, province: value, municipality: "" })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVINCES.map(p => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="municipality">Municipio</Label>
-                  <Select
-                    value={formData.municipality}
-                    onValueChange={(value) => setFormData({ ...formData, municipality: value })}
-                    disabled={!formData.province}
-                  >
-                    <SelectTrigger disabled={!formData.province}>
-                      <SelectValue placeholder={formData.province ? "Selecciona municipio" : "Selecciona provincia primero"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.province && getMunicipalitiesByProvince(formData.province).map(m => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="specialty">Especialidad</Label>
-                <Input
-                  id="specialty"
-                  placeholder="Ej: Pediatría, Cardiología, etc."
-                  value={formData.specialty}
-                  onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  className="text-white font-semibold"
-                  style={{ backgroundColor: "#0A4B8F" }}
-                  onClick={handleAddReport}
-                >
-                  {editingId ? "Actualizar" : "Agregar"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleCancel}
-                >
-                  Cancelar
-                </Button>
-              </div>
+        {/* Error Message */}
+        {error && (
+          <Card className="border-red-200 bg-red-50 mb-6">
+            <CardContent className="p-4">
+              <p className="text-red-800">{error}</p>
             </CardContent>
           </Card>
         )}
 
         {/* Reports List */}
-        <div className="space-y-4">
-          {reports.length === 0 ? (
-            <Card className="border border-dashed">
-              <CardContent className="p-8 text-center">
-                <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 mb-4">No hay reportes agregados aún</p>
-                {!showForm && (
-                  <Button
-                    className="text-white font-semibold"
-                    style={{ backgroundColor: "#0A4B8F" }}
-                    onClick={() => setShowForm(true)}
-                  >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Agregar Primer Reporte
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {reports.map((report) => (
-                <Card key={report.id} className="border-0 shadow-md hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2">{report.name}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">Email:</span> {report.email}
+        {isLoading ? (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-8 text-center">
+              <Loader2 className="w-8 h-8 mx-auto text-gray-400 mb-4 animate-spin" />
+              <p className="text-gray-600">Cargando reportes...</p>
+            </CardContent>
+          </Card>
+        ) : reports.length === 0 ? (
+          <Card className="border border-dashed">
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-500">No hay reportes asignados</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="space-y-2 mb-8">
+              {reports.map((report, index) => {
+                const severity = getSeverityLevel(report);
+                const isExpanded = expandedReports.has(index);
+
+                return (
+                  <Card key={index} className={`border-0 shadow-md hover:shadow-lg transition-all ${getSeverityColor(severity)}`}>
+                    <CardContent className="p-4">
+                      {/* Compact View */}
+                      <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpandReport(index)}>
+                        <div className="flex items-center gap-4 flex-1">
+                          {/* Severity Icon */}
+                          <div className="flex-shrink-0">
+                            {getSeverityIcon(severity)}
                           </div>
-                          <div>
-                            <span className="font-medium">Provincia:</span> {report.province}
+
+                          {/* Main Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {report.vaccinatedSubject.fullName}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {new Date(report.reportDate).toLocaleDateString('es-ES')} · {report.vaccinations[0]?.vaccineName || 'Sin vacuna'}
+                            </p>
                           </div>
-                          {report.municipality && (
+
+                          {/* Status Badge */}
+                          <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                            style={{
+                              backgroundColor: severity === 'critical' ? '#fee2e2' : severity === 'warning' ? '#fef3c7' : '#ecfdf5',
+                              color: severity === 'critical' ? '#dc2626' : severity === 'warning' ? '#d97706' : '#059669',
+                            }}>
+                            {severity === 'critical' ? 'CRÍTICO' : severity === 'warning' ? 'ADVERTENCIA' : 'Normal'}
+                          </div>
+                        </div>
+
+                        {/* Expand Icon */}
+                        <ChevronDown
+                          className={`w-5 h-5 text-gray-400 ml-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        />
+                      </div>
+
+                      {/* Expanded View */}
+                      {isExpanded && (
+                        <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                          {/* Paciente */}
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Paciente</p>
+                            <p className="text-sm text-gray-900 font-medium">{report.vaccinatedSubject.fullName}</p>
+                          </div>
+
+                          {/* Vacunas */}
+                          {report.vaccinations.length > 0 && (
                             <div>
-                              <span className="font-medium">Municipio:</span> {report.municipality}
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Vacunas Aplicadas</p>
+                              <div className="space-y-1">
+                                {report.vaccinations.map((vaccine, idx) => (
+                                  <div key={idx} className="text-sm">
+                                    <p className="font-medium text-gray-900">{vaccine.vaccineName}</p>
+                                    <p className="text-gray-600 text-xs">{vaccine.vaccinationCenter}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
-                          {report.specialty && (
+
+                          {/* Eventos Adversos */}
+                          {report.adverseEvents.length > 0 && (
                             <div>
-                              <span className="font-medium">Especialidad:</span> {report.specialty}
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Eventos Adversos</p>
+                              <div className="space-y-2">
+                                {report.adverseEvents.map((event, idx) => (
+                                  <div key={idx} className={`text-sm p-2 rounded ${
+                                    event.resultedInDeath || event.isLifeThreatening ? 'bg-red-100 border border-red-300' :
+                                    event.permanentDisability || event.wentToEmergencyRoom ? 'bg-yellow-100 border border-yellow-300' :
+                                    'bg-gray-100'
+                                  }`}>
+                                    <p className="font-medium mb-1">
+                                      Inicio: {new Date(event.startDate).toLocaleDateString('es-ES')}
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-1 text-xs">
+                                      {event.resultedInDeath && <span className="text-red-800 font-semibold">❌ Resultó en Muerte</span>}
+                                      {event.isLifeThreatening && <span className="text-red-800 font-semibold">⚠️ Amenaza de Vida</span>}
+                                      {event.permanentDisability && <span className="text-yellow-800 font-semibold">⚠️ Discapacidad Permanente</span>}
+                                      {event.wentToEmergencyRoom && <span className="text-yellow-800">🏥 Sala de Emergencias</span>}
+                                      {event.visitedDoctor && <span className="text-gray-700">👨‍⚕️ Visitó Doctor</span>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {report.adverseEvents.length === 0 && (
+                            <div className="text-sm p-2 bg-green-100 rounded text-green-800">
+                              ✓ Sin eventos adversos reportados
                             </div>
                           )}
                         </div>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(report)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => setDeleteConfirm(report.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Reporte</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar este Reporte? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex gap-3 justify-end">
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+            {/* Pagination */}
+            <div className="flex items-center justify-between pt-6 border-t">
+              <div className="text-sm text-gray-600">
+                Mostrando {reports.length} reportes de {totalCount}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                  disabled={pageNumber === 1 || isLoading}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
+                  disabled={pageNumber === totalPages || isLoading}
+                >
+                  Siguiente
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
+

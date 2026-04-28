@@ -4,6 +4,10 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import { FormData, UpdateFormData, VaccinationProcess } from "./types";
+import { useEffect, useState } from "react";
+import { catalogService, VaccineCatalog } from "@/app/services/catalog.service";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface VaccineInfoSectionProps {
   formData: FormData;
@@ -13,21 +17,43 @@ interface VaccineInfoSectionProps {
 }
 
 const EMPTY_VACCINATION: VaccinationProcess = {
+  vaccineId: "",
   vaccineName: "",
   vaccineManufacturer: "",
   vaccineBatchNumber: "",
   vaccinationDate: "",
   vaccinationSite: "",
-  doseNumber: ""
+  doseNumber: "",
+  administrationSite: ""
 };
 
 export function VaccineInfoSection({ formData, updateFormData, userRole, dateErrors = {} }: VaccineInfoSectionProps) {
-  const isDoctor = userRole === "doctor" || userRole === "admin";
+  const isDoctor = userRole === "MedicalReviewer" || userRole === "Admin";
+  const [vaccines, setVaccines] = useState<VaccineCatalog[]>([]);
+  const [isLoadingVaccines, setIsLoadingVaccines] = useState(false);
+
+  // Cargar vacunas activas desde el catálogo
+  useEffect(() => {
+    const fetchVaccines = async () => {
+      try {
+        setIsLoadingVaccines(true);
+        const data = await catalogService.getActiveVaccines();
+        setVaccines(data);
+      } catch (error) {
+        console.error("Error loading vaccines:", error);
+        toast.error("Error al cargar el catálogo de vacunas");
+      } finally {
+        setIsLoadingVaccines(false);
+      }
+    };
+
+    fetchVaccines();
+  }, []);
 
   const updateVaccination = (index: number, field: keyof VaccinationProcess, value: string) => {
-    const updatedVaccinations = [...formData.vaccinations];
-    updatedVaccinations[index] = { ...updatedVaccinations[index], [field]: value };
-    updateFormData("vaccinations", updatedVaccinations);
+    const updated = [...formData.vaccinations];
+    updated[index] = { ...updated[index], [field]: value };
+    updateFormData("vaccinations", updated);
   };
 
   const addVaccination = () => {
@@ -36,8 +62,8 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
 
   const removeVaccination = (index: number) => {
     if (formData.vaccinations.length <= 1) return;
-    const updatedVaccinations = formData.vaccinations.filter((_, idx) => idx !== index);
-    updateFormData("vaccinations", updatedVaccinations);
+    const updated = formData.vaccinations.filter((_, idx) => idx !== index);
+    updateFormData("vaccinations", updated);
   };
 
   return (
@@ -50,7 +76,7 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
       </div>
 
       {formData.vaccinations.map((vaccination, index) => (
-        <div key={`vaccination-${index}`} className="border rounded-lg p-4 bg-white shadow-sm">
+        <div key={index} className="border rounded-lg p-4 bg-white shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Vacunación #{index + 1}</h3>
             <Button variant="ghost" size="sm" onClick={() => removeVaccination(index)} disabled={formData.vaccinations.length <= 1}>
@@ -61,26 +87,35 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor={`vaccineName-${index}`}>Nombre de la Vacuna *</Label>
-              <Select
-                id={`vaccineName-${index}`}
-                value={vaccination.vaccineName}
-                onValueChange={(value) => updateVaccination(index, "vaccineName", value)}
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Seleccione la vacuna" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Soberana 02">Soberana 02</SelectItem>
-                  <SelectItem value="Soberana Plus">Soberana Plus</SelectItem>
-                  <SelectItem value="Abdala">Abdala</SelectItem>
-                  <SelectItem value="Mambisa">Mambisa</SelectItem>
-                  <SelectItem value="Heberpenta-L">Heberpenta-L</SelectItem>
-                  <SelectItem value="Heberbiovac-HB">Heberbiovac-HB</SelectItem>
-                  <SelectItem value="vAA">vAA (Meningitis A)</SelectItem>
-                  <SelectItem value="vABC">vABC (Meningitis BC)</SelectItem>
-                  <SelectItem value="Otra">Otra</SelectItem>
-                </SelectContent>
-              </Select>
+              {isLoadingVaccines ? (
+                <div className="flex items-center justify-center h-10 bg-gray-100 rounded border border-gray-300">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                </div>
+              ) : (
+                <Select
+                  value={vaccination.vaccineId}
+                  onValueChange={(value) =>
+                    updateVaccination(index, "vaccineId", value)
+                  }
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Seleccione la vacuna" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vaccines.length > 0 ? (
+                      vaccines.map((vaccine) => (
+                        <SelectItem key={vaccine.id} value={vaccine.id}>
+                          {vaccine.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="otro" disabled>
+                        No hay vacunas disponibles
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {isDoctor && (
@@ -148,7 +183,7 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor={`vaccinationSite-${index}`}>Sitio de Vacunación *</Label>
+              <Label htmlFor={`vaccinationSite-${index}`}>Centro de Vacunación *</Label>
               <Input
                 id={`vaccinationSite-${index}`}
                 value={vaccination.vaccinationSite}
@@ -157,10 +192,28 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                 className="bg-white"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`administrationSite-${index}`}>Sitio de Administración *</Label>
+              <Select
+                value={vaccination.administrationSite || ""}
+                onValueChange={(value) => updateVaccination(index, "administrationSite", value)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Seleccione sitio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LeftArm">Brazo izquierdo</SelectItem>
+                  <SelectItem value="RightArm">Brazo derecho</SelectItem>
+                  <SelectItem value="LeftThigh">Muslo izquierdo</SelectItem>
+                  <SelectItem value="RightThigh">Muslo derecho</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {isDoctor && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            {isDoctor && (
               <div className="space-y-2">
                 <Label htmlFor={`vaccineManufacturer-${index}`}>Fabricante</Label>
                 <Input
@@ -171,18 +224,19 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                   className="bg-white"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor={`vaccineBatchNumber-${index}`}>Número de Lote</Label>
-                <Input
-                  id={`vaccineBatchNumber-${index}`}
-                  value={vaccination.vaccineBatchNumber || ""}
-                  onChange={(e) => updateVaccination(index, "vaccineBatchNumber", e.target.value)}
-                  placeholder="Ej: L-2024-001"
-                  className="bg-white"
-                />
-              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor={`vaccineBatchNumber-${index}`}>Número de Lote *</Label>
+              <Input
+                id={`vaccineBatchNumber-${index}`}
+                value={vaccination.vaccineBatchNumber || ""}
+                onChange={(e) => updateVaccination(index, "vaccineBatchNumber", e.target.value)}
+                placeholder="Ej: L-2024-001"
+                className="bg-white"
+              />
             </div>
-          )}
+          </div>
         </div>
       ))}
 

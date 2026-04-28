@@ -5,6 +5,10 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Textarea } from "@/app/components/ui/textarea";
 import { FormData, UpdateFormData } from "./types";
+import { useEffect, useState } from "react";
+import { catalogService, SymptomCatalog } from "@/app/services/catalog.service";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface AdverseEventSectionProps {
   userRole?: string | null;
@@ -12,21 +16,6 @@ interface AdverseEventSectionProps {
   updateFormData: UpdateFormData;
   dateErrors?: Record<string, string>;
 }
-
-const COMMON_SYMPTOMS = [
-  "Dolor en el sitio de inyección",
-  "Fiebre",
-  "Fatiga",
-  "Dolor de cabeza",
-  "Náuseas/Vómitos",
-  "Dolor muscular",
-  "Escalofríos",
-  "Hinchazón en sitio de inyección",
-  "Mareos",
-  "Reacción alérgica",
-  "Dificultad respiratoria",
-  "Otros"
-];
 
 function toggleSymptom(symptom: string, formData: FormData, updateFormData: UpdateFormData) {
   if (formData.eventSymptoms.includes(symptom)) {
@@ -37,7 +26,27 @@ function toggleSymptom(symptom: string, formData: FormData, updateFormData: Upda
 }
 
 export function AdverseEventSection({ userRole, formData, updateFormData, dateErrors }: AdverseEventSectionProps) {
-  const isDoctor = userRole === "doctor" || userRole === "admin";
+  const isDoctor = userRole === "MedicalReviewer" || userRole === "Admin";
+  const [symptoms, setSymptoms] = useState<SymptomCatalog[]>([]);
+  const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(true);
+
+  // Cargar síntomas activos desde el catálogo
+  useEffect(() => {
+    const fetchSymptoms = async () => {
+      try {
+        setIsLoadingSymptoms(true);
+        const data = await catalogService.getActiveSymptoms();
+        setSymptoms(data);
+      } catch (error) {
+        console.error("Error loading symptoms:", error);
+        toast.error("Error al cargar el catálogo de síntomas");
+      } finally {
+        setIsLoadingSymptoms(false);
+      }
+    };
+
+    fetchSymptoms();
+  }, []);
 
   const isDeathSelected = formData.eventHospitalization?.includes("death");
 
@@ -77,20 +86,31 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
         <div className="space-y-2">
           <Label>¿Qué síntomas presentó? *</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
-            {COMMON_SYMPTOMS.map((symptom) => (
-              <div key={symptom} className="flex items-center space-x-2">
-                <Checkbox
-                  id={symptom}
-                  checked={formData.eventSymptoms.includes(symptom)}
-                  onCheckedChange={() => toggleSymptom(symptom, formData, updateFormData)}
-                />
-                <label htmlFor={symptom} className="text-sm font-normal leading-none cursor-pointer">
-                  {symptom}
-                </label>
-              </div>
-            ))}
-          </div>
+          {isLoadingSymptoms ? (
+            <div className="flex items-center justify-center h-20 bg-gray-50 rounded-lg">
+              <Loader2 className="w-5 h-5 animate-spin text-gray-500 mr-2" />
+              <span className="text-gray-500">Cargando síntomas...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
+              {symptoms.length > 0 ? (
+                symptoms.map((symptom) => (
+                  <div key={symptom.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={symptom.id}
+                      checked={formData.eventSymptoms.includes(symptom.id)}
+                      onCheckedChange={() => toggleSymptom(symptom.id, formData, updateFormData)}
+                    />
+                    <label htmlFor={symptom.id} className="text-sm font-normal leading-none cursor-pointer">
+                      {symptom.name}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No hay síntomas disponibles</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -110,7 +130,6 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
             {[
               { id: "visited-doctor", value: "doctor", label: "¿Tuvo que visitar al médico o clínica?" },
               { id: "emergency", value: "emergency", label: "¿Fue a la sala de emergencias?" },
-              { id: "hospitalized", value: "hospitalized", label: "¿Fue hospitalizado?" },
               { id: "permanent-disability", value: "disability", label: "¿Ha quedado con una discapacidad o limitación permanente?" },
               {id: "death", value: "death", label: "¿El sujeto falleció como consecuencia del evento adverso posiblemente relacionado con la vacunación?"},
               {id: "anomaly", value: "anomaly", label: "¿Hubo alguna anomalía relacionada con la vacunación?"}
@@ -153,19 +172,31 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
                 </Select>
 
               {formData.deathDateType == "full" && (
-                <Input
-                  type="date"
-                  value={formData.deathDate || ""}
-                  onChange={(e) => updateFormData("deathDate",e.target.value)}
-                />
+                <>
+                  <Input
+                    type="date"
+                    value={formData.deathDate || ""}
+                    onChange={(e) => updateFormData("deathDate",e.target.value)}
+                    className={dateErrors?.deathDate ? "border-red-500" : ""}
+                  />
+                  {dateErrors?.deathDate && (
+                    <p className="text-sm text-red-600 mt-1">{dateErrors.deathDate}</p>
+                  )}
+                </>
               )}
 
               {formData.deathDateType == "partial" && (
-                <Input
-                  type="month"
-                  value={formData.deathDate || ""}
-                  onChange={(e) => updateFormData("deathDate",e.target.value)}
-                />
+                <>
+                  <Input
+                    type="month"
+                    value={formData.deathDate || ""}
+                    onChange={(e) => updateFormData("deathDate",e.target.value)}
+                    className={dateErrors?.deathDate ? "border-red-500" : ""}
+                  />
+                  {dateErrors?.deathDate && (
+                    <p className="text-sm text-red-600 mt-1">{dateErrors.deathDate}</p>
+                  )}
+                </>
               )}
 
               </div>
@@ -251,20 +282,31 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
         <div className="space-y-2 mb-4">
           <Label>Síntomas Observados en el Paciente *</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white rounded-lg border">
-            {COMMON_SYMPTOMS.map((symptom) => (
-              <div key={symptom} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`symptom-${symptom}`}
-                  checked={formData.eventSymptoms.includes(symptom)}
-                  onCheckedChange={() => toggleSymptom(symptom, formData, updateFormData)}
-                />
-                <label htmlFor={`symptom-${symptom}`} className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-                  {symptom}
-                </label>
-              </div>
-            ))}
-          </div>
+          {isLoadingSymptoms ? (
+            <div className="flex items-center justify-center h-20 bg-white rounded-lg border">
+              <Loader2 className="w-5 h-5 animate-spin text-gray-500 mr-2" />
+              <span className="text-gray-500">Cargando síntomas...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white rounded-lg border">
+              {symptoms.length > 0 ? (
+                symptoms.map((symptom) => (
+                  <div key={symptom.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`symptom-${symptom.id}`}
+                      checked={formData.eventSymptoms.includes(symptom.id)}
+                      onCheckedChange={() => toggleSymptom(symptom.id, formData, updateFormData)}
+                    />
+                    <label htmlFor={`symptom-${symptom.id}`} className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                      {symptom.name}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No hay síntomas disponibles</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 mb-4">
