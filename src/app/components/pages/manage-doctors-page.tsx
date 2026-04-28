@@ -25,14 +25,11 @@ const generatePassword = (): string => {
 };
 
 export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [medicalReviewers, setMedicalReviewers] = useState<MedicalReviewer[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(true);
   const [expandedReviewers, setExpandedReviewers] = useState<Set<number>>(new Set());
-  const [expandedDoctors, setExpandedDoctors] = useState<Set<number>>(new Set());
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,12 +105,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
       // Determinar si es éxito o error basado en la respuesta
       if (response.success === true || response.type === 'OperationSuccess' || response.type?.toLowerCase().includes('success')) {
         toast.success(response.message || "Médico registrado exitosamente");
-        
-        // Agregar a la lista local
-        setDoctors([...doctors, { 
-          id: Date.now().toString(),
-          ...formData 
-        } as Doctor]);
 
         setFormData({
           userName: "",
@@ -126,6 +117,12 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
           dateOfBirth: "",
           specialty: "",
         });
+
+        // Recargar la lista de médicos revisores
+        const refreshed = await doctorService.getMedicalReviewersByCurrentUserMunicipality(currentPage, pageSize);
+        setMedicalReviewers(refreshed.items);
+        setTotalCount(refreshed.totalCount);
+
         setShowForm(false);
       } else {
         toast.error(response.message || "Error al registrar el médico");
@@ -135,14 +132,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleDelete = () => {
-    if (deleteConfirm) {
-      setDoctors(doctors.filter((_, idx) => idx.toString() !== deleteConfirm));
-      toast.success("Médico eliminado");
-      setDeleteConfirm(null);
     }
   };
 
@@ -159,16 +148,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
       specialty: "",
     });
     setShowForm(false);
-  };
-
-  const toggleExpandDoctor = (index: number) => {
-    const newExpanded = new Set(expandedDoctors);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
-    }
-    setExpandedDoctors(newExpanded);
   };
 
   return (
@@ -468,141 +447,10 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
           )}
         </div>
 
-        {/* Doctors List */}
-        
-        {doctors.length === 0 && !showForm ? (
-          <Card className="border border-dashed">
-            <CardContent className="p-8 text-center">
-              <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 mb-4">No hay médicos registrados aún</p>
-              <Button
-                className="text-white font-semibold"
-                style={{ backgroundColor: "#0A4B8F" }}
-                onClick={() => setShowForm(true)}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Agregar Primer Médico
-              </Button>
-            </CardContent>
-          </Card>
-        ) : doctors.length > 0 && (
-          <div className="space-y-2">
-            {doctors.map((doctor, index) => {
-              const isExpanded = expandedDoctors.has(index);
 
-              return (
-                <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-all">
-                  <CardContent className="p-4">
-                    {/* Compact View */}
-                    <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpandDoctor(index)}>
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="flex-shrink-0">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">
-                            {doctor.userName}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {doctor.specialty} • {doctor.institution}
-                          </p>
-                        </div>
-
-                        <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap bg-green-100 text-green-700">
-                          Registrado
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 ml-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirm(index.toString());
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <ChevronDown
-                          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Expanded View */}
-                    {isExpanded && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Usuario</p>
-                            <p className="text-sm text-gray-900">{doctor.userName}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
-                            <p className="text-sm text-gray-900">{doctor.email}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Teléfono</p>
-                            <p className="text-sm text-gray-900">{doctor.phoneNumber}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Institución</p>
-                            <p className="text-sm text-gray-900">{doctor.institution}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Especialidad</p>
-                            <p className="text-sm text-gray-900">{doctor.specialty}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Cédula Profesional</p>
-                            <p className="text-sm text-gray-900">{doctor.professionalLicense}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Cédula de Identidad</p>
-                            <p className="text-sm text-gray-900">{doctor.identityNumber}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Fecha de Nacimiento</p>
-                            <p className="text-sm text-gray-900">
-                              {new Date(doctor.dateOfBirth).toLocaleDateString('es-ES')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Médico</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar este médico? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex gap-3 justify-end">
-            <AlertDialogCancel onClick={() => setDeleteConfirm(null)}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   );
 }

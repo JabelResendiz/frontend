@@ -82,17 +82,21 @@ export const getMunicipalitiesByProvince = (province: string): string[] => {
 const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES);
 
 // Get province ID based on name
-const getProvinceId = (provinceName: string): number => {
+export const getProvinceId = (provinceName: string): number => {
   return PROVINCES.indexOf(provinceName) + 1;
 };
 // Get municipality ID based on province name and municipality name
 export const getMunicipalityId = (provinceName: string, municipalityName: string): number => {
   const province = getProvinceId(provinceName);
   let total = 0;
-  for (let i = 0; i < province; i++) {
+  for (let i = 0; i < province - 1; i++) {
     total += getMunicipalitiesByProvince(PROVINCES[i]).length;
   }
-  return total;
+
+  console.log(`Calculating municipality ID for ${municipalityName} in ${provinceName}: Province ID = ${province}, Total municipalities before this province = ${total}`);
+  console.log(total + getMunicipalitiesByProvince(provinceName).indexOf(municipalityName) + 1);
+
+  return total + getMunicipalitiesByProvince(provinceName).indexOf(municipalityName) + 1;
 };
 
 // Get province name by ID

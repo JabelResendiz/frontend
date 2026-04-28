@@ -63,6 +63,20 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="reporterIdentityNumber">Número de Identidad *</Label>
+            <Input
+              id="reporterIdentityNumber"
+              placeholder="Carnet de identidad"
+              value={formData.reporterIdentityNumber}
+              onChange={(e) => updateFormData("reporterIdentityNumber", e.target.value)}
+              disabled={isPatient}
+              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
             <Label htmlFor="reporterDateOfBirth">Fecha de Nacimiento *</Label>
             <Input
               id="reporterDateOfBirth"
