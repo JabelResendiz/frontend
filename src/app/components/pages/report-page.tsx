@@ -1,95 +1,384 @@
-import { useState } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
-import { Textarea } from "@/app/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
-import { Checkbox } from "@/app/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Card, CardContent } from "@/app/components/ui/card";
 import { Progress } from "@/app/components/ui/progress";
-import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield } from "lucide-react";
+import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield, FileJson } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/app/context/AuthContext";
+import { FormData, UpdateFormData } from "./report-page/types";
+import { PatientInfoSection } from "./report-page/patient-info-section";
+import { VaccineInfoSection } from "./report-page/vaccine-info-section";
+import { AdverseEventSection } from "./report-page/adverse-event-section";
+import { ReporterInfoSection } from "./report-page/reporter-info-section";
+import ReCAPTCHA from "react-google-recaptcha";
 
 interface ReportPageProps {
   onNavigate: (page: string) => void;
 }
 
-type FormData = {
-  // Patient info
-  patientAge: string;
-  patientGender: string;
-  patientProvince: string;
-  patientMedicalHistory: string;
-  
-  // Vaccine info
-  vaccineName: string;
-  vaccineManufacturer: string;
-  vaccineBatchNumber: string;
-  vaccinationDate: string;
-  vaccinationSite: string;
-  doseNumber: string;
-  
-  // Event info
-  eventDate: string;
-  eventDescription: string;
-  eventSymptoms: string[];
-  eventSeverity: string;
-  eventOutcome: string;
-  eventHospitalization: string;
-  eventMedicalAttention: string;
-  
-  // Reporter info
-  reporterType: string;
-  reporterName: string;
-  reporterContact: string;
+const initialFormData: FormData = {
+  reporterFullName: "",
+  reporterDateOfBirth: "",
+  reporterGender: "",
+  reporterProvince: "",
+  reporterMunicipality: "",
+  reporterPhoneNumber: "",
+  reporterEmail: "",
+  reporterRelationship: "",
+  patientFullName: "",
+  patientIdentityNumber: "",
+  patientDateOfBirth: "",
+  patientGender: "",
+  patientProvince: "",
+  patientMunicipality: "",
+  patientAddress: "",
+  patientPhoneNumber: "",
+  patientEmail: "",
+  patientIsPregnant: "",
+  patientAge: "",
+  vaccinations: [
+    {
+      vaccineName: "",
+      vaccineManufacturer: "",
+      vaccineBatchNumber: "",
+      vaccinationDate: "",
+      vaccinationSite: "",
+      doseNumber: ""
+    }
+  ],
+  eventDate: "",
+  eventTime: "",
+  eventDescription: "",
+  eventSymptoms: [],
+  eventOutcome: "",
+  eventHospitalization: "",
+  eventMedicalAttention: "",
+  eventSeverity: "",
+  patientMedicalHistory: "",
+  currentMedications: "",
+  allergies: "",
+  otherVaccinesLastMonth: "",
+  professionalDiagnosis: "",
+  medicalTerminology: "",
+  retClassification: "",
+  laboratoryResults: "",
+  clinicalSignificance: "",
+  vaccinationFacilityType: "",
+  contraindicationCriterion: "",
+  reporterType: "",
+  reporterCI: ""
 };
 
 export function ReportPage({ onNavigate }: ReportPageProps) {
+  const { user } = useAuth();
+  const isDoctor = user?.role === "doctor" || user?.role === "admin";
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>({
-    patientAge: "",
-    patientGender: "",
-    patientProvince: "",
-    patientMedicalHistory: "",
-    vaccineName: "",
-    vaccineManufacturer: "",
-    vaccineBatchNumber: "",
-    vaccinationDate: "",
-    vaccinationSite: "",
-    doseNumber: "",
-    eventDate: "",
-    eventDescription: "",
-    eventSymptoms: [],
-    eventSeverity: "",
-    eventOutcome: "",
-    eventHospitalization: "",
-    eventMedicalAttention: "",
-    reporterType: "",
-    reporterName: "",
-    reporterContact: "",
-  });
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
+  const reporterFieldsRef = useRef<HTMLDivElement>(null);
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
 
   const totalSteps = 4;
   const progress = (currentStep / totalSteps) * 100;
 
-  const updateFormData = (field: keyof FormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const updateFormData: UpdateFormData = (field, value) => {
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+
+      if (field === "reporterRelationship") {
+        const isChangingToPaciente = value === "paciente" && prev.reporterRelationship !== "paciente";
+        const isChangingFromPaciente = prev.reporterRelationship === "paciente" && value !== "paciente";
+
+        if (isChangingToPaciente) {
+          if (updated.patientFullName || updated.patientDateOfBirth) {
+            updated.reporterFullName = updated.patientFullName;
+            updated.reporterDateOfBirth = updated.patientDateOfBirth;
+            updated.reporterGender = updated.patientGender;
+            updated.reporterProvince = updated.patientProvince;
+            updated.reporterMunicipality = updated.patientMunicipality;
+            updated.reporterPhoneNumber = updated.patientPhoneNumber;
+            updated.reporterEmail = updated.patientEmail;
+            setIsAutoFilled(true);
+
+            setTimeout(() => {
+              reporterFieldsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 100);
+
+            toast.success("Información auto-completada", {
+              description: "Se han llenado los datos del reportante con la información del sujeto vacunado."
+            });
+          }
+        } else if (isChangingFromPaciente) {
+          updated.reporterFullName = "";
+          updated.reporterDateOfBirth = "";
+          updated.reporterGender = "";
+          updated.reporterProvince = "";
+          updated.reporterMunicipality = "";
+          updated.reporterPhoneNumber = "";
+          updated.reporterEmail = "";
+          setIsAutoFilled(false);
+
+          toast.info("Campos limpiados", {
+            description: "Por favor, completa los datos del nuevo reportante."
+          });
+        }
+      }
+
+      if (String(field).startsWith("reporter") && field !== "reporterRelationship") {
+        setIsAutoFilled(false);
+      }
+
+      return updated;
+    });
+  };
+
+  useEffect(() => {
+    if (isAutoFilled) {
+      const timer = setTimeout(() => setIsAutoFilled(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAutoFilled]);
+
+  // Validación dinámica de fechas en tiempo real
+  const validateDatesDynamic = (data: FormData): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Validar fecha de nacimiento del paciente
+    if (data.patientDateOfBirth) {
+      const patientBirthDate = new Date(data.patientDateOfBirth);
+      patientBirthDate.setHours(0, 0, 0, 0);
+
+      if (patientBirthDate > today) {
+        errors.patientDateOfBirth = "La fecha de nacimiento no puede ser en el futuro";
+      }
+
+      // Validar contra evento si existe
+      if (data.eventDate) {
+        const eventDateObj = new Date(data.eventDate);
+        eventDateObj.setHours(0, 0, 0, 0);
+        if (patientBirthDate >= eventDateObj) {
+          errors.patientDateOfBirth = "Debe ser anterior a la fecha del evento adverso";
+        }
+      }
+
+      // Validar contra vacunaciones
+      for (let i = 0; i < data.vaccinations.length; i++) {
+        if (data.vaccinations[i].vaccinationDate) {
+          const vaccinationDate = new Date(data.vaccinations[i].vaccinationDate);
+          vaccinationDate.setHours(0, 0, 0, 0);
+          if (patientBirthDate >= vaccinationDate) {
+            errors[`vaccination_${i}_date`] = "La vacunación debe ser posterior al nacimiento";
+            break;
+          }
+        }
+      }
+    }
+
+    // Validar fechas de vacunación
+    for (let i = 0; i < data.vaccinations.length; i++) {
+      const vaccination = data.vaccinations[i];
+
+      if (vaccination.vaccinationDate) {
+        const vaccinationDate = new Date(vaccination.vaccinationDate);
+        vaccinationDate.setHours(0, 0, 0, 0);
+
+        if (vaccinationDate > today) {
+          errors[`vaccination_${i}_date`] = "No puede ser en el futuro";
+        }
+
+        if (data.eventDate) {
+          const eventDateObj = new Date(data.eventDate);
+          eventDateObj.setHours(0, 0, 0, 0);
+          if (vaccinationDate >= eventDateObj) {
+            errors[`vaccination_${i}_date`] = "Debe ser anterior al evento adverso";
+          }
+        }
+      }
+    }
+
+    // Validar fecha del evento
+    if (data.eventDate) {
+      const eventDateObj = new Date(data.eventDate);
+      eventDateObj.setHours(0, 0, 0, 0);
+
+      if (eventDateObj > today) {
+        errors.eventDate = "No puede ser en el futuro";
+      }
+
+      // Validar que sea posterior a la fecha de nacimiento del paciente
+      if (data.patientDateOfBirth) {
+        const patientBirthDate = new Date(data.patientDateOfBirth);
+        patientBirthDate.setHours(0, 0, 0, 0);
+        if (eventDateObj <= patientBirthDate) {
+          errors.eventDate = "Debe ser posterior a la fecha de nacimiento del paciente";
+        }
+      }
+
+      // Validar que sea posterior a todas las fechas de vacunación
+      for (let i = 0; i < data.vaccinations.length; i++) {
+        if (data.vaccinations[i].vaccinationDate) {
+          const vaccinationDate = new Date(data.vaccinations[i].vaccinationDate);
+          vaccinationDate.setHours(0, 0, 0, 0);
+          if (eventDateObj <= vaccinationDate) {
+            errors.eventDate = "Debe ser posterior a todas las fechas de vacunación";
+            break;
+          }
+        }
+      }
+    }
+
+    // Validar fecha de nacimiento del reportante
+    if (!isDoctor && data.reporterRelationship !== "paciente" && data.reporterDateOfBirth) {
+      const reporterBirthDate = new Date(data.reporterDateOfBirth);
+      reporterBirthDate.setHours(0, 0, 0, 0);
+
+      if (reporterBirthDate > today) {
+        errors.reporterDateOfBirth = "La fecha de nacimiento no puede ser en el futuro";
+      } else {
+        // Validar edad mínima: debe ser mayor de 18 años
+        let age = today.getFullYear() - reporterBirthDate.getFullYear();
+        const monthDiff = today.getMonth() - reporterBirthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < reporterBirthDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          errors.reporterDateOfBirth = "El reportante debe ser mayor de 18 años";
+        }
+      }
+    }
+
+    return errors;
+  };
+
+  // Actualizar errores dinámicamente cuando formData cambie
+  useEffect(() => {
+    const errors = validateDatesDynamic(formData);
+    setDateErrors(errors);
+  }, [formData, isDoctor]);
+
+  const validateDates = (): string | null => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Validar que fecha de nacimiento del paciente sea válida
+    if (!formData.patientDateOfBirth) {
+      return "La fecha de nacimiento del paciente es obligatoria";
+    }
+
+    const patientBirthDate = new Date(formData.patientDateOfBirth);
+    patientBirthDate.setHours(0, 0, 0, 0);
+
+    // Validar que la fecha de nacimiento del paciente sea anterior a hoy
+    if (patientBirthDate > today) {
+      return "La fecha de nacimiento del paciente no puede ser en el futuro";
+    }
+
+    // Validar que la fecha de nacimiento sea anterior a la fecha del evento
+    const eventDateObj = new Date(formData.eventDate);
+    eventDateObj.setHours(0, 0, 0, 0);
+
+    if (patientBirthDate >= eventDateObj) {
+      return "La fecha de nacimiento del paciente debe ser anterior a la fecha del evento adverso";
+    }
+
+    // Validar que el evento sea anterior a hoy
+    if (eventDateObj > today) {
+      return "La fecha del evento adverso no puede ser en el futuro";
+    }
+
+    // Validar cada vacunación
+    for (let i = 0; i < formData.vaccinations.length; i++) {
+      const vaccination = formData.vaccinations[i];
+
+      if (!vaccination.vaccinationDate) {
+        return `La fecha de vacunación #${i + 1} es obligatoria`;
+      }
+
+      const vaccinationDate = new Date(vaccination.vaccinationDate);
+      vaccinationDate.setHours(0, 0, 0, 0);
+
+      // Validar que la vacunación sea anterior a hoy
+      if (vaccinationDate > today) {
+        return `La fecha de vacunación #${i + 1} no puede ser en el futuro`;
+      }
+
+      // Validar que fecha de nacimiento sea anterior a vacunación
+      if (patientBirthDate >= vaccinationDate) {
+        return `La fecha de nacimiento del paciente debe ser anterior a la fecha de vacunación #${i + 1}`;
+      }
+
+      // Validar que vacunación sea anterior al evento
+      if (vaccinationDate >= eventDateObj) {
+        return `La fecha de vacunación #${i + 1} debe ser anterior a la fecha del evento adverso`;
+      }
+    }
+
+    // Validar edad del reportante si no es doctor y no es autollenado
+    if (!isDoctor && formData.reporterRelationship !== "paciente") {
+      if (formData.reporterDateOfBirth) {
+        const reporterBirthDate = new Date(formData.reporterDateOfBirth);
+        reporterBirthDate.setHours(0, 0, 0, 0);
+
+        // Validar que la fecha de nacimiento del reportante sea anterior a hoy
+        if (reporterBirthDate > today) {
+          return "La fecha de nacimiento del reportante no puede ser en el futuro";
+        }
+
+        let age = today.getFullYear() - reporterBirthDate.getFullYear();
+        const monthDiff = today.getMonth() - reporterBirthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < reporterBirthDate.getDate())) {
+          age--;
+        }
+
+        if (age < 18) {
+          return "Los menores de edad no están autorizados para crear reportes. Por favor, solicita ayuda a un adulto.";
+        }
+      }
+    } else if (formData.reporterRelationship === "paciente") {
+      // Si el paciente es el reportante, validar que sea mayor de edad
+      const patientAge = today.getFullYear() - patientBirthDate.getFullYear();
+      const monthDiff = today.getMonth() - patientBirthDate.getMonth();
+      let finalAge = patientAge;
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < patientBirthDate.getDate())) {
+        finalAge--;
+      }
+
+      if (finalAge < 18) {
+        return "El paciente es menor de edad y no está autorizado para crear reportes por sí solo.";
+      }
+    }
+
+    return null;
   };
 
   const handleSubmit = () => {
-    // Mock submission
+    if (!isDoctor && !captchaValue) {
+      toast.error("Por favor verifica que no eres un robot");
+      return;
+    }
+
+    // Ejecutar validaciones
+    const dateError = validateDates();
+    if (dateError) {
+      toast.error("Error en la validación", {
+        description: dateError
+      });
+      return;
+    }
+
     toast.success("Reporte enviado exitosamente", {
       description: "Su reporte ha sido registrado con el ID: RPT-2026-0001"
     });
-    setTimeout(() => {
-      onNavigate("home");
-    }, 2000);
+
+    setTimeout(() => onNavigate("home"), 2000);
   };
 
   const stepTitles = [
-    "Información del Paciente",
+    "Datos del Sujeto Vacunado",
     "Información de la Vacuna",
     "Descripción del Evento Adverso",
     "Datos del Reportante"
@@ -98,456 +387,82 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#0A4B8F" }}>
-              <Shield className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#0A4B8F" }}>
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold" style={{ color: "#0A4B8F" }}>
+                  Reporte de Evento Adverso
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Paso {currentStep} de {totalSteps}: {stepTitles[currentStep - 1]}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: "#0A4B8F" }}>
-                Reporte de Evento Adverso
-              </h1>
-              <p className="text-sm text-gray-600">
-                Paso {currentStep} de {totalSteps}: {stepTitles[currentStep - 1]}
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                toast.info("Función de importación", {
+                  description: "Selecciona un archivo JSON para importar."
+                });
+              }}
+              className="gap-2"
+            >
+              <FileJson className="w-4 h-4" />
+              Importar
+            </Button>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Important Notice */}
         <Alert className="mb-6 border-blue-200 bg-blue-50">
           <AlertCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-sm text-gray-700">
-            <strong>Confidencialidad garantizada:</strong> Todos los datos son anónimos y se manejan 
-            según las normas éticas de investigación. La información solo se usa para fines de 
+            <strong>Confidencialidad garantizada:</strong> Todos los datos son anónimos y se manejan
+            según las normas éticas de investigación. La información solo se usa para fines de
             farmacovigilancia.
           </AlertDescription>
         </Alert>
 
         <Card className="border-0 shadow-lg">
           <CardContent className="p-6 sm:p-8">
-            {/* Step 1: Patient Information */}
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <div>
-                  <CardTitle className="text-xl mb-2">Información del Paciente (Anónima)</CardTitle>
-                  <CardDescription>
-                    No se requieren datos personales identificables. Proporcione información demográfica básica.
-                  </CardDescription>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="patientAge">Edad del Paciente *</Label>
-                    <Input
-                      id="patientAge"
-                      type="number"
-                      placeholder="Ej: 45"
-                      value={formData.patientAge}
-                      onChange={(e) => updateFormData("patientAge", e.target.value)}
-                      className="bg-white"
-                    />
-                    <p className="text-xs text-gray-500">En años</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="patientGender">Sexo *</Label>
-                    <Select value={formData.patientGender} onValueChange={(value) => updateFormData("patientGender", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="M">Masculino</SelectItem>
-                        <SelectItem value="F">Femenino</SelectItem>
-                        <SelectItem value="O">Otro</SelectItem>
-                        <SelectItem value="N">Prefiere no decir</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="patientProvince">Provincia *</Label>
-                  <Select value={formData.patientProvince} onValueChange={(value) => updateFormData("patientProvince", value)}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Seleccione provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="La Habana">La Habana</SelectItem>
-                      <SelectItem value="Artemisa">Artemisa</SelectItem>
-                      <SelectItem value="Mayabeque">Mayabeque</SelectItem>
-                      <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
-                      <SelectItem value="Matanzas">Matanzas</SelectItem>
-                      <SelectItem value="Villa Clara">Villa Clara</SelectItem>
-                      <SelectItem value="Cienfuegos">Cienfuegos</SelectItem>
-                      <SelectItem value="Sancti Spíritus">Sancti Spíritus</SelectItem>
-                      <SelectItem value="Ciego de Ávila">Ciego de Ávila</SelectItem>
-                      <SelectItem value="Camagüey">Camagüey</SelectItem>
-                      <SelectItem value="Las Tunas">Las Tunas</SelectItem>
-                      <SelectItem value="Holguín">Holguín</SelectItem>
-                      <SelectItem value="Granma">Granma</SelectItem>
-                      <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
-                      <SelectItem value="Guantánamo">Guantánamo</SelectItem>
-                      <SelectItem value="Isla de la Juventud">Isla de la Juventud</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="patientMedicalHistory">Antecedentes Médicos Relevantes</Label>
-                  <Textarea
-                    id="patientMedicalHistory"
-                    placeholder="Ej: Alergias conocidas, enfermedades crónicas, medicamentos actuales..."
-                    value={formData.patientMedicalHistory}
-                    onChange={(e) => updateFormData("patientMedicalHistory", e.target.value)}
-                    className="bg-white min-h-[100px]"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Información médica relevante que pueda relacionarse con el evento adverso
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Vaccine Information */}
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <div>
-                  <CardTitle className="text-xl mb-2">Información de la Vacuna</CardTitle>
-                  <CardDescription>
-                    Proporcione detalles sobre la vacuna administrada. Esta información es crucial para el análisis.
-                  </CardDescription>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="vaccineName">Nombre de la Vacuna *</Label>
-                  <Select value={formData.vaccineName} onValueChange={(value) => updateFormData("vaccineName", value)}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Seleccione la vacuna" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Soberana 02">Soberana 02</SelectItem>
-                      <SelectItem value="Soberana Plus">Soberana Plus</SelectItem>
-                      <SelectItem value="Abdala">Abdala</SelectItem>
-                      <SelectItem value="Mambisa">Mambisa</SelectItem>
-                      <SelectItem value="Heberpenta-L">Heberpenta-L</SelectItem>
-                      <SelectItem value="Heberbiovac-HB">Heberbiovac-HB</SelectItem>
-                      <SelectItem value="vAA">vAA (Meningitis A)</SelectItem>
-                      <SelectItem value="vABC">vABC (Meningitis BC)</SelectItem>
-                      <SelectItem value="Otra">Otra</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="vaccineManufacturer">Fabricante *</Label>
-                    <Input
-                      id="vaccineManufacturer"
-                      placeholder="Ej: Instituto Finlay"
-                      value={formData.vaccineManufacturer}
-                      onChange={(e) => updateFormData("vaccineManufacturer", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="vaccineBatchNumber">Número de Lote *</Label>
-                    <Input
-                      id="vaccineBatchNumber"
-                      placeholder="Ej: L-2024-001"
-                      value={formData.vaccineBatchNumber}
-                      onChange={(e) => updateFormData("vaccineBatchNumber", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="vaccinationDate">Fecha de Vacunación *</Label>
-                    <Input
-                      id="vaccinationDate"
-                      type="date"
-                      value={formData.vaccinationDate}
-                      onChange={(e) => updateFormData("vaccinationDate", e.target.value)}
-                      className="bg-white"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="doseNumber">Número de Dosis *</Label>
-                    <Select value={formData.doseNumber} onValueChange={(value) => updateFormData("doseNumber", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Primera dosis</SelectItem>
-                        <SelectItem value="2">Segunda dosis</SelectItem>
-                        <SelectItem value="3">Tercera dosis</SelectItem>
-                        <SelectItem value="refuerzo">Dosis de refuerzo</SelectItem>
-                        <SelectItem value="unica">Dosis única</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="vaccinationSite">Sitio de Vacunación *</Label>
-                  <Input
-                    id="vaccinationSite"
-                    placeholder="Ej: Policlínico Vedado, La Habana"
-                    value={formData.vaccinationSite}
-                    onChange={(e) => updateFormData("vaccinationSite", e.target.value)}
-                    className="bg-white"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Event Description */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <CardTitle className="text-xl mb-2">Descripción del Evento Adverso</CardTitle>
-                  <CardDescription>
-                    Describa detalladamente el evento adverso experimentado después de la vacunación.
-                  </CardDescription>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="eventDate">Fecha de Inicio del Evento *</Label>
-                  <Input
-                    id="eventDate"
-                    type="date"
-                    value={formData.eventDate}
-                    onChange={(e) => updateFormData("eventDate", e.target.value)}
-                    className="bg-white"
-                  />
-                  <p className="text-xs text-gray-500">
-                    ¿Cuándo comenzaron los síntomas?
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Síntomas Presentados *</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
-                    {[
-                      "Dolor en el sitio de inyección",
-                      "Fiebre",
-                      "Fatiga",
-                      "Dolor de cabeza",
-                      "Náuseas/Vómitos",
-                      "Dolor muscular",
-                      "Escalofríos",
-                      "Hinchazón en sitio de inyección",
-                      "Mareos",
-                      "Reacción alérgica",
-                      "Dificultad respiratoria",
-                      "Otros"
-                    ].map((symptom) => (
-                      <div key={symptom} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={symptom}
-                          checked={formData.eventSymptoms.includes(symptom)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              updateFormData("eventSymptoms", [...formData.eventSymptoms, symptom]);
-                            } else {
-                              updateFormData("eventSymptoms", formData.eventSymptoms.filter(s => s !== symptom));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={symptom}
-                          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {symptom}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="eventDescription">Descripción Detallada del Evento *</Label>
-                  <Textarea
-                    id="eventDescription"
-                    placeholder="Describa cómo se desarrolló el evento, duración de síntomas, evolución, etc."
-                    value={formData.eventDescription}
-                    onChange={(e) => updateFormData("eventDescription", e.target.value)}
-                    className="bg-white min-h-[120px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Severidad del Evento *</Label>
-                  <RadioGroup value={formData.eventSeverity} onValueChange={(value) => updateFormData("eventSeverity", value)}>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
-                      <RadioGroupItem value="leve" id="leve" />
-                      <label htmlFor="leve" className="flex-1 cursor-pointer">
-                        <div className="font-medium text-green-700">Leve</div>
-                        <div className="text-xs text-gray-600">
-                          Síntomas menores, sin afectación de actividades diarias
-                        </div>
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
-                      <RadioGroupItem value="moderado" id="moderado" />
-                      <label htmlFor="moderado" className="flex-1 cursor-pointer">
-                        <div className="font-medium text-yellow-700">Moderado</div>
-                        <div className="text-xs text-gray-600">
-                          Afectación de actividades diarias, requiere atención médica
-                        </div>
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
-                      <RadioGroupItem value="severo" id="severo" />
-                      <label htmlFor="severo" className="flex-1 cursor-pointer">
-                        <div className="font-medium text-red-700">Severo</div>
-                        <div className="text-xs text-gray-600">
-                          Requiere hospitalización o amenaza la vida
-                        </div>
-                      </label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="eventHospitalization">¿Requirió Hospitalización? *</Label>
-                    <Select value={formData.eventHospitalization} onValueChange={(value) => updateFormData("eventHospitalization", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="si">Sí</SelectItem>
-                        <SelectItem value="urgencias">Solo urgencias</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="eventOutcome">Estado Actual *</Label>
-                    <Select value={formData.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recuperado">Totalmente recuperado</SelectItem>
-                        <SelectItem value="recuperando">En recuperación</SelectItem>
-                        <SelectItem value="secuelas">Recuperado con secuelas</SelectItem>
-                        <SelectItem value="sin_cambio">Sin cambio</SelectItem>
-                        <SelectItem value="desconocido">Desconocido</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="eventMedicalAttention">Tratamiento Recibido</Label>
-                  <Textarea
-                    id="eventMedicalAttention"
-                    placeholder="Describa el tratamiento médico recibido, medicamentos administrados, etc."
-                    value={formData.eventMedicalAttention}
-                    onChange={(e) => updateFormData("eventMedicalAttention", e.target.value)}
-                    className="bg-white min-h-[80px]"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Reporter Information */}
+            {currentStep === 1 && <PatientInfoSection formData={formData} updateFormData={updateFormData} dateErrors={dateErrors} />}
+            {currentStep === 2 && <VaccineInfoSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} />}
+            {currentStep === 3 && <AdverseEventSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} />}
             {currentStep === 4 && (
-              <div className="space-y-6">
-                <div>
-                  <CardTitle className="text-xl mb-2">Datos del Reportante</CardTitle>
-                  <CardDescription>
-                    Información de contacto para seguimiento del caso (opcional pero recomendado).
-                  </CardDescription>
-                </div>
+              <>
+                <ReporterInfoSection
+                  formData={formData}
+                  updateFormData={updateFormData}
+                  isAutoFilled={isAutoFilled}
+                  reporterFieldsRef={reporterFieldsRef}
+                  dateErrors={dateErrors}
+                />
 
-                <div className="space-y-2">
-                  <Label>Tipo de Reportante *</Label>
-                  <RadioGroup value={formData.reporterType} onValueChange={(value) => updateFormData("reporterType", value)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="paciente" id="paciente" />
-                      <Label htmlFor="paciente" className="font-normal">Paciente o Familiar</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="medico" id="medico" />
-                      <Label htmlFor="medico" className="font-normal">Profesional de la Salud</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="enfermera" id="enfermera" />
-                      <Label htmlFor="enfermera" className="font-normal">Enfermero/a</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="farmaceutico" id="farmaceutico" />
-                      <Label htmlFor="farmaceutico" className="font-normal">Farmacéutico/a</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="otro" id="otro" />
-                      <Label htmlFor="otro" className="font-normal">Otro</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reporterName">Nombre Completo (Opcional)</Label>
-                  <Input
-                    id="reporterName"
-                    placeholder="Su nombre"
-                    value={formData.reporterName}
-                    onChange={(e) => updateFormData("reporterName", e.target.value)}
-                    className="bg-white"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Solo se utilizará para contacto de seguimiento si es necesario
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="reporterContact">Teléfono o Email (Opcional)</Label>
-                  <Input
-                    id="reporterContact"
-                    placeholder="Teléfono o correo electrónico"
-                    value={formData.reporterContact}
-                    onChange={(e) => updateFormData("reporterContact", e.target.value)}
-                    className="bg-white"
-                  />
-                </div>
-
-                <Alert className="border-green-200 bg-green-50">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-sm text-gray-700">
-                    <strong>Casi listo:</strong> Revise la información ingresada y presione "Enviar Reporte" 
-                    para completar el proceso. Recibirá un número de confirmación.
-                  </AlertDescription>
-                </Alert>
-              </div>
+                {/* 🔐 CAPTCHA (solo usuarios no médicos/admin) */}
+                {!isDoctor && (
+                  <div className="flex justify-center mt-8 p-4 border-t">
+                    <ReCAPTCHA
+                      sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                      onChange={(value) => setCaptchaValue(value)}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Navigation Buttons */}
             <div className="flex justify-between mt-8 pt-6 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-                disabled={currentStep === 1}
-              >
+              <Button variant="outline" onClick={() => setCurrentStep(Math.max(1, currentStep - 1))} disabled={currentStep === 1}>
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Anterior
               </Button>
 
               {currentStep < totalSteps ? (
-                <Button
-                  style={{ backgroundColor: "#0A4B8F" }}
-                  className="text-white"
-                  onClick={() => setCurrentStep(Math.min(totalSteps, currentStep + 1))}
-                >
+                <Button style={{ backgroundColor: "#0A4B8F" }} className="text-white" onClick={() => setCurrentStep(Math.min(totalSteps, currentStep + 1))}>
                   Siguiente
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -556,6 +471,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   style={{ backgroundColor: "#2D7A3E" }}
                   className="text-white"
                   onClick={handleSubmit}
+                  disabled={!isDoctor && !captchaValue}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Enviar Reporte

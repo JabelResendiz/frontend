@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
+  contextAction?: string;
 }
 
-export const LoginPage = ({ onNavigate }: LoginPageProps) => {
+export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
   const { login, register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +20,15 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
   const [loading, setLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'doctor' | 'admin' | 'patient'>('patient');
+  const [role, setRole] = useState<'doctor' | 'admin' | 'responsable-seccion'>('doctor');
+
+  // Si viene del contexto de reportar, pre-seleccionar como médico y mostrar registro
+  useEffect(() => {
+    if (contextAction === 'registerAsDoctor') {
+      setIsRegister(true);
+      setRole('doctor');
+    }
+  }, [contextAction]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +127,7 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="doctor">Médico</SelectItem>
+                    <SelectItem value="responsable-seccion">Responsable de Sección</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>
@@ -149,7 +159,7 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
                   setEmail('');
                   setPassword('');
                   setName('');
-                  setRole('patient');
+                  setRole('doctor');
                 }}
                 className="ml-1 text-indigo-600 hover:text-indigo-700 font-semibold"
               >
