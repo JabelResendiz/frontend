@@ -106,13 +106,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             )}
             {!user && (
               <div className="ml-4 pl-4 border-l border-gray-200 flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => onNavigate('login')}
-                  className="text-gray-700 hover:bg-gray-100"
-                >
-                  Registrarse
-                </Button>
+               
                 <Button
                   onClick={() => onNavigate('login')}
                   style={{ backgroundColor: "#0A4B8F" }}
@@ -186,15 +180,6 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             )}
             {!user && (
               <div className="border-t border-gray-200 py-2">
-                <button
-                  onClick={() => {
-                    onNavigate('login');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-gray-700 hover:bg-gray-100"
-                >
-                  <span className="text-sm">Registrarse</span>
-                </button>
                 <button
                   onClick={() => {
                     onNavigate('login');

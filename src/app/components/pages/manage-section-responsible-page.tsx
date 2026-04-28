@@ -70,6 +70,10 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize] = useState(10);
 
+  const[totalCount,setTotalCount] = useState(0);
+  const[nextPageUrl,setNextPageUrl] = useState<string | null>(null);
+  const[previousPageUrl,setPreviousPageUrl] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     userName: "",
     email: "",
@@ -80,39 +84,165 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
   });
 
   // Cargar datos del backend
-  const loadSectionResponsibles = async () => {
-    setIsLoadingData(true);
-    try {
-      const response = await api.get("/SectionResponsible/GetAll", {
-        params: {
-          pageNumber,
-          pageSize,
-          search: searchTerm,
-        },
-      });
+  // const loadSectionResponsibles = async (url ?:string) => {
+  //   setIsLoadingData(true);
+  //   try {
+  //     const response = await api.get("/SectionResponsible/GetAll", {
+  //       params: {
+  //         pageNumber,
+  //         pageSize,
+  //         search: searchTerm,
+  //       },
+  //     });
 
-      if (response.data?.items && Array.isArray(response.data.items)) {
-        setSectionResponsibles(
-          response.data.items.map((item: any) => ({
-            id: item.id?.toString() || Date.now().toString(),
-            userName: item.userName || "",
-            email: item.email || "",
-            phoneNumber: item.phoneNumber || "",
-            provinceName: getProvinceNameById(item.provinceId) || "",
-            municipalityName: getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
-          }))
-        );
-      } else {
-        setSectionResponsibles([]);
-      }
-    } catch (error: any) {
-      const errorMessage = error.backendData?.message || error.message || "Error al cargar jefes de sección";
-      toast.error(errorMessage);
-      console.error("Error loading section responsibles:", error);
-    } finally {
-      setIsLoadingData(false);
+  //     if (response.data?.items && Array.isArray(response.data.items)) {
+  //       setSectionResponsibles(
+  //         response.data.items.map((item: any) => ({
+  //           id: item.id?.toString() || Date.now().toString(),
+  //           userName: item.userName || "",
+  //           email: item.email || "",
+  //           phoneNumber: item.phoneNumber || "",
+  //           provinceName: getProvinceNameById(item.provinceId) || "",
+  //           municipalityName: getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
+  //         }))
+  //       );
+  //     } else {
+  //       setSectionResponsibles([]);
+  //     }
+  //   } catch (error: any) {
+  //     const errorMessage = error.backendData?.message || error.message || "Error al cargar jefes de sección";
+  //     toast.error(errorMessage);
+  //     console.error("Error loading section responsibles:", error);
+  //   } finally {
+  //     setIsLoadingData(false);
+  //   }
+  // };
+
+
+// const loadSectionResponsibles = async (url?: string) => {
+//   setIsLoadingData(true);
+//   try {
+//     const response = url
+//       ? await api.get(url) // 👉 usa next/prev directamente
+//       : await api.get("/SectionResponsible/GetAll", {
+//           params: {
+//             pageNumber,
+//             pageSize,
+//             search: searchTerm,
+//           },
+//         });
+
+//     const data = response.data;
+
+//     if (data?.items && Array.isArray(data.items)) {
+//       setSectionResponsibles(
+//         data.items.map((item: any) => ({
+//           id: item.id?.toString() || Date.now().toString(),
+//           userName: item.userName || "",
+//           email: item.email || "",
+//           phoneNumber: item.phoneNumber || "",
+//           provinceName: getProvinceNameById(item.provinceId) || "",
+//           municipalityName:
+//             getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
+//         }))
+//       );
+
+//       // 🔥 metadata de paginación
+//       setTotalCount(data.totalCount);
+//       setNextPageUrl(data.nextPageUrl);
+//       setPreviousPageUrl(data.previousPageUrl);
+
+//       // 🔥 IMPORTANTÍSIMO
+//       setPageNumber(data.pageNumber);
+//     } else {
+//       setSectionResponsibles([]);
+//     }
+//   } catch (error: any) {
+//     toast.error("Error al cargar jefes de sección");
+//     console.error(error);
+//   } finally {
+//     setIsLoadingData(false);
+//   }
+// };
+
+
+
+
+
+
+
+
+
+const loadSectionResponsibles = async (url?: string) => {
+  setIsLoadingData(true);
+
+  try {
+    let params = {
+      pageNumber,
+      pageSize,
+      search: searchTerm,
+    };
+
+    // 👉 Si viene next/prev, extrae los params
+    if (url) {
+      const queryString = url.split("?")[1];
+      const urlParams = new URLSearchParams(queryString);
+
+      params = {
+        pageNumber: Number(urlParams.get("pageNumber")) || 1,
+        pageSize: Number(urlParams.get("pageSize")) || 10,
+        search: searchTerm,
+      };
     }
-  };
+
+    const response = await api.get("/SectionResponsible/GetAll", {
+      params,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = response.data;
+
+    if (data?.items) {
+      setSectionResponsibles(
+        data.items.map((item: any) => ({
+          id: item.id?.toString() || crypto.randomUUID(),
+          userName: item.userName || "",
+          email: item.email || "",
+          phoneNumber: item.phoneNumber || "",
+          provinceName: getProvinceNameById(item.provinceId) || "",
+          municipalityName:
+            getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
+        }))
+      );
+
+      setTotalCount(data.totalCount);
+      setNextPageUrl(data.nextPageUrl);
+      setPreviousPageUrl(data.previousPageUrl);
+      setPageNumber(data.pageNumber);
+    } else {
+      setSectionResponsibles([]);
+    }
+  } catch (error) {
+    toast.error("Error al cargar jefes de sección");
+    console.error(error);
+  } finally {
+    setIsLoadingData(false);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Cargar datos cuando monta el componente o cuando cambia la búsqueda
   useEffect(() => {
@@ -452,6 +582,7 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
               </CardContent>
             </Card>
           ) : (
+            <>
             <div className="grid gap-4">
               {sectionResponsibles.map((responsible) => (
                 <Card
@@ -504,6 +635,70 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
                 </Card>
               ))}
             </div>
+
+   {/* PAGINACIÓN */}
+<div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+  
+  {/* Info izquierda */}
+  <div className="text-sm text-gray-600">
+    Página <span className="font-semibold">{pageNumber}</span> de{" "}
+    <span className="font-semibold">
+      {Math.ceil(totalCount / pageSize)}
+    </span>
+  </div>
+
+  {/* Controles */}
+  <div className="flex items-center gap-2">
+    
+    {/* ANTERIOR */}
+    <Button
+      variant="outline"
+      disabled={!previousPageUrl}
+      onClick={() => loadSectionResponsibles(previousPageUrl!)}
+      className="
+        flex items-center gap-2
+        px-4 py-2
+        rounded-lg
+        border-gray-300
+        text-gray-700
+        hover:bg-gray-100
+        disabled:opacity-40 disabled:cursor-not-allowed
+        transition-all
+      "
+    >
+      <span className="text-lg">←</span>
+      Anterior
+    </Button>
+
+    {/* SIGUIENTE (MEJORADO) */}
+    <Button
+      onClick={() => loadSectionResponsibles(nextPageUrl!)}
+      disabled={!nextPageUrl}
+      className="
+        flex items-center gap-2
+        px-5 py-2
+        rounded-lg
+        text-white
+        font-semibold
+        shadow-md
+        transition-all
+        disabled:opacity-40 disabled:cursor-not-allowed
+        hover:scale-[1.02]
+      "
+      style={{
+        backgroundColor: nextPageUrl ? "#0A4B8F" : "#93A4B5",
+      }}
+    >
+      Siguiente
+      <span className="text-lg">→</span>
+    </Button>
+
+  </div>
+</div>
+              </>
+
+
+
           )}
         </div>
       </div>
