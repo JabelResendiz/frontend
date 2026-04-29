@@ -16,22 +16,17 @@ interface Symptom {
   id: string;
   name: string;
   standardCode: string;
-  codingSystem: string;
   category: string;
-  description: string;
   isActive: boolean;
-  createdAt?: string;
 }
 
 interface Vaccine {
   id: string;
   name: string;
-  type: number;
+  type: string;
   code: string;
-  description: string;
   approvalDate: string;
   isActive: boolean;
-  createdAt?: string;
 }
 
 interface PagedResultSymptoms {
@@ -55,33 +50,30 @@ interface PagedResultVaccines {
 interface SymptomFormData {
   name: string;
   standardCode: string;
-  codingSystem: string;
   category: string;
-  description: string;
   isActive: boolean;
 }
 
 interface VaccineFormData {
   name: string;
-  type: number;
+  type: string;
   code: string;
-  description: string;
   approvalDate: string;
   isActive: boolean;
 }
 
 const vaccineTypes = [
-  { id: 0, name: 'mRNA' },
-  { id: 1, name: 'Vector Viral' },
-  { id: 2, name: 'Subunidad proteica' },
-  { id: 3, name: 'Virus inactivado' },
-  { id: 4, name: 'Virus vivo atenuado' },
-  { id: 5, name: 'ADN' },
-  { id: 6, name: 'Conjugada' },
-  { id: 7, name: 'Otra' },
+  { id: 'mRNA', name: 'mRNA' },
+  { id: 'ViralVector', name: 'Vector Viral' },
+  { id: 'Subunit', name: 'Subunidad proteica' },
+  { id: 'Inactivated', name: 'Virus inactivado' },
+  { id: 'LiveAttenuated', name: 'Virus vivo atenuado' },
+  { id: 'DNA', name: 'ADN' },
+  { id: 'Conjugate', name: 'Conjugada' },
+  { id: 'Other', name: 'Otra' },
 ];
 
-const symptomCategories = ['General', 'Respiratorio', 'Gastrointestinal', 'Neurológico', 'Cardiaco', 'Dermatológico', 'Otro'];
+const symptomCategories = ['General', 'Neurological', 'Muscular', 'Local', 'Respiratory', 'Gastrointestinal', 'Cardiac', 'Dermatological', 'Other'];
 
 export const ManageCatalogPage = () => {
   // Estado de síntomas
@@ -106,17 +98,14 @@ export const ManageCatalogPage = () => {
   const [symptomForm, setSymptomForm] = useState<SymptomFormData>({
     name: '',
     standardCode: '',
-    codingSystem: '',
     category: 'General',
-    description: '',
     isActive: true,
   });
 
   const [vaccineForm, setVaccineForm] = useState<VaccineFormData>({
     name: '',
-    type: 0,
+    type: 'mRNA',
     code: '',
-    description: '',
     approvalDate: new Date().toISOString().split('T')[0],
     isActive: true,
   });
@@ -148,9 +137,7 @@ export const ManageCatalogPage = () => {
       setSymptomForm({
         name: '',
         standardCode: '',
-        codingSystem: '',
         category: 'General',
-        description: '',
         isActive: true,
       });
       // Recargar síntomas desde la primera página
@@ -183,9 +170,8 @@ export const ManageCatalogPage = () => {
       // ✅ limpiar formulario
       setVaccineForm({
         name: '',
-        type: 0,
+        type: 'mRNA',
         code: '',
-        description: '',
         approvalDate: new Date().toISOString().split('T')[0],
         isActive: true,
       });
@@ -355,37 +341,13 @@ export const ManageCatalogPage = () => {
                     <Label htmlFor="sym-code">Código Estándar *</Label>
                     <Input
                       id="sym-code"
-                      placeholder="Ej: 12121223"
+                      placeholder="Ej: SYM001"
                       value={symptomForm.standardCode}
                       onChange={(e) => setSymptomForm({ ...symptomForm, standardCode: e.target.value })}
                       required
                       disabled={loadingSymForm}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="sym-system">Sistema de Codificación *</Label>
-                    <Input
-                      id="sym-system"
-                      placeholder="Ej: 12312312"
-                      value={symptomForm.codingSystem}
-                      onChange={(e) => setSymptomForm({ ...symptomForm, codingSystem: e.target.value })}
-                      required
-                      disabled={loadingSymForm}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="sym-desc">Descripción *</Label>
-                  <Textarea
-                    id="sym-desc"
-                    placeholder="Descripción detallada..."
-                    value={symptomForm.description}
-                    onChange={(e) => setSymptomForm({ ...symptomForm, description: e.target.value })}
-                    rows={3}
-                    required
-                    disabled={loadingSymForm}
-                  />
                 </div>
 
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded">
@@ -547,8 +509,8 @@ export const ManageCatalogPage = () => {
                   <div>
                     <Label htmlFor="vac-type">Tipo *</Label>
                     <Select
-                      value={vaccineForm.type.toString()}
-                      onValueChange={(v) => setVaccineForm({ ...vaccineForm, type: parseInt(v) })}
+                      value={vaccineForm.type}
+                      onValueChange={(v) => setVaccineForm({ ...vaccineForm, type: v })}
                       disabled={loadingVacForm}
                     >
                       <SelectTrigger>
@@ -556,7 +518,7 @@ export const ManageCatalogPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {vaccineTypes.map(t => (
-                          <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -583,19 +545,6 @@ export const ManageCatalogPage = () => {
                       disabled={loadingVacForm}
                     />
                   </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="vac-desc">Descripción *</Label>
-                  <Textarea
-                    id="vac-desc"
-                    placeholder="Descripción detallada..."
-                    value={vaccineForm.description}
-                    onChange={(e) => setVaccineForm({ ...vaccineForm, description: e.target.value })}
-                    rows={3}
-                    required
-                    disabled={loadingVacForm}
-                  />
                 </div>
 
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded">
@@ -688,7 +637,7 @@ export const ManageCatalogPage = () => {
                         {vaccinesPaged.items.map(vac => (
                           <TableRow key={vac.id}>
                             <TableCell className="font-medium">{vac.name}</TableCell>
-                            <TableCell>{vaccineTypes.find(t => t.id === vac.type)?.name || 'Otra'}</TableCell>
+                            <TableCell>{vaccineTypes.find(t => t.id === vac.type)?.name || vac.type}</TableCell>
                             <TableCell className="text-sm text-gray-500">{vac.code}</TableCell>
                             <TableCell className="text-sm">{new Date(vac.approvalDate).toLocaleDateString()}</TableCell>
                             <TableCell>
