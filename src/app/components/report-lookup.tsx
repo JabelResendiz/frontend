@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Search, CheckCircle2, AlertCircle, Syringe, Calendar, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/app/services/api";
+import { ReportStatusTimeline, ReportStatus } from "@/app/components/ui/report-status-timeline";
 
 interface ReportData {
   reportDate: string;
@@ -39,6 +40,52 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
   const [foundReport, setFoundReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Mapear string del backend al enum ReportStatus
+  const mapStatusStringToEnum = (statusString: string): ReportStatus => {
+    const statusMap: Record<string, ReportStatus> = {
+      "Draft": ReportStatus.Draft,
+      "Submitted": ReportStatus.Submitted,
+      "UnderReview": ReportStatus.UnderReview,
+      "Approved": ReportStatus.Approved,
+      "Rejected": ReportStatus.Rejected,
+      "Closed": ReportStatus.Closed
+    };
+    return statusMap[statusString] ?? ReportStatus.Draft;
+  };
+
+  // Generar historial de estados basado en el estado actual
+  const generateStatusHistory = (currentStatus: ReportStatus, reportDate: string) => {
+    const history = [];
+    const reportDateObj = new Date(reportDate);
+
+    history.push({
+      status: ReportStatus.Draft,
+      date: new Date(reportDateObj.getTime() - 3600000).toISOString(),
+      comments: "Reporte creado por el usuario"
+    });
+
+    const statusOrder = [
+      { status: ReportStatus.Submitted, comment: "Reporte enviado al sistema" },
+      { status: ReportStatus.UnderReview, comment: "En revisión por profesional de farmacovigilancia" },
+      { status: ReportStatus.Approved, comment: "Reporte validado y aprobado" },
+      { status: ReportStatus.Rejected, comment: "Reporte rechazado por datos incorrectos" },
+      { status: ReportStatus.Closed, comment: "Caso finalizado" }
+    ];
+
+    for (const statusItem of statusOrder) {
+      if (statusItem.status <= currentStatus) {
+        const dateOffset = (statusItem.status - ReportStatus.Submitted + 1) * 24 * 60 * 60 * 1000;
+        history.push({
+          status: statusItem.status,
+          date: new Date(reportDateObj.getTime() + dateOffset).toISOString(),
+          comments: statusItem.comment
+        });
+      }
+    }
+
+    return history;
+  };
 
   const handleSearch = async () => {
     if (!notificationNumber.trim()) {
@@ -226,6 +273,25 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Status Timeline */}
+              <Card className="border-0 shadow-lg border-t-4" style={{ borderTopColor: "#0A4B8F" }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Línea de Tiempo del Estado
+                  </CardTitle>
+                  <CardDescription>
+                    Progreso del reporte a través de las diferentes fases
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ReportStatusTimeline
+                    currentStatus={mapStatusStringToEnum(foundReport.status)}
+                    statusHistory={generateStatusHistory(mapStatusStringToEnum(foundReport.status), foundReport.reportDate)}
+                  />
+                </CardContent>
+              </Card>
 
               {/* Vaccinated Subject Section */}
               <Card className="border">

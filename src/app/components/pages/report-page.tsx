@@ -212,7 +212,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
         if (data.eventDate) {
           const eventDateObj = parseDateOnly(data.eventDate);
-          if (vaccinationDate >= eventDateObj) {
+          if (vaccinationDate > eventDateObj) {
             errors[`vaccination_${i}_date`] = "Debe ser anterior al evento adverso";
           }
         }
@@ -239,8 +239,15 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       for (let i = 0; i < data.vaccinations.length; i++) {
         if (data.vaccinations[i].vaccinationDate) {
           const vaccinationDate = parseDateOnly(data.vaccinations[i].vaccinationDate);
+          
+          console.log(eventDateObj);
+          console.log(vaccinationDate);
+          
           if (eventDateObj < vaccinationDate) {
             errors.eventDate = "Debe ser posterior a todas las fechas de vacunación";
+            
+            console.log("candela");
+            
             break;
           }
         }
@@ -353,7 +360,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       }
 
       // Validar que vacunación sea anterior al evento
-      if (vaccinationDate >= eventDateObj) {
+      if (vaccinationDate > eventDateObj) {
         return `La fecha de vacunación #${i + 1} debe ser anterior a la fecha del evento adverso`;
       }
     }

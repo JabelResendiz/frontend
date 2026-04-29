@@ -253,8 +253,8 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
               </CardContent>
             </Card>
 
-            {/* Status Timeline - PRINCIPAL FEATURE */}
-            <Card className="border-0 shadow-lg">
+            {/* Status Timeline - PRINCIPAL FEATURE - INICIO */}
+            <Card className="border-0 shadow-lg border-t-4" style={{ borderTopColor: "#0A4B8F" }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
@@ -265,14 +265,6 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600">
-                    Estado actual: {ReportStatus[currentStatus]} ({currentStatus})
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Historial generado: {statusHistory?.length || 0} elementos
-                  </p>
-                </div>
                 <ReportStatusTimeline
                   currentStatus={reportData.status}
                   statusHistory={reportData.statusHistory}

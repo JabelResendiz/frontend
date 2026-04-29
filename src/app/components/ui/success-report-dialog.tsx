@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "./button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "./dialog";
 import { CheckCircle2, Copy, Download, Search } from "lucide-react";
@@ -19,6 +19,16 @@ export function SuccessReportDialog({
   message,
   onNavigate
 }: SuccessReportDialogProps) {
+  // Redirigir automáticamente a home después de 5 segundos
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        onNavigate?.("home");
+      }, 60000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onNavigate]);
+
   const handleCopyNotificationNumber = () => {
     navigator.clipboard.writeText(notificationNumber);
     toast.success("Número de notificación copiado al portapapeles");
@@ -63,8 +73,11 @@ Gracias por reportar eventos adversos. Su información es valiosa para la seguri
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // No permitir cerrar al hacer clic afuera
+      if (!open) return;
+    }}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
@@ -113,6 +126,10 @@ Gracias por reportar eventos adversos. Su información es valiosa para la seguri
           </div>
         </div>
 
+        <div className="text-center text-sm text-gray-600 mb-4">
+          <p>Redirigiendo al inicio en <span className="font-semibold">60 segundos</span>...</p>
+        </div>
+
         <DialogFooter className="flex gap-2 flex-col sm:flex-row">
           <Button
             variant="outline"
@@ -125,7 +142,6 @@ Gracias por reportar eventos adversos. Su información es valiosa para la seguri
           <Button
             variant="outline"
             onClick={() => {
-              onClose();
               onNavigate?.("track-report");
             }}
             className="gap-2 flex-1"
@@ -135,12 +151,11 @@ Gracias por reportar eventos adversos. Su información es valiosa para la seguri
           </Button>
           <Button
             onClick={() => {
-              onClose();
               onNavigate?.("home");
             }}
             className="bg-green-600 hover:bg-green-700 flex-1"
           >
-            Ir al Inicio
+            Salir
           </Button>
         </DialogFooter>
       </DialogContent>

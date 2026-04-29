@@ -74,28 +74,12 @@ export function ReportStatusTimeline({
   currentStatus, 
   statusHistory 
 }: ReportStatusTimelineProps) {
-  console.log("ReportStatusTimeline render:", { currentStatus, statusHistory });
-
   const statuses = Object.values(ReportStatus).filter(
     (val) => typeof val === "number"
   ) as number[];
-
-  console.log("Statuses array:", statuses);
 
   const isCompleted = (status: number) => status <= currentStatus;
   const isCurrent = (status: number) => status === currentStatus;
-
-export function ReportStatusTimeline({ 
-  currentStatus, 
-  statusHistory 
-}: ReportStatusTimelineProps) {
-  console.log("ReportStatusTimeline render:", { currentStatus, statusHistory });
-
-  const statuses = Object.values(ReportStatus).filter(
-    (val) => typeof val === "number"
-  ) as number[];
-
-  console.log("Statuses array:", statuses);
 
   return (
     <div className="w-full py-8">
@@ -103,23 +87,14 @@ export function ReportStatusTimeline({
         Estado del Reporte
       </h3>
       
-      {/* Debug info */}
-      <div className="mb-4 p-4 bg-yellow-100 border border-yellow-300 rounded">
-        <p className="text-sm font-mono">
-          <strong>Debug:</strong> currentStatus = {currentStatus}, 
-          statuses = [{statuses.join(', ')}], 
-          historyLength = {statusHistory?.length || 0}
-        </p>
-      </div>
-      
-      <div className="relative">
-        {/* Timeline line */}
-        <div className="absolute left-6 top-12 bottom-0 w-1 bg-gray-200"></div>
+      {/* Horizontal Timeline */}
+      <div className="relative w-full">
+        {/* Horizontal Timeline line */}
+        <div className="absolute top-6 left-0 right-0 h-1 bg-gray-200"></div>
 
         {/* Timeline items */}
-        <div className="space-y-8">
+        <div className="relative flex justify-between items-start">
           {statuses.map((status, index) => {
-            console.log(`Rendering status ${status}, index ${index}`);
             const config = statusConfig[status];
             const Icon = config.icon;
             const completed = status <= currentStatus;
@@ -130,74 +105,55 @@ export function ReportStatusTimeline({
             );
 
             return (
-              <div key={status} className="relative pl-20">
+              <div key={status} className="flex flex-col items-center flex-1 max-w-[200px]">
                 {/* Circle indicator */}
                 <div
-                  className={`absolute -left-[27px] w-14 h-14 rounded-full border-4 flex items-center justify-center ${
+                  className={`relative w-12 h-12 rounded-full border-4 flex items-center justify-center mb-3 ${
                     current
-                      ? `${config.bgColor} ${config.borderColor} ring-4 ring-white`
+                      ? `${config.bgColor} ${config.borderColor} ring-4 ring-white shadow-lg`
                       : completed
-                      ? `${config.bgColor} ${config.borderColor}`
+                      ? `${config.bgColor} ${config.borderColor} shadow-md`
                       : "bg-gray-100 border-gray-300"
-                  } transition-all duration-300`}
+                  } transition-all duration-300 z-10`}
                 >
                   <Icon
-                    className={`w-6 h-6 ${
+                    className={`w-5 h-5 ${
                       current ? config.color : completed ? config.color : "text-gray-400"
                     }`}
                   />
                 </div>
 
-                {/* Content */}
-                <div
-                  className={`p-4 rounded-lg border-2 ${
-                    current
-                      ? `${config.bgColor} ${config.borderColor}`
-                      : completed
-                      ? `${config.bgColor} ${config.borderColor}`
-                      : "bg-gray-50 border-gray-200"
-                  } transition-all duration-300`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4
-                        className={`font-semibold text-sm ${
-                          current ? config.color : completed ? config.color : "text-gray-600"
-                        }`}
-                      >
-                        {config.label}
-                      </h4>
+                {/* Status label */}
+                <div className="text-center mb-2">
+                  <h4
+                    className={`font-semibold text-sm ${
+                      current ? config.color : completed ? config.color : "text-gray-600"
+                    }`}
+                  >
+                    {config.label}
+                  </h4>
+                  <p className="text-xs text-gray-600 mt-1 max-w-[180px]">
+                    {config.description}
+                  </p>
+                </div>
+
+                {/* Date and comments if available */}
+                {historyItem && (
+                  <div className="text-center mt-2 p-2 bg-gray-50 rounded border max-w-[180px]">
+                    <p className="text-xs text-gray-700 font-medium">
+                      {new Date(historyItem.date).toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      })}
+                    </p>
+                    {historyItem.comments && (
                       <p className="text-xs text-gray-600 mt-1">
-                        {config.description}
+                        {historyItem.comments}
                       </p>
-                    </div>
-                    {current && (
-                      <span className="ml-4 px-3 py-1 text-xs font-semibold bg-white rounded-full border border-current">
-                        Actual
-                      </span>
                     )}
                   </div>
-
-                  {historyItem && (
-                    <div className="mt-3 pt-3 border-t border-current border-opacity-20">
-                      <p className="text-xs text-gray-700">
-                        <span className="font-semibold">Fecha:</span>{" "}
-                        {new Date(historyItem.date).toLocaleString("es-ES", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
-                      </p>
-                      {historyItem.comments && (
-                        <p className="text-xs text-gray-600 mt-1">
-                          <span className="font-semibold">Notas:</span> {historyItem.comments}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             );
           })}
