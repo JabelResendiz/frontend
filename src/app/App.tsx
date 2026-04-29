@@ -20,6 +20,7 @@ import { AssignedReportsPage } from "@/app/components/pages/assigned-reports-pag
 import { ReviewReportPage } from "@/app/components/pages/review-report-page";
 import { ManageCatalogPage } from "@/app/components/pages/manage-catalog-page";
 import { ManageSectionResponsiblePage } from "@/app/components/pages/manage-section-responsible-page";
+import { TrackReportPage } from "@/app/components/pages/track-report-page";
 import { Toaster } from "@/app/components/ui/sonner";
 
 function AppContent() {
@@ -67,6 +68,7 @@ function AppContent() {
         {currentPage === "login" && <LoginPage onNavigate={handleNavigate} contextAction={contextAction} />}
         {currentPage === "home" && <HomePage onNavigate={handleNavigate} />}
         {currentPage === "report" && <ReportPage onNavigate={handleNavigate} />}
+        {currentPage === "track-report" && <TrackReportPage onNavigate={handleNavigate} />}
         {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
         {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}

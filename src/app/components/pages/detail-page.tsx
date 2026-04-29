@@ -2,6 +2,7 @@ import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Separator } from "@/app/components/ui/separator";
+import { ReportStatusTimeline, ReportStatus } from "@/app/components/ui/report-status-timeline";
 import { 
   ArrowLeft, 
   User, 
@@ -27,6 +28,7 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
     status: "revisado",
     submissionDate: "2026-01-24T10:30:00",
     reviewDate: "2026-01-25T14:20:00",
+    reportStatus: ReportStatus.UnderReview, // Current status for timeline
     
     patient: {
       age: 45,
@@ -358,14 +360,42 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Timeline */}
+            {/* Status Timeline */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="w-5 h-5" />
-                  Línea de Tiempo
+                  Estado del Reporte
                 </CardTitle>
-                <CardDescription>Historial del caso</CardDescription>
+                <CardDescription>Progreso de evaluación</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ReportStatusTimeline 
+                  currentStatus={reportDetail.reportStatus}
+                  statusHistory={[
+                    {
+                      status: ReportStatus.Submitted,
+                      date: reportDetail.submissionDate,
+                      comments: "Reporte recibido en el sistema"
+                    },
+                    {
+                      status: ReportStatus.UnderReview,
+                      date: reportDetail.reviewDate,
+                      comments: "En evaluación por profesional de farmacovigilancia"
+                    }
+                  ]}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Historic Timeline */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Línea de Tiempo del Caso
+                </CardTitle>
+                <CardDescription>Historial de eventos</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

@@ -110,4 +110,11 @@ export const reportService = {
     const res = await api.post('/Report/createPublic', report);
     return res.data;
   },
+
+  getReportByNotificationNumber: async (notificationNumber: string): Promise<any> => {
+    const res = await api.get('/Report/get-report', {
+      params: { notificationNumber }
+    });
+    return res.data;
+  },
 };

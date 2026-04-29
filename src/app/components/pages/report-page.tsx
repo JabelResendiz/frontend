@@ -11,6 +11,7 @@ import { PatientInfoSection } from "./report-page/patient-info-section";
 import { VaccineInfoSection } from "./report-page/vaccine-info-section";
 import { AdverseEventSection } from "./report-page/adverse-event-section";
 import { ReporterInfoSection } from "./report-page/reporter-info-section";
+import { SuccessReportDialog } from "@/app/components/ui/success-report-dialog";
 import ReCAPTCHA from "react-google-recaptcha";
 import { reportService } from "@/app/services/report.service";
 import { getProvinceId, getMunicipalityId } from "@/app/data/municipalities";
@@ -84,6 +85,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
   const [backendErrors, setBackendErrors] = useState<string[]>([]);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [notificationNumber, setNotificationNumber] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const totalSteps = 4;
   const progress = (currentStep / totalSteps) * 100;
@@ -544,13 +548,18 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         }]
       };
 
-      await reportService.createPublic(payload);
+      const response = await reportService.createPublic(payload);
 
-      toast.success("Reporte enviado exitosamente", {
-        description: "Su reporte ha sido registrado."
-      });
+      // Extract notification number from response
+      const notifNumber = response?.data?.notificationNumber || response?.notificationNumber || "AEFI-" + Date.now();
+      const message = response?.message || "Su reporte ha sido registrado exitosamente.";
 
-      setTimeout(() => onNavigate("home"), 2000);
+      setNotificationNumber(notifNumber);
+      setSuccessMessage(message);
+      setShowSuccessDialog(true);
+
+      // Reset form
+      setFormData(initialFormData);
     } catch (error: any) {
       const parsedErrors = parseBackendValidationErrors(error);
       setBackendErrors(parsedErrors);
@@ -678,6 +687,14 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
             </div>
           </CardContent>
         </Card>
+
+        <SuccessReportDialog
+          isOpen={showSuccessDialog}
+          onClose={() => setShowSuccessDialog(false)}
+          notificationNumber={notificationNumber}
+          message={successMessage}
+          onNavigate={onNavigate}
+        />
       </div>
     </div>
   );
