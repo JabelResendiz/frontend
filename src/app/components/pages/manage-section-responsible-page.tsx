@@ -67,6 +67,7 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("");
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize] = useState(10);
 
@@ -173,26 +174,37 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
 
 
 
-const loadSectionResponsibles = async (url?: string) => {
+const loadSectionResponsibles = async (url?: string, provinceNameOverride?: string | null) => {
   setIsLoadingData(true);
 
   try {
-    let params = {
+    let provinceName = provinceNameOverride !== undefined ? provinceNameOverride || undefined : provinceFilter || undefined;
+    let params: any = {
       pageNumber,
       pageSize,
-      search: searchTerm,
+      search: searchTerm || undefined,
+      provinceName,
     };
 
-    // 👉 Si viene next/prev, extrae los params
+    // 👉 Si viene next/prev, extrae los params de la URL para mantener paginación
     if (url) {
-      const queryString = url.split("?")[1];
+      const queryString = url.split("?")[1] || "";
       const urlParams = new URLSearchParams(queryString);
+
+      provinceName = provinceNameOverride !== undefined
+        ? provinceNameOverride || undefined
+        : urlParams.get("provinceName") || undefined;
 
       params = {
         pageNumber: Number(urlParams.get("pageNumber")) || 1,
         pageSize: Number(urlParams.get("pageSize")) || 10,
-        search: searchTerm,
+        search: searchTerm || undefined,
+        provinceName,
       };
+
+      if (urlParams.get("provinceName") && provinceNameOverride === undefined) {
+        setProvinceFilter(urlParams.get("provinceName")!);
+      }
     }
 
     const response = await api.get("/SectionResponsible/GetAll", {
@@ -359,7 +371,28 @@ const loadSectionResponsibles = async (url?: string) => {
   };
 
   const handleSearch = () => {
-    setPageNumber(1);
+    if (pageNumber === 1) {
+      loadSectionResponsibles();
+    } else {
+      setPageNumber(1);
+    }
+  };
+
+  const handleFilterByProvince = () => {
+    if (pageNumber === 1) {
+      loadSectionResponsibles();
+    } else {
+      setPageNumber(1);
+    }
+  };
+
+  const clearProvinceFilter = () => {
+    setProvinceFilter("");
+    if (pageNumber === 1) {
+      loadSectionResponsibles(undefined, null);
+    } else {
+      setPageNumber(1);
+    }
   };
 
   return (
@@ -392,8 +425,8 @@ const loadSectionResponsibles = async (url?: string) => {
         {/* Search Section */}
         {!showForm && (
           <Card className="border-0 shadow-md mb-6">
-            <CardContent className="p-4">
-              <div className="flex gap-2">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                   <Input
@@ -410,6 +443,44 @@ const loadSectionResponsibles = async (url?: string) => {
                   disabled={isLoadingData}
                 >
                   Buscar
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
+                <div>
+                  <Label htmlFor="province-filter" className="text-sm font-medium text-gray-700">
+                    Filtrar por provincia
+                  </Label>
+                  <Select
+                    value={provinceFilter}
+                    onValueChange={(value) => setProvinceFilter(value)}
+                  >
+                    <SelectTrigger id="province-filter">
+                      <SelectValue placeholder="Selecciona provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVINCES.map((province) => (
+                        <SelectItem key={province} value={province}>
+                          {province}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="text-white font-semibold"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={handleFilterByProvince}
+                  disabled={!provinceFilter || isLoadingData}
+                >
+                  Filtrar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearProvinceFilter}
+                  disabled={!provinceFilter || isLoadingData}
+                >
+                  Limpiar
                 </Button>
               </div>
             </CardContent>
@@ -596,10 +667,10 @@ const loadSectionResponsibles = async (url?: string) => {
                           {responsible.userName}
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                          <div>
+                          {/* <div>
                             <span className="font-medium">Email:</span>{" "}
                             {responsible.email}
-                          </div>
+                          </div> */}
                           <div>
                             <span className="font-medium">Teléfono:</span>{" "}
                             {responsible.phoneNumber}
@@ -614,7 +685,7 @@ const loadSectionResponsibles = async (url?: string) => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2 ml-4">
+                      {/* <div className="flex gap-2 ml-4">
                         <Button
                           variant="outline"
                           size="sm"
@@ -629,7 +700,7 @@ const loadSectionResponsibles = async (url?: string) => {
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
-                      </div>
+                      </div> */}
                     </div>
                   </CardContent>
                 </Card>
@@ -704,7 +775,7 @@ const loadSectionResponsibles = async (url?: string) => {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+      {/* <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
@@ -720,7 +791,7 @@ const loadSectionResponsibles = async (url?: string) => {
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
     </div>
   );
 }
