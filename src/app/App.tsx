@@ -18,6 +18,7 @@ import { ManageReportsPage } from "@/app/components/pages/manage-reports-page";
 import { SectionManagerDashboard } from "@/app/components/pages/section-manager-dashboard";
 import { AssignedReportsPage } from "@/app/components/pages/assigned-reports-page";
 import { ReviewReportPage } from "@/app/components/pages/review-report-page";
+import { AssignedReport } from "@/app/services/report.service";
 import { ManageCatalogPage } from "@/app/components/pages/manage-catalog-page";
 import { ManageSectionResponsiblePage } from "@/app/components/pages/manage-section-responsible-page";
 import { TrackReportPage } from "@/app/components/pages/track-report-page";
@@ -26,6 +27,7 @@ import { Toaster } from "@/app/components/ui/sonner";
 function AppContent() {
   const [currentPage, setCurrentPage] = useState("home");
   const [selectedReportId, setSelectedReportId] = useState<string | undefined>();
+  const [selectedReport, setSelectedReport] = useState<AssignedReport | undefined>();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [contextAction, setContextAction] = useState<string | undefined>();
   const { isAuthenticated, user } = useAuth();
@@ -38,12 +40,15 @@ function AppContent() {
     }
   }, [isAuthenticated]);
 
-  const handleNavigate = (page: string, reportId?: string, action?: string) => {
+  const handleNavigate = (page: string, reportId?: string, action?: string, payload?: AssignedReport) => {
     setIsTransitioning(true);
     setTimeout(() => {
       setCurrentPage(page);
       if (reportId) {
         setSelectedReportId(reportId);
+      }
+      if (payload) {
+        setSelectedReport(payload);
       }
       if (action) {
         setContextAction(action);
@@ -74,7 +79,7 @@ function AppContent() {
         {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
         {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'MedicalReviewer' && <DoctorDashboard onNavigate={handleNavigate} />}
         {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'MedicalReviewer' && <AssignedReportsPage onNavigate={handleNavigate} />}
-        {currentPage === "review-report" && isAuthenticated && user?.role === 'MedicalReviewer' && <ReviewReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
+        {currentPage === "review-report" && isAuthenticated && user?.role === 'MedicalReviewer' && <ReviewReportPage reportId={selectedReportId} report={selectedReport} onNavigate={handleNavigate} />}
         {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'Admin' && <AdminDashboard />}
         {currentPage === "manage-catalog" && isAuthenticated && user?.role === 'Admin' && <ManageCatalogPage />}
         {currentPage === "manage-section-responsible" && isAuthenticated && user?.role === 'Admin' && <ManageSectionResponsiblePage onNavigate={handleNavigate} />}

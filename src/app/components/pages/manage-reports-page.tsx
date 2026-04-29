@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
-import { ChevronLeft, ChevronRight, Loader2, AlertTriangle, Heart, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, AlertTriangle, Heart, ChevronDown, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { reportService, type AssignedReport } from "@/app/services/report.service";
+import { doctorService, type MedicalReviewer } from "@/app/services/doctor.service";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/components/ui/command";
 
 interface ManageReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
@@ -33,25 +37,34 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [expandedReports, setExpandedReports] = useState<Set<number>>(new Set());
 
+  // Assignment state
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [selectedReportIndex, setSelectedReportIndex] = useState<number | null>(null);
+  const [medicalReviewers, setMedicalReviewers] = useState<MedicalReviewer[]>([]);
+  const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+
+  const loadReports = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await reportService.getAssignedReports(pageNumber, PAGE_SIZE);
+      setReports(response.items);
+      setTotalCount(response.totalCount);
+      setExpandedReports(new Set()); // Reset expandidos al cambiar página
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar reportes';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Cargar reportes cuando cambia la página
   useEffect(() => {
-    const loadReports = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await reportService.getAssignedReports(pageNumber, PAGE_SIZE);
-        setReports(response.items);
-        setTotalCount(response.totalCount);
-        setExpandedReports(new Set()); // Reset expandidos al cambiar página
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Error al cargar reportes';
-        setError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadReports();
   }, [pageNumber]);
 
@@ -86,6 +99,67 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
         return <Heart className="w-5 h-5 text-yellow-600" />;
       default:
         return null;
+    }
+  };
+
+  const handleAssignReport = async (reportIndex: number) => {
+    setSelectedReportIndex(reportIndex);
+    setSelectedReviewerId(null);
+    setShowAssignDialog(true);
+    setOpen(false); // Reset popover state
+
+    // Load medical reviewers from current user's municipality
+    try {
+      const response = await doctorService.getMedicalReviewersByCurrentUserMunicipality(1, 100);
+      setMedicalReviewers(response.items || []);
+    } catch (error) {
+      console.error("Error loading medical reviewers:", error);
+      toast.error("Error al cargar médicos revisores");
+    }
+  };
+
+  const handleConfirmAssignment = async () => {
+   if (selectedReportIndex === null || !selectedReviewerId) {
+      toast.error("Por favor selecciona un médico revisor");
+      return;
+    }
+
+    const report = reports[selectedReportIndex];
+    if (!report) return;
+
+    console.log("Report data:", report);
+    console.log("Report ID:", report.id);
+
+    // Find the selected reviewer to get their details
+    const selectedReviewer = medicalReviewers.find(r => r.id === selectedReviewerId);
+    if (!selectedReviewer) {
+      toast.error("Médico revisor no encontrado");
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const easternNow = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+      const assignment = {
+        medicalReviewerId: selectedReviewerId,
+        aefiReportId: report.id,
+        assignedAt: easternNow,
+      };
+
+      console.log("Assignment payload:", assignment);
+
+      await reportService.createMedicalReviewAssignment(assignment);
+      toast.success("Reporte asignado exitosamente");
+      loadReports(); // Refresh the reports list
+      setShowAssignDialog(false);
+      setSelectedReportIndex(null);
+      setSelectedReviewerId(null);
+    } catch (error: any) {
+      console.error("Assignment error:", error);
+      console.error("Error response:", error.response?.data);
+      toast.error(error.response?.data?.message || "Error al asignar reporte");
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -136,8 +210,8 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
                   <Card key={index} className={`border-0 shadow-md hover:shadow-lg transition-all ${getSeverityColor(severity)}`}>
                     <CardContent className="p-4">
                       {/* Compact View */}
-                      <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpandReport(index)}>
-                        <div className="flex items-center gap-4 flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => toggleExpandReport(index)}>
                           {/* Severity Icon */}
                           <div className="flex-shrink-0">
                             {getSeverityIcon(severity)}
@@ -163,10 +237,23 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
                           </div>
                         </div>
 
-                        {/* Expand Icon */}
-                        <ChevronDown
-                          className={`w-5 h-5 text-gray-400 ml-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        />
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button
+                            onClick={() => handleAssignReport(index)}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <UserPlus className="w-4 h-4 mr-1" />
+                            Asignar
+                          </Button>
+
+                          {/* Expand Icon */}
+                          <ChevronDown
+                            className={`w-5 h-5 text-gray-400 cursor-pointer transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            onClick={() => toggleExpandReport(index)}
+                          />
+                        </div>
                       </div>
 
                       {/* Expanded View */}
@@ -261,6 +348,116 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
             </div>
           </>
         )}
+
+        {/* Assignment Dialog */}
+        <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+          <DialogContent className="sm:max-w-md">
+   
+            <DialogHeader>
+              <DialogTitle>Asignar Reporte a Médico Revisor</DialogTitle>
+              <DialogDescription>
+                Selecciona un médico revisor del municipio para asignar este reporte.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Médico Revisor
+                </label>
+
+                {isLoadingReviewers ? (
+                  <Button variant="outline" disabled className="w-full justify-start">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cargando médicos revisores...
+                  </Button>
+                ) : medicalReviewers.length === 0 ? (
+                  <div className="space-y-2">
+                    <Button variant="outline" disabled className="w-full justify-start">
+                      No hay médicos revisores disponibles
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                      Debug: {medicalReviewers.length} médicos cargados
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {selectedReviewerId
+                            ? (() => {
+                              const reviewer = medicalReviewers.find(r => r.id === selectedReviewerId);
+                                return reviewer
+                                  ? `${reviewer.fullName} - ${reviewer.institution}`
+                                  : "Selecciona un médico revisor";
+                              })()
+                            : "Selecciona un médico revisor"}
+                          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar médico revisor..." />
+                          <CommandList>
+                            <CommandEmpty>No se encontraron médicos revisores.</CommandEmpty>
+                            <CommandGroup>
+                            {medicalReviewers.map((reviewer) => (
+                              <CommandItem
+                                key={reviewer.id}
+                                value={`${reviewer.fullName} ${reviewer.institution}`}
+                                onSelect={() => {
+                                  setSelectedReviewerId(reviewer.id);
+                                  setOpen(false);
+                                }}
+                              >
+                                {reviewer.fullName} - {reviewer.institution}
+                              </CommandItem>
+                            ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAssignDialog(false)}
+                  disabled={isAssigning}
+                >
+                  Cancelar
+                </Button>
+
+                <Button
+                  onClick={handleConfirmAssignment}
+                  disabled={!selectedReviewerId || isAssigning}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isAssigning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Asignando...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Asignar
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

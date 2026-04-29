@@ -34,7 +34,10 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
       age: 45,
       gender: "Femenino",
       province: "La Habana",
-      medicalHistory: "Hipertensión controlada con medicación"
+      medicalHistory: "Hipertensión controlada con medicación",
+      allergies: "Alergia a penicilina y mariscos",
+      currentMedications: "Enalapril 10mg diario, Aspirina 100mg diario",
+      otherVaccinesLastMonth: "Vacuna contra la gripe (hace 2 semanas)"
     },
     
     vaccine: {
@@ -57,7 +60,10 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
         "Fatiga"
       ],
       description: "La paciente reporta dolor moderado en el sitio de inyección aproximadamente 2 horas después de la vacunación. Durante la noche presentó fiebre leve (37.8°C) y fatiga. Los síntomas fueron manejados con paracetamol según indicación médica. A las 48 horas, todos los síntomas habían desaparecido completamente.",
-      treatment: "Paracetamol 500mg cada 8 horas por 24 horas"
+      treatment: "Paracetamol 500mg cada 8 horas por 24 horas",
+      medicalAttention: "Consultó al médico de familia",
+      laboratoryResults: "No se realizaron exámenes de laboratorio",
+      professionalDiagnosis: "Reacción adversa leve post-vacunación"
     },
     
     reporter: {
@@ -127,6 +133,87 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
     );
   };
 
+  const handleDownloadTxt = () => {
+    const txtContent = `
+REPORTE DETALLADO DE EVENTO ADVERSO
+=====================================
+
+ID DEL REPORTE: ${reportDetail.id}
+ESTADO: ${reportDetail.status}
+FECHA DE ENVÍO: ${new Date(reportDetail.submissionDate).toLocaleString('es-ES')}
+FECHA DE REVISIÓN: ${new Date(reportDetail.reviewDate).toLocaleString('es-ES')}
+
+INFORMACIÓN DEL PACIENTE
+========================
+Edad: ${reportDetail.patient.age} años
+Sexo: ${reportDetail.patient.gender}
+Provincia: ${reportDetail.patient.province}
+Antecedentes Médicos: ${reportDetail.patient.medicalHistory}
+Medicamentos Actuales: ${reportDetail.patient.currentMedications}
+Alergias: ${reportDetail.patient.allergies}
+Otras Vacunas (Último Mes): ${reportDetail.patient.otherVaccinesLastMonth}
+
+INFORMACIÓN DE LA VACUNA
+========================
+Nombre: ${reportDetail.vaccine.name}
+Fabricante: ${reportDetail.vaccine.manufacturer}
+Lote: ${reportDetail.vaccine.batchNumber}
+Dosis: ${reportDetail.vaccine.doseNumber}
+Fecha de Vacunación: ${new Date(reportDetail.vaccine.vaccinationDate).toLocaleDateString('es-ES')}
+Sitio de Vacunación: ${reportDetail.vaccine.vaccinationSite}
+
+EVENTO ADVERSO
+==============
+Fecha de Inicio: ${new Date(reportDetail.event.startDate).toLocaleDateString('es-ES')}
+Severidad: ${reportDetail.event.severity}
+Estado Actual: ${reportDetail.event.outcome}
+Hospitalización: ${reportDetail.event.hospitalization}
+
+Síntomas Reportados:
+${reportDetail.event.symptoms.map(s => `- ${s}`).join('\n')}
+
+Descripción Detallada:
+${reportDetail.event.description}
+
+Tratamiento Recibido:
+${reportDetail.event.treatment}
+
+Atención Médica:
+${reportDetail.event.medicalAttention}
+
+Resultados de Laboratorio:
+${reportDetail.event.laboratoryResults}
+
+Diagnóstico Profesional:
+${reportDetail.event.professionalDiagnosis}
+
+INFORMACIÓN DEL REPORTANTE
+==========================
+Tipo: ${reportDetail.reporter.type}
+Nombre: ${reportDetail.reporter.name}
+Contacto: ${reportDetail.reporter.contact}
+
+LÍNEA DE TIEMPO DEL CASO
+========================
+${reportDetail.timeline.map(item => `${item.date}: ${item.event} - ${item.description}`).join('\n')}
+
+NOTAS TÉCNICAS
+==============
+${reportDetail.technicalNotes.map(note => `${new Date(note.date).toLocaleString('es-ES')} - ${note.author}:
+${note.note}`).join('\n\n')}
+    `.trim();
+
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-${reportDetail.id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const getStatusBadge = (status: string) => {
     const styles = {
       pendiente: { bg: "#FEF3C7", text: "#D97706", label: "Pendiente" },
@@ -173,10 +260,16 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
                 {getSeverityBadge(reportDetail.event.severity)}
               </div>
             </div>
-            <Button variant="outline" className="gap-2">
-              <FileText className="w-4 h-4" />
-              Exportar PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-2" onClick={handleDownloadTxt}>
+                <FileText className="w-4 h-4" />
+                Descargar TXT
+              </Button>
+              <Button variant="outline" className="gap-2">
+                <FileText className="w-4 h-4" />
+                Exportar PDF
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -212,6 +305,24 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
                   <div className="text-sm text-gray-600 mb-1">Antecedentes Médicos</div>
                   <div className="text-sm bg-gray-50 p-3 rounded-md">
                     {reportDetail.patient.medicalHistory}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm text-gray-600 mb-1">Medicamentos Actuales</div>
+                  <div className="text-sm bg-gray-50 p-3 rounded-md">
+                    {reportDetail.patient.currentMedications}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm text-gray-600 mb-1">Alergias</div>
+                  <div className="text-sm bg-gray-50 p-3 rounded-md">
+                    {reportDetail.patient.allergies}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm text-gray-600 mb-1">Otras Vacunas (Último Mes)</div>
+                  <div className="text-sm bg-gray-50 p-3 rounded-md">
+                    {reportDetail.patient.otherVaccinesLastMonth}
                   </div>
                 </div>
               </CardContent>
@@ -323,6 +434,24 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
                   <div className="text-sm text-gray-600 mb-2">Tratamiento Recibido</div>
                   <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-100">
                     {reportDetail.event.treatment}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-2">Atención Médica</div>
+                  <div className="text-sm bg-green-50 p-3 rounded-md border border-green-100">
+                    {reportDetail.event.medicalAttention}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-2">Resultados de Laboratorio</div>
+                  <div className="text-sm bg-yellow-50 p-3 rounded-md border border-yellow-100">
+                    {reportDetail.event.laboratoryResults}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-2">Diagnóstico Profesional</div>
+                  <div className="text-sm bg-purple-50 p-3 rounded-md border border-purple-100">
+                    {reportDetail.event.professionalDiagnosis}
                   </div>
                 </div>
               </CardContent>

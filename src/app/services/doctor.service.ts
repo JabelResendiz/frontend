@@ -32,6 +32,7 @@ export interface Doctor {
 }
 
 export interface MedicalReviewer {
+  id: string;
   fullName: string;
   email: string;
   provinceId: number;

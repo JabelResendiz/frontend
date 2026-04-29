@@ -4,26 +4,62 @@ export interface VaccinatedSubject {
   fullName: string;
 }
 
+export interface Reporter {
+  fullName: string;
+  phoneNumber: string;
+  email: string;
+}
+
 export interface Vaccination {
   vaccineName: string;
+  batchNumber: string;
+  administrationSite: string;
+  doseNumber: number;
+  administrationDate: string;
   vaccinationCenter: string;
 }
 
+export interface Symptom {
+  id: string;
+  name: string;
+}
+
 export interface AdverseEvent {
+  id?: number;
   startDate: string;
   visitedDoctor: boolean;
   wentToEmergencyRoom: boolean;
   permanentDisability: boolean;
   isLifeThreatening: boolean;
   resultedInDeath: boolean;
-  currentStatus: number;
+  deathDate: string | null;
+  currentStatus: string;
+  symptoms: Symptom[];
+}
+
+export interface ClinicalMedicalReviewRequest {
+  adverseEventId: number | string;
+  laboratoryResults: string;
+  medDRACode: string;
+  retClassification: string;
+}
+
+export interface CreateMedicalReviewRequest {
+  reportId: number | string;
+  causality: string;
+  clinicalSignificance: string;
+  reviewedAt: string;
+  clinicalMedicalReviews: ClinicalMedicalReviewRequest[];
 }
 
 export interface AssignedReport {
+  id: string;
   reportDate: string;
   vaccinatedSubject: VaccinatedSubject;
+  reporter: Reporter;
   vaccinations: Vaccination[];
   adverseEvents: AdverseEvent[];
+  medicalReviewAssignmentId?: number;
 }
 
 export interface AssignedReportsResponse {
@@ -94,6 +130,12 @@ export interface CreatePublicReportRequest {
   adverseEvents: AdverseEventCreate[];
 }
 
+export interface MedicalReviewAssignment {
+  medicalReviewerId: string;
+  aefiReportId: string;
+  assignedAt: string;
+}
+
 export const reportService = {
   getAssignedReports: async (pageNumber: number = 1, pageSize: number = 10): Promise<AssignedReportsResponse> => {
     const res = await api.get('/Report/assigned', {
@@ -103,7 +145,18 @@ export const reportService = {
       },
     });
 
-    return res.data;
+    return res.data.data ?? res.data;
+  },
+
+  getAssignedReportsForReviewer: async (pageNumber: number = 1, pageSize: number = 10): Promise<AssignedReportsResponse> => {
+    const res = await api.get('/Report/get-report-assigment', {
+      params: {
+        pageNumber,
+        pageSize,
+      },
+    });
+
+    return res.data.data ?? res.data;
   },
 
   createPublic: async (report: CreatePublicReportRequest): Promise<any> => {
@@ -111,10 +164,20 @@ export const reportService = {
     return res.data;
   },
 
+  createMedicalReview: async (review: CreateMedicalReviewRequest): Promise<any> => {
+    const res = await api.post('/MedicalReview', review);
+    return res.data;
+  },
+
   getReportByNotificationNumber: async (notificationNumber: string): Promise<any> => {
     const res = await api.get('/Report/get-report', {
       params: { notificationNumber }
     });
+    return res.data;
+  },
+
+  createMedicalReviewAssignment: async (assignment: MedicalReviewAssignment): Promise<any> => {
+    const res = await api.post('/MedicalReviewAssignment/create', assignment);
     return res.data;
   },
 };
