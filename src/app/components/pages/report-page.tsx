@@ -132,7 +132,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
             updated.reporterMunicipality = updated.patientMunicipality;
             updated.reporterPhoneNumber = updated.patientPhoneNumber;
             updated.reporterEmail = updated.patientEmail;
-              updated.reporterIdentityNumber = updated.patientIdentityNumber;
+            updated.reporterIdentityNumber = updated.patientIdentityNumber;
           }
         } else if (isChangingFromPaciente) {
           updated.reporterFullName = "";
@@ -148,6 +148,14 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           toast.info("Campos limpiados", {
             description: "Por favor, completa los datos del nuevo reportante."
           });
+        }
+      }
+
+      // Sincronizar datos del reportante con el paciente si el reportante es el paciente
+      if (prev.reporterRelationship === "paciente" && String(field).startsWith("patient")) {
+        const reporterField = field.replace("patient", "reporter");
+        if (reporterField in updated) {
+          updated[reporterField as keyof FormData] = value;
         }
       }
 
@@ -195,6 +203,33 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       return () => clearTimeout(timer);
     }
   }, [isAutoFilled]);
+
+  // Sincronizar datos del reportante con el paciente si el reportante es el paciente
+  useEffect(() => {
+    if (formData.reporterRelationship === "paciente") {
+      setFormData((prev) => ({
+        ...prev,
+        reporterFullName: prev.patientFullName,
+        reporterDateOfBirth: prev.patientDateOfBirth,
+        reporterGender: prev.patientGender,
+        reporterProvince: prev.patientProvince,
+        reporterMunicipality: prev.patientMunicipality,
+        reporterPhoneNumber: prev.patientPhoneNumber,
+        reporterEmail: prev.patientEmail,
+        reporterIdentityNumber: prev.patientIdentityNumber,
+      }));
+    }
+  }, [
+    formData.patientFullName,
+    formData.patientDateOfBirth,
+    formData.patientGender,
+    formData.patientProvince,
+    formData.patientMunicipality,
+    formData.patientPhoneNumber,
+    formData.patientEmail,
+    formData.patientIdentityNumber,
+    formData.reporterRelationship,
+  ]);
 
   // Validación dinámica de fechas en tiempo real
   const validateDatesDynamic = (data: FormData): Record<string, string> => {
@@ -378,6 +413,10 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         return `La fecha de vacunación #${i + 1} es obligatoria`;
       }
 
+      if (!vaccination.vaccineBatchNumber || vaccination.vaccineBatchNumber.trim() === "") {
+        return `El número de lote de la vacunación #${i + 1} es obligatorio`;
+      }
+
       const vaccinationDate = parseDateOnly(vaccination.vaccinationDate);
 
       // Validar que la vacunación sea anterior a hoy
@@ -495,6 +534,58 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     if (dateError) {
       toast.error("Error en la validación", {
         description: dateError
+      });
+      return;
+    }
+
+    // Validar datos de contacto del reportante
+    if (!formData.reporterEmail || !formData.reporterPhoneNumber) {
+      toast.error("Datos de contacto requeridos", {
+        description: "Para poder darle seguimiento a su reporte, es necesario que proporcione su email y teléfono de contacto."
+      });
+      return;
+    }
+
+    // Validar números de identidad obligatorios
+    if (!formData.reporterIdentityNumber) {
+      toast.error("Número de identidad del reportante requerido", {
+        description: "El número de identidad del reportante es obligatorio para enviar el reporte."
+      });
+      return;
+    }
+
+    if (!formData.patientIdentityNumber) {
+      toast.error("Número de identidad del paciente requerido", {
+        description: "El número de identidad del paciente es obligatorio para enviar el reporte."
+      });
+      return;
+    }
+
+    // Validar campos obligatorios del evento adverso
+    if (!formData.eventDate) {
+      toast.error("Fecha del evento requerida", {
+        description: "Debe especificar la fecha en que ocurrió el evento adverso."
+      });
+      return;
+    }
+
+    if (!formData.eventDescription || formData.eventDescription.trim() === "") {
+      toast.error("Descripción del evento requerida", {
+        description: "Debe proporcionar una descripción detallada del evento adverso."
+      });
+      return;
+    }
+
+    if (!formData.eventOutcome) {
+      toast.error("Estado del paciente requerido", {
+        description: "Debe seleccionar el estado actual del paciente."
+      });
+      return;
+    }
+
+    if (!formData.eventSymptoms || formData.eventSymptoms.length === 0) {
+      toast.error("Síntomas requeridos", {
+        description: "Debe seleccionar al menos un síntoma relacionado con el evento adverso."
       });
       return;
     }

@@ -108,7 +108,7 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="patientIdentityNumber">Número de Identidad</Label>
+          <Label htmlFor="patientIdentityNumber">Número de Identidad *</Label>
           <Input
             id="patientIdentityNumber"
             placeholder="Carnet de identidad"

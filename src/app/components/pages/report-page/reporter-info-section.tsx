@@ -109,7 +109,6 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
             <SelectValue placeholder="Seleccione" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="medico">Profesional de la salud/personal</SelectItem>
             <SelectItem value="paciente">Sujeto Vacunado (usted mismo)</SelectItem>
             <SelectItem value="familiar">Padre/Tutor/Cuidador</SelectItem>
             <SelectItem value="otro">Otro</SelectItem>
