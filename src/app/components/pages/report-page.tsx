@@ -88,6 +88,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [notificationNumber, setNotificationNumber] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const inactivityTimer = useRef<number | null>(null);
 
   const totalSteps = 4;
   const progress = (currentStep / totalSteps) * 100;
@@ -157,6 +158,36 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       return updated;
     });
   };
+
+  const clearInactivityTimer = () => {
+    if (inactivityTimer.current !== null) {
+      window.clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = null;
+    }
+  };
+
+  const startInactivityTimer = () => {
+    clearInactivityTimer();
+    inactivityTimer.current = window.setTimeout(() => {
+      toast.error("Su sesión de reporte ha sido cerrada por inactividad. Se le enviará al inicio.");
+      setFormData(initialFormData);
+      setCurrentStep(1);
+      setCaptchaValue(null);
+      setBackendErrors([]);
+      setDateErrors({});
+      onNavigate("home");
+    }, 7*60*1000);
+  };
+
+  useEffect(() => {
+    if (showSuccessDialog) {
+      clearInactivityTimer();
+      return;
+    }
+
+    startInactivityTimer();
+    return () => clearInactivityTimer();
+  }, [formData, currentStep, captchaValue, showSuccessDialog]);
 
   useEffect(() => {
     if (isAutoFilled) {
