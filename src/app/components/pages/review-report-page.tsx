@@ -104,7 +104,6 @@ console.log(reviewedAt);
     const txtContent = `REPORTE DE EVENTO ADVERSO - REVISIÓN MÉDICA
 ===========================================
 
-ID DEL REPORTE: ${report.id}
 Fecha del Reporte: ${new Date(report.reportDate).toLocaleString('es-ES')}
 
 PERSONA VACUNADA: ${report.vaccinatedSubject.fullName}
@@ -200,10 +199,10 @@ Clasificación RET: ${retClassification}
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+                {/* <div>
                   <Label className="text-sm font-semibold text-gray-700">ID del Reporte</Label>
                   <p className="text-gray-900 mt-1">{report.id}</p>
-                </div>
+                </div> */}
                 <div>
                   <Label className="text-sm font-semibold text-gray-700">Fecha del Reporte</Label>
                   <p className="text-gray-900 mt-1">{new Date(report.reportDate).toLocaleString('es-ES')}</p>
@@ -375,12 +374,12 @@ Clasificación RET: ${retClassification}
                 </div>
               </div>
 
-              {reportIDB && (
+              {/* {reportIDB && (
                 <div>
                   <Label className="text-sm font-semibold text-gray-700">ID del Reporte</Label>
                   <p className="text-gray-900 mt-1">{reportIDB}</p>
                 </div>
-              )}
+              )} */}
 
               <div className="space-y-2">
                 <Label htmlFor="laboratoryResults">Resultados de Laboratorio</Label>
