@@ -12,6 +12,9 @@ import { ReportStatusTimeline, ReportStatus } from "@/app/components/ui/report-s
 
 interface ReportData {
   reportDate: string;
+  createdAt: string;
+  assignedAt: string;
+  reviewedAt: string;
   status: string;
   vaccinatedSubject: {
     fullName: string;
@@ -27,7 +30,12 @@ interface ReportData {
     permanentDisability: boolean;
     isLifeThreatening: boolean;
     resultedInDeath: boolean;
+    deathDate?: string | null;
     currentStatus: string;
+    symptoms?: Array<{
+      id: string;
+      name: string;
+    }>;
   }>;
 }
 
@@ -54,37 +62,44 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
     return statusMap[statusString] ?? ReportStatus.Draft;
   };
 
-  // Generar historial de estados basado en el estado actual
-  const generateStatusHistory = (currentStatus: ReportStatus, reportDate: string) => {
+  // Generar historial de estados usando las fechas reales del backend
+  const generateStatusHistory = (
+    currentStatus: ReportStatus,
+    report: ReportData
+  ) => {
     const history = [];
-    const reportDateObj = new Date(reportDate);
 
     history.push({
       status: ReportStatus.Draft,
-      date: new Date(reportDateObj.getTime() - 3600000).toISOString(),
-      comments: "Reporte creado por el usuario"
+      date: report.reportDate,
+      comments: "Reporte en borrador"
     });
 
-    const statusOrder = [
-      { status: ReportStatus.Submitted, comment: "Reporte enviado al sistema" },
-      { status: ReportStatus.UnderReview, comment: "En revisión por profesional de farmacovigilancia" },
-      { status: ReportStatus.Approved, comment: "Reporte validado y aprobado" },
-      { status: ReportStatus.Rejected, comment: "Reporte rechazado por datos incorrectos" },
-      { status: ReportStatus.Closed, comment: "Caso finalizado" }
-    ];
-
-    for (const statusItem of statusOrder) {
-      if (statusItem.status <= currentStatus) {
-        const dateOffset = (statusItem.status - ReportStatus.Submitted + 1) * 24 * 60 * 60 * 1000;
-        history.push({
-          status: statusItem.status,
-          date: new Date(reportDateObj.getTime() + dateOffset).toISOString(),
-          comments: statusItem.comment
-        });
-      }
+    if (report.createdAt) {
+      history.push({
+        status: ReportStatus.Submitted,
+        date: report.createdAt,
+        comments: "Reporte enviado al sistema"
+      });
     }
 
-    return history;
+    if (report.assignedAt) {
+      history.push({
+        status: ReportStatus.UnderReview,
+        date: report.assignedAt,
+        comments: "Asignado a revisión médica"
+      });
+    }
+
+    if (report.reviewedAt) {
+      history.push({
+        status: ReportStatus.Approved,
+        date: report.reviewedAt,
+        comments: "Revisión completada"
+      });
+    }
+
+    return history.filter((item) => item.status <= currentStatus);
   };
 
   const handleSearch = async () => {
@@ -103,8 +118,9 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
         }
       });
 
-      if (response.data?.data) {
-        setFoundReport(response.data.data);
+      const reportPayload = response.data?.data ?? response.data;
+      if (reportPayload) {
+        setFoundReport(reportPayload);
         toast.success("Reporte encontrado exitosamente");
       } else {
         toast.error("No se encontraron datos en la respuesta");
@@ -288,7 +304,7 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                 <CardContent>
                   <ReportStatusTimeline
                     currentStatus={mapStatusStringToEnum(foundReport.status)}
-                    statusHistory={generateStatusHistory(mapStatusStringToEnum(foundReport.status), foundReport.reportDate)}
+                    statusHistory={generateStatusHistory(mapStatusStringToEnum(foundReport.status), foundReport)}
                   />
                 </CardContent>
               </Card>
@@ -422,6 +438,22 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                               </span>
                             </div>
                           </div>
+
+                          {event.symptoms && event.symptoms.length > 0 && (
+                            <div className="mt-4">
+                              <p className="text-sm font-medium text-gray-700">Síntomas reportados</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {event.symptoms.map((symptom) => (
+                                  <span
+                                    key={symptom.id}
+                                    className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-sm text-indigo-800"
+                                  >
+                                    {symptom.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
