@@ -16,9 +16,12 @@ interface Symptom {
   id: string;
   name: string;
   standardCode: string;
+  codingSystem: string;
   category: string;
+  description?: string;
   isActive: boolean;
 }
+
 
 interface Vaccine {
   id: string;
@@ -50,6 +53,8 @@ interface PagedResultVaccines {
 interface SymptomFormData {
   name: string;
   standardCode: string;
+  codingSystem: string;
+  description: string;
   category: string;
   isActive: boolean;
 }
@@ -58,6 +63,7 @@ interface VaccineFormData {
   name: string;
   type: string;
   code: string;
+  description: string;
   approvalDate: string;
   isActive: boolean;
 }
@@ -98,6 +104,8 @@ export const ManageCatalogPage = () => {
   const [symptomForm, setSymptomForm] = useState<SymptomFormData>({
     name: '',
     standardCode: '',
+    codingSystem: '',
+    description: '',
     category: 'General',
     isActive: true,
   });
@@ -106,6 +114,7 @@ export const ManageCatalogPage = () => {
     name: '',
     type: 'mRNA',
     code: '',
+    description: '',
     approvalDate: new Date().toISOString().split('T')[0],
     isActive: true,
   });
@@ -137,6 +146,8 @@ export const ManageCatalogPage = () => {
       setSymptomForm({
         name: '',
         standardCode: '',
+        codingSystem: '',
+        description: '',
         category: 'General',
         isActive: true,
       });
@@ -172,6 +183,7 @@ export const ManageCatalogPage = () => {
         name: '',
         type: 'mRNA',
         code: '',
+        description: '',
         approvalDate: new Date().toISOString().split('T')[0],
         isActive: true,
       });
@@ -348,6 +360,29 @@ export const ManageCatalogPage = () => {
                       disabled={loadingSymForm}
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="sym-coding-system">Sistema de Codificación *</Label>
+                    <Input
+                      id="sym-coding-system"
+                      placeholder="Ej: 12312312"
+                      value={symptomForm.codingSystem}
+                      onChange={(e) => setSymptomForm({ ...symptomForm, codingSystem: e.target.value })}
+                      required
+                      disabled={loadingSymForm}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="sym-description">Descripción</Label>
+                  <Textarea
+                    id="sym-description"
+                    placeholder="Elevación de la temperatura corporal por encima de lo normal..."
+                    value={symptomForm.description}
+                    onChange={(e) => setSymptomForm({ ...symptomForm, description: e.target.value })}
+                    disabled={loadingSymForm}
+                    rows={3}
+                  />
                 </div>
 
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded">
@@ -545,6 +580,18 @@ export const ManageCatalogPage = () => {
                       disabled={loadingVacForm}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="vac-description">Descripción</Label>
+                  <Textarea
+                    id="vac-description"
+                    placeholder="Descripción de la vacuna..."
+                    value={vaccineForm.description}
+                    onChange={(e) => setVaccineForm({ ...vaccineForm, description: e.target.value })}
+                    disabled={loadingVacForm}
+                    rows={3}
+                  />
                 </div>
 
                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded">
