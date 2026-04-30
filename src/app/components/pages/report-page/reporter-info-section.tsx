@@ -5,6 +5,7 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
 import { FormData, UpdateFormData } from "./types";
+import { useState } from "react";
 
 interface ReporterInfoSectionProps {
   formData: FormData;
@@ -16,6 +17,83 @@ interface ReporterInfoSectionProps {
 
 export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, reporterFieldsRef, dateErrors }: ReporterInfoSectionProps) {
   const isPatient = formData.reporterRelationship === "paciente";
+  const [reporterFieldErrors, setReporterFieldErrors] = useState<Record<string, string>>({});
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
+
+  const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
+
+  const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
+
+  const validateIdentityMatchesDate = (identityNumber: string, dateOfBirth: string): boolean => {
+    if (!validateIdentityNumber(identityNumber) || !dateOfBirth) return false;
+    const yy = identityNumber.substring(0, 2);
+    const mm = identityNumber.substring(2, 4);
+    const dd = identityNumber.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+    const extractedDate = new Date(fullYear, month - 1, day);
+    if (isNaN(extractedDate.getTime())) return false;
+    return extractedDate.toISOString().slice(0, 10) === dateOfBirth;
+  };
+
+  const validateReporterField = (field: string, rawValue: string, normalizedValue = rawValue) => {
+    const errors = { ...reporterFieldErrors };
+    switch (field) {
+      case 'reporterIdentityNumber':
+        if (rawValue && /\D/.test(rawValue)) {
+          errors.reporterIdentityNumber = "Solo se permiten dígitos; no se aceptan letras, espacios ni caracteres especiales.";
+        } else if (normalizedValue && normalizedValue.length !== 11) {
+          errors.reporterIdentityNumber = "Debe contener exactamente 11 dígitos.";
+        } else if (normalizedValue && formData.reporterDateOfBirth && !validateIdentityMatchesDate(normalizedValue, formData.reporterDateOfBirth)) {
+          errors.reporterIdentityNumber = "La fecha de nacimiento no coincide con la cédula.";
+        } else {
+          delete errors.reporterIdentityNumber;
+        }
+        break;
+      case 'reporterDateOfBirth':
+        if (rawValue && formData.reporterIdentityNumber && !validateIdentityMatchesDate(formData.reporterIdentityNumber, rawValue)) {
+          errors.reporterDateOfBirth = "La fecha debe coincidir con la cédula (YYMMDD).";
+        } else {
+          delete errors.reporterDateOfBirth;
+        }
+        break;
+      case 'reporterPhoneNumber':
+        if (rawValue && !validatePhoneNumber(normalizedValue)) {
+          errors.reporterPhoneNumber = "Solo se permiten dígitos.";
+        } else {
+          delete errors.reporterPhoneNumber;
+        }
+        break;
+      case 'reporterEmail':
+        if (rawValue && !validateEmail(rawValue)) {
+          errors.reporterEmail = "Email inválido.";
+        } else {
+          delete errors.reporterEmail;
+        }
+        break;
+    }
+    setReporterFieldErrors(errors);
+  };
+
+  const handleReporterFieldChange = (field: string, value: string) => {
+    let normalizedValue = value;
+    if (field === 'reporterIdentityNumber') {
+      normalizedValue = value.replace(/\D/g, '').slice(0, 11);
+    }
+
+    if (field === 'reporterPhoneNumber') {
+      normalizedValue = value.replace(/\D/g, '');
+    }
+
+    updateFormData(field as keyof FormData, normalizedValue);
+    validateReporterField(field, value, normalizedValue);
+  };
 
   return (
     <div className="space-y-6" ref={reporterFieldsRef}>
@@ -68,10 +146,16 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
               id="reporterIdentityNumber"
               placeholder="Carnet de identidad"
               value={formData.reporterIdentityNumber}
-              onChange={(e) => updateFormData("reporterIdentityNumber", e.target.value)}
+              onChange={(e) => handleReporterFieldChange("reporterIdentityNumber", e.target.value)}
               disabled={isPatient}
+              inputMode="numeric"
+              maxLength={11}
+              pattern="\d*"
               className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
             />
+            {reporterFieldErrors.reporterIdentityNumber && !isPatient && (
+              <p className="text-sm text-red-600">{reporterFieldErrors.reporterIdentityNumber}</p>
+            )}
           </div>
         </div>
 
@@ -82,12 +166,12 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
               id="reporterDateOfBirth"
               type="date"
               value={formData.reporterDateOfBirth}
-              onChange={(e) => updateFormData("reporterDateOfBirth", e.target.value)}
+              onChange={(e) => handleReporterFieldChange("reporterDateOfBirth", e.target.value)}
               disabled={isPatient}
-              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""} ${dateErrors?.reporterDateOfBirth ? "border-red-500" : ""}`}
+              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""} ${(dateErrors?.reporterDateOfBirth || reporterFieldErrors.reporterDateOfBirth) ? "border-red-500" : ""}`}
             />
-            {dateErrors?.reporterDateOfBirth && !isPatient && (
-              <p className="text-sm text-red-600">{dateErrors.reporterDateOfBirth}</p>
+            {(dateErrors?.reporterDateOfBirth || reporterFieldErrors.reporterDateOfBirth) && !isPatient && (
+              <p className="text-sm text-red-600">{reporterFieldErrors.reporterDateOfBirth || dateErrors?.reporterDateOfBirth}</p>
             )}
           </div>
         </div>
@@ -172,10 +256,13 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
                 type="tel"
                 placeholder="Teléfono"
                 value={formData.reporterPhoneNumber}
-                onChange={(e) => updateFormData("reporterPhoneNumber", e.target.value)}
+                onChange={(e) => handleReporterFieldChange("reporterPhoneNumber", e.target.value)}
                 disabled={isPatient}
                 className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
               />
+              {reporterFieldErrors.reporterPhoneNumber && !isPatient && (
+                <p className="text-sm text-red-600">{reporterFieldErrors.reporterPhoneNumber}</p>
+              )}
             </div>
           </div>
 
@@ -186,10 +273,13 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
               type="email"
               placeholder="correo@example.com"
               value={formData.reporterEmail}
-              onChange={(e) => updateFormData("reporterEmail", e.target.value)}
+              onChange={(e) => handleReporterFieldChange("reporterEmail", e.target.value)}
               disabled={isPatient}
               className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
             />
+            {reporterFieldErrors.reporterEmail && !isPatient && (
+              <p className="text-sm text-red-600">{reporterFieldErrors.reporterEmail}</p>
+            )}
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
 import { FormData, UpdateFormData } from "./types";
+import { useState } from "react";
 
 interface PatientInfoSectionProps {
   formData: FormData;
@@ -12,6 +13,81 @@ interface PatientInfoSectionProps {
 }
 
 export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }: PatientInfoSectionProps) {
+  const [patientFieldErrors, setPatientFieldErrors] = useState<Record<string, string>>({});
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
+  const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
+  const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
+
+  const validateIdentityMatchesDate = (identityNumber: string, dateOfBirth: string): boolean => {
+    if (!validateIdentityNumber(identityNumber) || !dateOfBirth) return false;
+    const yy = identityNumber.substring(0, 2);
+    const mm = identityNumber.substring(2, 4);
+    const dd = identityNumber.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+    const extractedDate = new Date(fullYear, month - 1, day);
+    if (isNaN(extractedDate.getTime())) return false;
+    return extractedDate.toISOString().slice(0, 10) === dateOfBirth;
+  };
+
+  const validatePatientField = (field: string, rawValue: string, normalizedValue = rawValue) => {
+    const errors = { ...patientFieldErrors };
+    switch (field) {
+      case 'patientIdentityNumber':
+        if (rawValue && /\D/.test(rawValue)) {
+          errors.patientIdentityNumber = "Solo se permiten dígitos; no se aceptan letras, espacios ni caracteres especiales.";
+        } else if (normalizedValue && normalizedValue.length !== 11) {
+          errors.patientIdentityNumber = "Debe contener exactamente 11 dígitos.";
+        } else if (normalizedValue && formData.patientDateOfBirth && !validateIdentityMatchesDate(normalizedValue, formData.patientDateOfBirth)) {
+          errors.patientIdentityNumber = "La fecha de nacimiento no coincide con la cédula.";
+        } else {
+          delete errors.patientIdentityNumber;
+        }
+        break;
+      case 'patientDateOfBirth':
+        if (rawValue && formData.patientIdentityNumber && !validateIdentityMatchesDate(formData.patientIdentityNumber, rawValue)) {
+          errors.patientDateOfBirth = "La fecha de nacimiento no coincide con la cédula.";
+        } else {
+          delete errors.patientDateOfBirth;
+        }
+        break;
+      case 'patientPhoneNumber':
+        if (rawValue && /\D/.test(rawValue)) {
+          errors.patientPhoneNumber = "Solo se permiten dígitos; no se aceptan letras, espacios ni caracteres especiales.";
+        } else {
+          delete errors.patientPhoneNumber;
+        }
+        break;
+      case 'patientEmail':
+        if (rawValue && !validateEmail(rawValue)) {
+          errors.patientEmail = "Email inválido.";
+        } else {
+          delete errors.patientEmail;
+        }
+        break;
+    }
+    setPatientFieldErrors(errors);
+  };
+
+  const handlePatientFieldChange = (field: string, value: string) => {
+    let normalizedValue = value;
+    if (field === 'patientIdentityNumber') {
+      normalizedValue = value.replace(/\D/g, '').slice(0, 11);
+    }
+
+    if (field === 'patientPhoneNumber') {
+      normalizedValue = value.replace(/\D/g, '');
+    }
+
+    updateFormData(field as keyof FormData, normalizedValue);
+    validatePatientField(field, value, normalizedValue);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,9 +113,15 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
             id="patientIdentityNumber"
             placeholder="Carnet de identidad"
             value={formData.patientIdentityNumber}
-            onChange={(e) => updateFormData("patientIdentityNumber", e.target.value)}
+            onChange={(e) => handlePatientFieldChange("patientIdentityNumber", e.target.value)}
+            inputMode="numeric"
+            maxLength={11}
+            pattern="\d*"
             className="bg-white"
           />
+          {patientFieldErrors.patientIdentityNumber && (
+            <p className="text-sm text-red-600">{patientFieldErrors.patientIdentityNumber}</p>
+          )}
         </div>
       </div>
 
@@ -50,11 +132,11 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
             id="patientDateOfBirth"
             type="date"
             value={formData.patientDateOfBirth}
-            onChange={(e) => updateFormData("patientDateOfBirth", e.target.value)}
-            className={`bg-white ${dateErrors.patientDateOfBirth ? "border-red-500" : ""}`}
+            onChange={(e) => handlePatientFieldChange("patientDateOfBirth", e.target.value)}
+            className={`bg-white ${(dateErrors.patientDateOfBirth || patientFieldErrors.patientDateOfBirth) ? "border-red-500" : ""}`}
           />
-          {dateErrors.patientDateOfBirth && (
-            <p className="text-sm text-red-600">{dateErrors.patientDateOfBirth}</p>
+          {(dateErrors.patientDateOfBirth || patientFieldErrors.patientDateOfBirth) && (
+            <p className="text-sm text-red-600">{patientFieldErrors.patientDateOfBirth || dateErrors.patientDateOfBirth}</p>
           )}
         </div>
 
@@ -157,9 +239,12 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
               type="tel"
               placeholder="Teléfono"
               value={formData.patientPhoneNumber}
-              onChange={(e) => updateFormData("patientPhoneNumber", e.target.value)}
+              onChange={(e) => handlePatientFieldChange("patientPhoneNumber", e.target.value)}
               className="bg-white"
             />
+            {patientFieldErrors.patientPhoneNumber && (
+              <p className="text-sm text-red-600">{patientFieldErrors.patientPhoneNumber}</p>
+            )}
           </div>
         </div>
 
@@ -170,9 +255,12 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
             type="email"
             placeholder="correo@example.com"
             value={formData.patientEmail}
-            onChange={(e) => updateFormData("patientEmail", e.target.value)}
+            onChange={(e) => handlePatientFieldChange("patientEmail", e.target.value)}
             className="bg-white"
           />
+          {patientFieldErrors.patientEmail && (
+            <p className="text-sm text-red-600">{patientFieldErrors.patientEmail}</p>
+          )}
         </div>
       </div>
     </div>

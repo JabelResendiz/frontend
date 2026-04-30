@@ -5,7 +5,7 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/app/components/ui/alert-dialog";
-import { Plus, Edit2, Trash2, Users, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, Users, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
 import { api } from "@/app/services/api";
@@ -70,6 +70,8 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
   const [provinceFilter, setProvinceFilter] = useState("");
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize] = useState(10);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
 
   const[totalCount,setTotalCount] = useState(0);
   const[nextPageUrl,setNextPageUrl] = useState<string | null>(null);
@@ -83,94 +85,6 @@ export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionRespon
     province: "",
     municipality: "",
   });
-
-  // Cargar datos del backend
-  // const loadSectionResponsibles = async (url ?:string) => {
-  //   setIsLoadingData(true);
-  //   try {
-  //     const response = await api.get("/SectionResponsible/GetAll", {
-  //       params: {
-  //         pageNumber,
-  //         pageSize,
-  //         search: searchTerm,
-  //       },
-  //     });
-
-  //     if (response.data?.items && Array.isArray(response.data.items)) {
-  //       setSectionResponsibles(
-  //         response.data.items.map((item: any) => ({
-  //           id: item.id?.toString() || Date.now().toString(),
-  //           userName: item.userName || "",
-  //           email: item.email || "",
-  //           phoneNumber: item.phoneNumber || "",
-  //           provinceName: getProvinceNameById(item.provinceId) || "",
-  //           municipalityName: getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
-  //         }))
-  //       );
-  //     } else {
-  //       setSectionResponsibles([]);
-  //     }
-  //   } catch (error: any) {
-  //     const errorMessage = error.backendData?.message || error.message || "Error al cargar jefes de sección";
-  //     toast.error(errorMessage);
-  //     console.error("Error loading section responsibles:", error);
-  //   } finally {
-  //     setIsLoadingData(false);
-  //   }
-  // };
-
-
-// const loadSectionResponsibles = async (url?: string) => {
-//   setIsLoadingData(true);
-//   try {
-//     const response = url
-//       ? await api.get(url) // 👉 usa next/prev directamente
-//       : await api.get("/SectionResponsible/GetAll", {
-//           params: {
-//             pageNumber,
-//             pageSize,
-//             search: searchTerm,
-//           },
-//         });
-
-//     const data = response.data;
-
-//     if (data?.items && Array.isArray(data.items)) {
-//       setSectionResponsibles(
-//         data.items.map((item: any) => ({
-//           id: item.id?.toString() || Date.now().toString(),
-//           userName: item.userName || "",
-//           email: item.email || "",
-//           phoneNumber: item.phoneNumber || "",
-//           provinceName: getProvinceNameById(item.provinceId) || "",
-//           municipalityName:
-//             getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
-//         }))
-//       );
-
-//       // 🔥 metadata de paginación
-//       setTotalCount(data.totalCount);
-//       setNextPageUrl(data.nextPageUrl);
-//       setPreviousPageUrl(data.previousPageUrl);
-
-//       // 🔥 IMPORTANTÍSIMO
-//       setPageNumber(data.pageNumber);
-//     } else {
-//       setSectionResponsibles([]);
-//     }
-//   } catch (error: any) {
-//     toast.error("Error al cargar jefes de sección");
-//     console.error(error);
-//   } finally {
-//     setIsLoadingData(false);
-//   }
-// };
-
-
-
-
-
-
 
 
 
@@ -261,6 +175,55 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
     loadSectionResponsibles();
   }, [pageNumber, searchTerm]);
 
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
+
+  const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
+
+  const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
+
+  const validateUserName = (userName: string): boolean => {
+    const trimmed = userName.trim();
+    // Debe empezar con letra y no tener espacios
+    return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(trimmed) && !/\s/.test(trimmed);
+  };
+
+  const validateField = (field: string, value: string) => {
+    const errors = { ...fieldErrors };
+    switch (field) {
+      case 'userName':
+        if (value && !validateUserName(value)) {
+          errors.userName = "Debe empezar con una letra y no contener espacios.";
+        } else {
+          delete errors.userName;
+        }
+        break;
+      case 'email':
+        if (value && !validateEmail(value)) {
+          errors.email = "Formato de email inválido.";
+        } else {
+          delete errors.email;
+        }
+        break;
+      case 'password':
+        if (value && !validatePassword(value)) {
+          errors.password = "Debe tener al menos 8 caracteres, mayúscula, minúscula, número y carácter especial.";
+        } else {
+          delete errors.password;
+        }
+        break;
+      case 'phoneNumber':
+        if (value && !validatePhoneNumber(value)) {
+          errors.phoneNumber = "Solo se permiten dígitos sin espacios.";
+        } else {
+          delete errors.phoneNumber;
+        }
+        break;
+    }
+    setFieldErrors(errors);
+    setHasValidationErrors(Object.keys(errors).length > 0);
+  };
+
   const validatePassword = (password: string): boolean => {
     // At least one uppercase, one lowercase, one digit, one special character, and 8+ characters
     // Allow any non-space character for special characters
@@ -274,6 +237,9 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
   };
 
   const handleAddSectionResponsible = async () => {
+    // Clear previous errors
+    setFieldErrors({});
+
     if (
       !formData.userName ||
       !formData.email ||
@@ -286,8 +252,16 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
       return;
     }
 
-    if (!validatePassword(formData.password)) {
-      toast.error("La contraseña debe contener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial");
+    // Validate all fields
+    const errors: Record<string, string> = {};
+    if (!validateUserName(formData.userName)) errors.userName = "Debe empezar con una letra y no contener espacios.";
+    if (!validateEmail(formData.email)) errors.email = "Email inválido.";
+    if (!validatePassword(formData.password)) errors.password = "La contraseña debe contener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.";
+    if (!validatePhoneNumber(formData.phoneNumber)) errors.phoneNumber = "Teléfono inválido. Solo se permiten dígitos sin espacios.";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setHasValidationErrors(true);
       return;
     }
 
@@ -318,6 +292,8 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
           province: "",
           municipality: "",
         });
+        setFieldErrors({});
+        setHasValidationErrors(false);
         setShowForm(false);
         // Recargar datos
         setPageNumber(1);
@@ -366,6 +342,8 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
       province: "",
       municipality: "",
     });
+    setFieldErrors({});
+    setHasValidationErrors(false);
     setShowForm(false);
     setEditingId(null);
   };
@@ -490,6 +468,17 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
         {/* Form */}
         {showForm && (
           <Card className="border-0 shadow-lg mb-8">
+            {hasValidationErrors && (
+              <div className="bg-red-50 border border-red-200 rounded-t-lg p-4 mb-0">
+                <div className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                  <p className="text-red-800 font-medium">Hay errores en el formulario</p>
+                </div>
+                <p className="text-red-700 text-sm mt-1">
+                  Por favor, corrige los problemas marcados antes de enviar el formulario.
+                </p>
+              </div>
+            )}
             <CardHeader>
               <CardTitle>
                 {editingId ? "Editar Jefe de Sección" : "Agregar Nuevo Jefe de Sección"}
@@ -504,10 +493,14 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                   <Label htmlFor="userName">Nombre de Usuario *</Label>
                   <Input
                     id="userName"
-                    placeholder="Ej: carla_admin"
+                    placeholder="Debe empezar con letra, sin espacios, ej: carla_admin"
                     value={formData.userName}
-                    onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, userName: e.target.value });
+                      validateField('userName', e.target.value);
+                    }}
                   />
+                  {fieldErrors.userName && <p className="text-red-500 text-sm mt-1">{fieldErrors.userName}</p>}
                 </div>
                 <div>
                   <Label htmlFor="email">Email *</Label>
@@ -516,8 +509,12 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                     type="email"
                     placeholder="carla@example.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      validateField('email', e.target.value);
+                    }}
                   />
+                  {fieldErrors.email && <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>}
                 </div>
               </div>
 
@@ -529,20 +526,29 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                     type="password"
                     placeholder="Password_123!"
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, password: e.target.value });
+                      validateField('password', e.target.value);
+                    }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Mínimo 8 caracteres, incluir mayúscula, minúscula, número y carácter especial
-                  </p>
+                  {fieldErrors.password && <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>}
+                  {!fieldErrors.password && <p className="text-xs text-gray-500 mt-1">
+                    Mínimo 8 caracteres, mayúscula, minúscula, número y carácter especial
+                  </p>}
                 </div>
                 <div>
                   <Label htmlFor="phoneNumber">Teléfono *</Label>
                   <Input
                     id="phoneNumber"
-                    placeholder="55664266"
+                    placeholder="Solo números, ej: 55664266"
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setFormData({ ...formData, phoneNumber: value });
+                      validateField('phoneNumber', value);
+                    }}
                   />
+                  {fieldErrors.phoneNumber && <p className="text-red-500 text-sm mt-1">{fieldErrors.phoneNumber}</p>}
                 </div>
               </div>
 
@@ -602,7 +608,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                   className="text-white font-semibold"
                   style={{ backgroundColor: "#0A4B8F" }}
                   onClick={handleAddSectionResponsible}
-                  disabled={isLoading}
+                  disabled={isLoading || hasValidationErrors}
                 >
                   {isLoading
                     ? "Procesando..."

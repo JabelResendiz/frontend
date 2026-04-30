@@ -41,7 +41,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
               {isAuthenticated ? (
                 // Botones para usuarios autenticados
                 <>
-                  {(user?.role === 'MedicalReviewer' || user?.role === 'paciente') && (
+                  {(user?.role === 'paciente') && (
                     <Button
                       size="lg"
                       className="bg-white hover:bg-gray-100 text-[#0A4B8F] font-semibold px-8 py-6 text-lg shadow-lg"
@@ -51,7 +51,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                       Reportar Evento Adverso
                     </Button>
                   )}
-                  {user?.role === 'doctor' ? (
+                  {user?.role === 'MedicalReviewer' ? (
                     <Button
                       size="lg"
                       variant="outline"
@@ -61,7 +61,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                       <BarChart3 className="w-5 h-5 mr-2" />
                       Ver Mi Panel
                     </Button>
-                  ) : user?.role === 'admin' ? (
+                  ) : user?.role === 'Admin' ? (
                     <Button
                       size="lg"
                       variant="outline"
@@ -71,7 +71,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                       <Search className="w-5 h-5 mr-2" />
                       Consultar Reportes
                     </Button>
-                  ) : user?.role === 'responsable-seccion' ? (
+                  ) : user?.role === 'SectionResponsible' ? (
                     <Button
                       size="lg"
                       variant="outline"
@@ -175,7 +175,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
       </div>
 
       {/* CTA Section - Para usuarios autenticados médicos */}
-      {isAuthenticated && user?.role === 'doctor' && (
+      {isAuthenticated && user?.role === 'MedicalReviewer' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20">
           <Card className="border-0 shadow-xl overflow-hidden" style={{ backgroundColor: "#E8F0F7" }}>
             <CardContent className="p-8 sm:p-12">
