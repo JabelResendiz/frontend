@@ -29,6 +29,8 @@ const initialFormData: FormData = {
   reporterPhoneNumber: "",
   reporterEmail: "",
   reporterRelationship: "",
+  reporterProfessionalLicense: "",
+  reporterInstitution: "",
   reporterIdentityNumber: "",
   patientFullName: "",
   patientIdentityNumber: "",
@@ -501,12 +503,51 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     return null;
   };
 
+  const validateStepFields = (step: number): string[] => {
+    const missing: string[] = [];
+
+    if (step === 1) {
+      if (!formData.patientFullName?.trim()) missing.push("Nombre completo del paciente");
+      if (!formData.patientIdentityNumber?.trim()) missing.push("Número de identidad del paciente");
+      if (!formData.patientDateOfBirth) missing.push("Fecha de nacimiento del paciente");
+      if (!formData.patientProvince) missing.push("Provincia del paciente");
+      if (!formData.patientMunicipality) missing.push("Municipio del paciente");
+      if (!formData.patientAddress?.trim()) missing.push("Dirección del paciente");
+      if (!formData.patientPhoneNumber?.trim()) missing.push("Teléfono del paciente");
+      if (!formData.patientEmail?.trim()) missing.push("Email del paciente");
+    } else if (step === 2) {
+      formData.vaccinations.forEach((vaccination, index) => {
+        if (!vaccination.vaccinationDate) missing.push(`Fecha de vacunación #${index + 1}`);
+        if (!vaccination.vaccineBatchNumber?.trim()) missing.push(`Número de lote de vacunación #${index + 1}`);
+      });
+    } else if (step === 3) {
+      if (!formData.eventDate) missing.push("Fecha del evento adverso");
+      if (!formData.eventDescription?.trim()) missing.push("Descripción del evento adverso");
+      if (!formData.eventOutcome) missing.push("Estado actual del paciente");
+      if (!formData.eventSymptoms || formData.eventSymptoms.length === 0) missing.push("Síntomas del evento adverso");
+    } else if (step === 4) {
+      if (!formData.reporterFullName?.trim()) missing.push("Nombre completo del reportante");
+      if (!formData.reporterIdentityNumber?.trim()) missing.push("Número de identidad del reportante");
+      if (!formData.reporterDateOfBirth) missing.push("Fecha de nacimiento del reportante");
+      if (!formData.reporterProvince) missing.push("Provincia del reportante");
+      if (!formData.reporterMunicipality) missing.push("Municipio del reportante");
+      if (!formData.reporterPhoneNumber?.trim()) missing.push("Teléfono del reportante");
+      if (!formData.reporterEmail?.trim()) missing.push("Email del reportante");
+      if (formData.reporterRelationship === "medico") {
+        if (!formData.reporterProfessionalLicense?.trim()) missing.push("Cédula profesional");
+        if (!formData.reporterInstitution?.trim()) missing.push("Institución");
+      }
+    }
+
+    return missing;
+  };
+
   const parseBackendValidationErrors = (error: any): string[] => {
     if (!error) return ["Ocurrió un error inesperado."];
 
-    const backendErrors = error.backendData?.errors;
-    if (Array.isArray(backendErrors) && backendErrors.length > 0) {
-      return backendErrors.flatMap((item: any) => {
+    const backendErrorList = error.backendData?.errors;
+    if (Array.isArray(backendErrorList) && backendErrorList.length > 0) {
+      return backendErrorList.flatMap((item: any) => {
         const field = item.field ? `${item.field}: ` : "";
         const messages = Array.isArray(item.errors) ? item.errors : [item.errors];
         return messages.map((message: string) => `${field}${message}`);
@@ -544,6 +585,22 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         description: "Para poder darle seguimiento a su reporte, es necesario que proporcione su email y teléfono de contacto."
       });
       return;
+    }
+
+    // Validar campos específicos para médicos
+    if (formData.reporterRelationship === "medico") {
+      if (!formData.reporterProfessionalLicense || formData.reporterProfessionalLicense.trim() === "") {
+        toast.error("Cédula profesional requerida", {
+          description: "Como médico reportante, debe proporcionar su número de cédula profesional."
+        });
+        return;
+      }
+      if (!formData.reporterInstitution || formData.reporterInstitution.trim() === "") {
+        toast.error("Institución requerida", {
+          description: "Como médico reportante, debe proporcionar la institución donde trabaja."
+        });
+        return;
+      }
     }
 
     // Validar números de identidad obligatorios
@@ -627,8 +684,11 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           provinceId: getProvinceId(formData.reporterProvince),
           municipalityId: getMunicipalityId(formData.reporterProvince, formData.reporterMunicipality),
           phoneNumber: formData.reporterPhoneNumber,
-          email: formData.reporterEmail
-        },
+          email: formData.reporterEmail,
+          ...(formData.reporterRelationship === "medico" && {
+            professionalLicense: formData.reporterProfessionalLicense,
+            institution: formData.reporterInstitution,
+          }),        },
         vaccinatedSubject: {
           fullName: formData.patientFullName,
           identityNumber: formData.patientIdentityNumber,
@@ -724,19 +784,6 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                toast.info("Función de importación", {
-                  description: "Selecciona un archivo JSON para importar."
-                });
-              }}
-              className="gap-2"
-            >
-              <FileJson className="w-4 h-4" />
-              Importar
-            </Button>
           </div>
           <Progress value={progress} className="h-2" />
         </div>
@@ -750,10 +797,17 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           </AlertDescription>
         </Alert>
 
+        <Alert className="mb-6 border-yellow-200 bg-yellow-50">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-sm text-gray-700">
+            <strong>Campos obligatorios:</strong> Los campos marcados con asterisco (*) son obligatorios y deben completarse para enviar el reporte.
+          </AlertDescription>
+        </Alert>
+
         {backendErrors.length > 0 && (
           <Alert className="mb-6 border-red-200 bg-red-50">
             <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-sm text-red-700">
+            <AlertDescription className="text-sm text-black">
               <strong>Errores de validación del servidor:</strong>
               <ul className="mt-2 list-disc list-inside">
                 {backendErrors.map((error, index) => (
@@ -798,7 +852,21 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
               </Button>
 
               {currentStep < totalSteps ? (
-                <Button style={{ backgroundColor: "#0A4B8F" }} className="text-white" onClick={() => setCurrentStep(Math.min(totalSteps, currentStep + 1))}>
+                <Button style={{ backgroundColor: "#0A4B8F" }} className="text-white" onClick={() => {
+                  const missing = validateStepFields(currentStep);
+                  if (missing.length > 0) {
+    
+                      toast.warning("Campos obligatorios faltantes", {
+                        description: (
+                          <span className="text-red-600">
+                            Puede continuar, pero asegúrese de completarlos antes de enviar.
+                          </span>
+                        )
+                      });
+
+                  }
+                  setCurrentStep(Math.min(totalSteps, currentStep + 1));
+                }}>
                   Siguiente
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>

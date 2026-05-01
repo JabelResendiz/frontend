@@ -17,6 +17,7 @@ interface ReporterInfoSectionProps {
 
 export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, reporterFieldsRef, dateErrors }: ReporterInfoSectionProps) {
   const isPatient = formData.reporterRelationship === "paciente";
+  const isDoctor = formData.reporterRelationship === "medico";
   const [reporterFieldErrors, setReporterFieldErrors] = useState<Record<string, string>>({});
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -77,6 +78,20 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           delete errors.reporterEmail;
         }
         break;
+      case 'reporterProfessionalLicense':
+        if (isDoctor && !rawValue.trim()) {
+          errors.reporterProfessionalLicense = "La cédula profesional es requerida para médicos.";
+        } else {
+          delete errors.reporterProfessionalLicense;
+        }
+        break;
+      case 'reporterInstitution':
+        if (isDoctor && !rawValue.trim()) {
+          errors.reporterInstitution = "La institución es requerida para médicos.";
+        } else {
+          delete errors.reporterInstitution;
+        }
+        break;
     }
     setReporterFieldErrors(errors);
   };
@@ -111,6 +126,7 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           <SelectContent>
             <SelectItem value="paciente">Sujeto Vacunado (usted mismo)</SelectItem>
             <SelectItem value="familiar">Padre/Tutor/Cuidador</SelectItem>
+            <SelectItem value="medico">Médico</SelectItem>
             <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
@@ -281,6 +297,38 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
             )}
           </div>
         </div>
+
+        {isDoctor && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="reporterProfessionalLicense">Cédula Profesional *</Label>
+              <Input
+                id="reporterProfessionalLicense"
+                placeholder="Número de cédula profesional"
+                value={formData.reporterProfessionalLicense || ""}
+                onChange={(e) => handleReporterFieldChange("reporterProfessionalLicense", e.target.value)}
+                className="bg-white"
+              />
+              {reporterFieldErrors.reporterProfessionalLicense && (
+                <p className="text-sm text-red-600">{reporterFieldErrors.reporterProfessionalLicense}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reporterInstitution">Institución *</Label>
+              <Input
+                id="reporterInstitution"
+                placeholder="Institución donde trabaja"
+                value={formData.reporterInstitution || ""}
+                onChange={(e) => handleReporterFieldChange("reporterInstitution", e.target.value)}
+                className="bg-white"
+              />
+              {reporterFieldErrors.reporterInstitution && (
+                <p className="text-sm text-red-600">{reporterFieldErrors.reporterInstitution}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

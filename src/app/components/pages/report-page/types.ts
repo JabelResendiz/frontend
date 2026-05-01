@@ -8,6 +8,8 @@ export interface FormData {
   reporterPhoneNumber: string;
   reporterEmail: string;
   reporterRelationship: string;
+  reporterProfessionalLicense?: string;
+  reporterInstitution?: string;
 
   // Patient (VaccinatedSubject) info
   patientFullName: string;
