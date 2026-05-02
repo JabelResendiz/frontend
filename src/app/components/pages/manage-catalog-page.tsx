@@ -256,6 +256,24 @@ export const ManageCatalogPage = () => {
 
     setLoadingToggleVac(prev => ({ ...prev, [symptomId]: true }));
 
+
+    setSymptomsPaged(prev => {
+        let updatedItems = prev.items.map(s =>
+          s.id === symptomId ? { ...s, isActive } : s
+        );
+
+        // 👇 aplicar filtro actual
+        if (symFilterActive === 'active') {
+          updatedItems = updatedItems.filter(s => s.isActive);
+        } else if (symFilterActive === 'inactive') {
+          updatedItems = updatedItems.filter(s => !s.isActive);
+        }
+
+        return {
+          ...prev,
+          items: updatedItems,
+        };
+      });
     
     try {
       const response = await api.post(`/Catalog/updateStatus/symptom`, null, {
@@ -270,12 +288,21 @@ export const ManageCatalogPage = () => {
           ? '✅ Síntoma activado exitosamente'
           : '✅ Síntoma desactivado exitosamente';
         setSuccessMsg(message);
-        fetchSymptoms(symptomsPaged.pageNumber, symSearchTerm, symFilterActive);
-        //setTimeout(() => setSuccessMsg(null), 3000);
+  
+
       }
     } catch (err: any) {
       const errorMsg = err?.message || 'Error al actualizar síntoma';
       setErrorMsg(errorMsg);
+
+      // rollback si falla algo en el backend
+      setSymptomsPaged(prev => ({
+        ...prev,
+        items: prev.items.map(s =>
+          s.id === symptomId ? { ...s, isActive: !isActive } : s
+        ),
+      }));
+
       //setTimeout(() => setErrorMsg(null), 3000);
     } finally{
       setLoadingToggleVac(prev => ({ ...prev, [symptomId]: false }));
@@ -293,6 +320,26 @@ export const ManageCatalogPage = () => {
 
     setLoadingToggleVac(prev => ({ ...prev, [vaccineId]: true }));
 
+
+     setVaccinesPaged(prev => {
+        let updatedItems = prev.items.map(v =>
+          v.id === vaccineId ? { ...v, isActive } : v
+        );
+
+        // 👇 aplicar filtro actual
+        if (vacFilterActive === 'active') {
+          updatedItems = updatedItems.filter(v => v.isActive);
+        } else if (vacFilterActive === 'inactive') {
+          updatedItems = updatedItems.filter(v => !v.isActive);
+        }
+
+        return {
+          ...prev,
+          items: updatedItems,
+        };
+      });
+
+    
     
     try {
       const response = await api.post(`/Catalog/updateStatus/vaccine`, null, {
@@ -307,12 +354,21 @@ export const ManageCatalogPage = () => {
           ? '✅ Vacuna activada exitosamente'
           : '✅ Vacuna desactivada exitosamente';
         setSuccessMsg(message);
-        fetchVaccines(vaccinesPaged.pageNumber, vacSearchTerm, vacFilterActive);
+        //fetchVaccines(vaccinesPaged.pageNumber, vacSearchTerm, vacFilterActive);
         //setTimeout(() => setSuccessMsg(null), 3000);
       }
     } catch (err: any) {
       const errorMsg = err?.message || 'Error al actualizar vacuna';
       setErrorMsg(errorMsg);
+
+      // rollback si falla
+      setVaccinesPaged(prev => ({
+        ...prev,
+        items: prev.items.map(v =>
+          v.id === vaccineId ? { ...v, isActive: !isActive } : v
+        ),
+      }));
+
       // setTimeout(() => setErrorMsg(null), 3000);
     } finally{
       setLoadingToggleVac(prev => ({ ...prev, [vaccineId]: false }));
