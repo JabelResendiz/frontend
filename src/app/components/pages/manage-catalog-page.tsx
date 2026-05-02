@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
 import { Badge } from '@/app/components/ui/badge';
+import { Switch } from '@/app/components/ui/switch';
 import { Plus, CheckCircle2, AlertCircle, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/app/services/api';
 
@@ -99,6 +100,9 @@ export const ManageCatalogPage = () => {
   const [symFilterActive, setSymFilterActive] = useState<string | null>(null);
   const [vacSearchTerm, setVacSearchTerm] = useState('');
   const [vacFilterActive, setVacFilterActive] = useState<string | null>(null);
+  
+  const [loadingToggleVac, setLoadingToggleVac] = useState<Record<string, boolean>>({});
+ 
 
   // Estado de formularios
   const [symptomForm, setSymptomForm] = useState<SymptomFormData>({
@@ -241,6 +245,81 @@ export const ManageCatalogPage = () => {
       console.error(err);
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  // Actualizar estado de síntoma
+  const updateSymptomStatus = async (symptomId: string, isActive: boolean) => {
+    
+    
+    if (loadingToggleVac[symptomId]) return;
+
+    setLoadingToggleVac(prev => ({ ...prev, [symptomId]: true }));
+
+    
+    try {
+      const response = await api.post(`/Catalog/updateStatus/symptom`, null, {
+        params: {
+          symptomId,
+          isActive,
+        },
+      });
+
+      if (response.status === 200) {
+        const message = isActive
+          ? '✅ Síntoma activado exitosamente'
+          : '✅ Síntoma desactivado exitosamente';
+        setSuccessMsg(message);
+        fetchSymptoms(symptomsPaged.pageNumber, symSearchTerm, symFilterActive);
+        //setTimeout(() => setSuccessMsg(null), 3000);
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Error al actualizar síntoma';
+      setErrorMsg(errorMsg);
+      //setTimeout(() => setErrorMsg(null), 3000);
+    } finally{
+      setLoadingToggleVac(prev => ({ ...prev, [symptomId]: false }));
+      setTimeout(() => {
+        setSuccessMsg(null);
+        setErrorMsg(null);
+      }, 3000);
+    }
+  };
+
+  // Actualizar estado de vacuna
+  const updateVaccineStatus = async (vaccineId: string, isActive: boolean) => {
+    
+    if (loadingToggleVac[vaccineId]) return;
+
+    setLoadingToggleVac(prev => ({ ...prev, [vaccineId]: true }));
+
+    
+    try {
+      const response = await api.post(`/Catalog/updateStatus/vaccine`, null, {
+        params: {
+          vaccineId,
+          isActive,
+        },
+      });
+
+      if (response.status === 200) {
+        const message = isActive
+          ? '✅ Vacuna activada exitosamente'
+          : '✅ Vacuna desactivada exitosamente';
+        setSuccessMsg(message);
+        fetchVaccines(vaccinesPaged.pageNumber, vacSearchTerm, vacFilterActive);
+        //setTimeout(() => setSuccessMsg(null), 3000);
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Error al actualizar vacuna';
+      setErrorMsg(errorMsg);
+      // setTimeout(() => setErrorMsg(null), 3000);
+    } finally{
+      setLoadingToggleVac(prev => ({ ...prev, [vaccineId]: false }));
+      setTimeout(() => {
+        setSuccessMsg(null);
+        setErrorMsg(null);
+      }, 3000);
     }
   };
 
@@ -468,6 +547,7 @@ export const ManageCatalogPage = () => {
                           <TableHead>Categoría</TableHead>
                           <TableHead>Código</TableHead>
                           <TableHead>Estado</TableHead>
+                          <TableHead>Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -480,6 +560,15 @@ export const ManageCatalogPage = () => {
                               <Badge variant={sym.isActive ? 'default' : 'secondary'}>
                                 {sym.isActive ? 'Activo' : 'Inactivo'}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={sym.isActive}
+                                  disabled={loadingToggleVac[sym.id]}
+                                  onCheckedChange={(checked) => updateSymptomStatus(sym.id, checked)}
+                                />
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -678,6 +767,7 @@ export const ManageCatalogPage = () => {
                           <TableHead>Código</TableHead>
                           <TableHead>Aprobación</TableHead>
                           <TableHead>Estado</TableHead>
+                          <TableHead>Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -691,6 +781,15 @@ export const ManageCatalogPage = () => {
                               <Badge variant={vac.isActive ? 'default' : 'secondary'}>
                                 {vac.isActive ? 'Activa' : 'Inactiva'}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={vac.isActive}
+                                  disabled={loadingToggleVac[vac.id]}
+                                  onCheckedChange={(checked) => updateVaccineStatus(vac.id, checked)}
+                                />
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
