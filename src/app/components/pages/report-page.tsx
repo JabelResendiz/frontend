@@ -90,6 +90,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [notificationNumber, setNotificationNumber] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const inactivityTimer = useRef<number | null>(null);
 
   const totalSteps = 4;
@@ -503,6 +504,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     return null;
   };
 
+  // Función para verificar el token de captcha con el backend
+
+
   const validateStepFields = (step: number): string[] => {
     const missing: string[] = [];
 
@@ -688,7 +692,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           ...(formData.reporterRelationship === "medico" && {
             professionalLicense: formData.reporterProfessionalLicense,
             institution: formData.reporterInstitution,
-          }),        },
+          }),
+        },
         vaccinatedSubject: {
           fullName: formData.patientFullName,
           identityNumber: formData.patientIdentityNumber,
@@ -734,7 +739,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
             return map[formData.eventOutcome as keyof typeof map] || "Unknown";
           })(),
           symptoms: formData.eventSymptoms
-        }]
+        }],
+        ...(captchaValue && { token: captchaValue })
       };
 
       const response = await reportService.createPublic(payload);
@@ -750,12 +756,21 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       // Reset form
       setFormData(initialFormData);
     } catch (error: any) {
-      const parsedErrors = parseBackendValidationErrors(error);
-      setBackendErrors(parsedErrors);
+      // Manejar error de BadRequest (token inválido)
+      if (error.status === 400 && error.backendData?.success === false) {
+        toast.error("Token de verificación inválido", {
+          description: "El captcha ha expirado o no es válido. Por favor, intenta nuevamente."
+        });
+        setCaptchaValue(null);
+        setBackendErrors(["El token de captcha es inválido. Por favor, completa el captcha nuevamente."]);
+      } else {
+        const parsedErrors = parseBackendValidationErrors(error);
+        setBackendErrors(parsedErrors);
 
-      toast.error("Error al enviar el reporte", {
-        description: parsedErrors.join(" \n")
-      });
+        toast.error("Error al enviar el reporte", {
+          description: parsedErrors.join(" \n")
+        });
+      }
     }
   };
 
@@ -835,11 +850,16 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
                 {/* 🔐 CAPTCHA (solo usuarios no médicos/admin) */}
                 {!isDoctor && (
-                  <div className="flex justify-center mt-8 p-4 border-t">
-                    <ReCAPTCHA
-                      sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-                      onChange={(value) => setCaptchaValue(value)}
-                    />
+                  <div className="mt-8 p-4 border-t space-y-4">
+                    <p className="text-sm text-gray-600 mb-2">Por favor verifica que no eres un robot:</p>
+                    <div className="flex justify-center">
+                      <ReCAPTCHA
+                        sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}
+                        onChange={(value) => {
+                          setCaptchaValue(value);
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </>
@@ -876,6 +896,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   className="text-white"
                   onClick={handleSubmit}
                   disabled={!isDoctor && !captchaValue}
+                  title={!isDoctor && !captchaValue ? "Completa el captcha primero" : ""}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Enviar Reporte

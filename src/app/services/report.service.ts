@@ -128,6 +128,7 @@ export interface CreatePublicReportRequest {
   vaccinatedSubject: VaccinatedSubjectCreate;
   vaccinations: VaccinationCreate[];
   adverseEvents: AdverseEventCreate[];
+  token?: string;
 }
 
 export interface MedicalReviewAssignment {
