@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -6,138 +6,119 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { Badge } from "@/app/components/ui/badge";
-import { Search, Filter, Download, Eye, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Search, Filter, Download, Eye, Loader2 } from "lucide-react";
+import { api } from "@/app/services/api";
+import { catalogService } from "@/app/services/catalog.service";
+import { translateGender} from "@/app/utils/translations";
 
 interface ConsultationPageProps {
   onNavigate: (page: string, reportId?: string) => void;
 }
 
-// Mock data for demonstration
-const mockReports = [
-  {
-    id: "RPT-2026-0142",
-    date: "2026-01-24",
-    vaccine: "Soberana 02",
-    age: 45,
-    gender: "F",
-    severity: "leve",
-    outcome: "recuperado",
-    province: "La Habana",
-    symptoms: "Dolor sitio inyección, Fiebre leve"
-  },
-  {
-    id: "RPT-2026-0141",
-    date: "2026-01-23",
-    vaccine: "Abdala",
-    age: 32,
-    gender: "M",
-    severity: "moderado",
-    outcome: "recuperando",
-    province: "Santiago de Cuba",
-    symptoms: "Fiebre alta, Fatiga, Dolor muscular"
-  },
-  {
-    id: "RPT-2026-0140",
-    date: "2026-01-22",
-    vaccine: "Soberana Plus",
-    age: 67,
-    gender: "F",
-    severity: "leve",
-    outcome: "recuperado",
-    province: "Villa Clara",
-    symptoms: "Dolor de cabeza, Fatiga"
-  },
-  {
-    id: "RPT-2026-0139",
-    date: "2026-01-22",
-    vaccine: "Heberpenta-L",
-    age: 2,
-    gender: "M",
-    severity: "leve",
-    outcome: "recuperado",
-    province: "Matanzas",
-    symptoms: "Fiebre, Irritabilidad"
-  },
-  {
-    id: "RPT-2026-0138",
-    date: "2026-01-21",
-    vaccine: "Soberana 02",
-    age: 54,
-    gender: "M",
-    severity: "moderado",
-    outcome: "recuperado",
-    province: "Holguín",
-    symptoms: "Fiebre, Escalofríos, Náuseas"
-  },
-  {
-    id: "RPT-2026-0137",
-    date: "2026-01-20",
-    vaccine: "vABC",
-    age: 15,
-    gender: "F",
-    severity: "leve",
-    outcome: "recuperado",
-    province: "Camagüey",
-    symptoms: "Dolor sitio inyección"
-  },
-  {
-    id: "RPT-2026-0136",
-    date: "2026-01-19",
-    vaccine: "Abdala",
-    age: 41,
-    gender: "F",
-    severity: "leve",
-    outcome: "recuperado",
-    province: "Pinar del Río",
-    symptoms: "Fatiga, Dolor muscular"
-  },
-  {
-    id: "RPT-2026-0135",
-    date: "2026-01-18",
-    vaccine: "Soberana 02",
-    age: 38,
-    gender: "M",
-    severity: "severo",
-    outcome: "recuperado",
-    province: "La Habana",
-    symptoms: "Reacción alérgica, Dificultad respiratoria"
-  },
-];
+interface VaccinatedSubject {
+  age: number;
+  gender: string;
+  isPregnant: boolean;
+  provinceName: string;
+  currentMedications: string;
+  allergies: string;
+  medicalHistory: string;
+}
+
+interface Report {
+  id: string;
+  notificationNumber: string;
+  reportDate: string;
+  status: string;
+  globalSeverityLevel: string;
+  vaccinatedSubject: VaccinatedSubject;
+  vaccinesName: string[];
+  adverseEventsName: string[];
+  medicalReviewerName: string | null;
+}
+
+interface ApiResponse {
+  items: Report[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  nextPageUrl?: string;
+  previousPageUrl?: string;
+}
 
 export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterVaccine, setFilterVaccine] = useState("todos");
-  const [filterSeverity, setFilterSeverity] = useState("todos");
-  const [filterProvince, setFilterProvince] = useState("todos");
+  const [filterVaccine, setFilterVaccine] = useState("all");
+  const [filterSeverity, setFilterSeverity] = useState("all");
+  const [filterProvince, setFilterProvince] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [vaccines, setVaccines] = useState<{id: string; name: string}[]>([]);
+  const [provinces, setProvinces] = useState<string[]>([]);
   const itemsPerPage = 10;
 
-  // Filter reports
-  const filteredReports = mockReports.filter(report => {
-    const matchesSearch = report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.symptoms.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesVaccine = filterVaccine === "todos" || report.vaccine === filterVaccine;
-    const matchesSeverity = filterSeverity === "todos" || report.severity === filterSeverity;
-    const matchesProvince = filterProvince === "todos" || report.province === filterProvince;
-    
-    return matchesSearch && matchesVaccine && matchesSeverity && matchesProvince;
-  });
+  // Load vaccines and provinces
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [vaccinesData, provincesData] = await Promise.all([
+          catalogService.getVaccines(),
+          catalogService.getProvinces()
+        ]);
+        setVaccines(vaccinesData || []);
+        setProvinces(provincesData || []);
+      } catch (error) {
+        console.error('Error loading vaccines and provinces:', error);
+      }
+    };
+    loadData();
+  }, []);
 
-  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedReports = filteredReports.slice(startIndex, startIndex + itemsPerPage);
+  // Fetch reports from API
+  useEffect(() => {
+    fetchReports();
+  }, [currentPage, filterVaccine, filterSeverity, filterProvince]);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        PageNumber: currentPage.toString(),
+        PageSize: itemsPerPage.toString(),
+      });
+
+      if (filterVaccine && filterVaccine !== "all") params.append("vaccineName", filterVaccine);
+      if (filterSeverity && filterSeverity !== "all") params.append("severity", filterSeverity);
+      if (filterProvince && filterProvince !== "all") params.append("provinceName", filterProvince);
+
+      const response = await api.get<ApiResponse>(
+        `/Report/admin/summary?${params.toString()}`
+      );
+
+      setReports(response.data.items);
+      setTotalCount(response.data.totalCount);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const getSeverityBadge = (severity: string) => {
-    const styles = {
-      leve: { bg: "#E8F5EB", text: "#2D7A3E", label: "Leve" },
-      moderado: { bg: "#FEF3C7", text: "#D97706", label: "Moderado" },
-      severo: { bg: "#FEE2E2", text: "#DC2626", label: "Severo" }
+    const styles: Record<string, { bg: string; text: string; label: string }> = {
+      Mild: { bg: "#E8F5EB", text: "#2D7A3E", label: "Leve" },
+      Moderate: { bg: "#FEF3C7", text: "#D97706", label: "Moderado" },
+      Severe: { bg: "#FEE2E2", text: "#DC2626", label: "Severo" }
     };
-    const style = styles[severity as keyof typeof styles] || styles.leve;
-    
+    const style = styles[severity] || styles.Mild;
+
     return (
-      <Badge 
-        variant="secondary" 
+      <Badge
+        variant="secondary"
         className="font-medium"
         style={{ backgroundColor: style.bg, color: style.text }}
       >
@@ -146,13 +127,24 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
     );
   };
 
-  const getOutcomeIcon = (outcome: string) => {
-    if (outcome === "recuperado") {
-      return <CheckCircle2 className="w-4 h-4 text-green-600" />;
-    } else if (outcome === "recuperando") {
-      return <Clock className="w-4 h-4 text-orange-600" />;
-    }
-    return <AlertCircle className="w-4 h-4 text-gray-600" />;
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { bg: string; text: string; label: string }> = {
+      UnderReview: { bg: "#FEF3C7", text: "#D97706", label: "En Revisión" },
+      Submitted: { bg: "#DBEAFE", text: "#1E40AF", label: "Enviado" },
+      Approved: { bg: "#E8F5EB", text: "#2D7A3E", label: "Aprobado" },
+      Rejected: { bg: "#FEE2E2", text: "#DC2626", label: "Rechazado" }
+    };
+    const statusStyle = statusMap[status] || statusMap.Submitted;
+
+    return (
+      <Badge
+        variant="secondary"
+        className="font-medium"
+        style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
+      >
+        {statusStyle.label}
+      </Badge>
+    );
   };
 
   return (
@@ -181,66 +173,59 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="search">Búsqueda por ID o Síntomas</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="search"
-                    placeholder="Buscar..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="filterVaccine">Vacuna</Label>
-                <Select value={filterVaccine} onValueChange={setFilterVaccine}>
+                <Select value={filterVaccine} onValueChange={(value) => {
+                  setFilterVaccine(value);
+                  setCurrentPage(1);
+                }}>
                   <SelectTrigger className="bg-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Todas las vacunas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todas las vacunas</SelectItem>
-                    <SelectItem value="Soberana 02">Soberana 02</SelectItem>
-                    <SelectItem value="Soberana Plus">Soberana Plus</SelectItem>
-                    <SelectItem value="Abdala">Abdala</SelectItem>
-                    <SelectItem value="Heberpenta-L">Heberpenta-L</SelectItem>
-                    <SelectItem value="vABC">vABC</SelectItem>
+                    <SelectItem value="all">Todas las vacunas</SelectItem>
+                    {vaccines.map((vaccine) => (
+                      <SelectItem key={vaccine.id} value={vaccine.name}>
+                        {vaccine.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="filterSeverity">Severidad</Label>
-                <Select value={filterSeverity} onValueChange={setFilterSeverity}>
+                <Select value={filterSeverity} onValueChange={(value) => {
+                  setFilterSeverity(value);
+                  setCurrentPage(1);
+                }}>
                   <SelectTrigger className="bg-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todas</SelectItem>
-                    <SelectItem value="leve">Leve</SelectItem>
-                    <SelectItem value="moderado">Moderado</SelectItem>
-                    <SelectItem value="severo">Severo</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="Mild">Leve</SelectItem>
+                    <SelectItem value="Moderate">Moderado</SelectItem>
+                    <SelectItem value="Severe">Severo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="filterProvince">Provincia</Label>
-                <Select value={filterProvince} onValueChange={setFilterProvince}>
+                <Select value={filterProvince} onValueChange={(value) => {
+                  setFilterProvince(value);
+                  setCurrentPage(1);
+                }}>
                   <SelectTrigger className="bg-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todas</SelectItem>
-                    <SelectItem value="La Habana">La Habana</SelectItem>
-                    <SelectItem value="Santiago de Cuba">Santiago de Cuba</SelectItem>
-                    <SelectItem value="Villa Clara">Villa Clara</SelectItem>
-                    <SelectItem value="Holguín">Holguín</SelectItem>
-                    <SelectItem value="Camagüey">Camagüey</SelectItem>
-                    <SelectItem value="Pinar del Río">Pinar del Río</SelectItem>
-                    <SelectItem value="Matanzas">Matanzas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {provinces.map((province) => (
+                      <SelectItem key={province} value={province}>
+                        {province}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -248,7 +233,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
 
             <div className="flex justify-between items-center pt-2">
               <div className="text-sm text-gray-600">
-                {filteredReports.length} reportes encontrados
+                {totalCount} reportes encontrados
               </div>
               <Button variant="outline" size="sm" className="gap-2">
                 <Download className="w-4 h-4" />
@@ -265,62 +250,84 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
-                    <TableHead className="font-semibold">ID Reporte</TableHead>
-                    <TableHead className="font-semibold">Fecha</TableHead>
-                    <TableHead className="font-semibold">Vacuna</TableHead>
-                    <TableHead className="font-semibold">Edad/Sexo</TableHead>
-                    <TableHead className="font-semibold">Provincia</TableHead>
+                    <TableHead className="font-semibold">Notificación</TableHead>
+                    <TableHead className="font-semibold">Paciente</TableHead>
+                    <TableHead className="font-semibold">Vacunas</TableHead>
+                    <TableHead className="font-semibold">Eventos Adversos</TableHead>
                     <TableHead className="font-semibold">Severidad</TableHead>
                     <TableHead className="font-semibold">Estado</TableHead>
+                    <TableHead className="font-semibold">Médico Asignado</TableHead>
                     <TableHead className="font-semibold">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedReports.map((report) => (
-                    <TableRow key={report.id} className="hover:bg-gray-50">
-                      <TableCell className="font-mono text-sm font-medium">
-                        {report.id}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {new Date(report.date).toLocaleDateString('es-ES', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm font-medium">{report.vaccine}</div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {report.age} años / {report.gender}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {report.province}
-                      </TableCell>
-                      <TableCell>
-                        {getSeverityBadge(report.severity)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getOutcomeIcon(report.outcome)}
-                          <span className="text-sm text-gray-600 capitalize">
-                            {report.outcome}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => onNavigate("detail", report.id)}
-                        >
-                          <Eye className="w-4 h-4" />
-                          Ver
-                        </Button>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : reports.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        No hay reportes disponibles
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    reports.map((report) => (
+                      <TableRow key={report.id} className="hover:bg-gray-50">
+                        <TableCell className="font-mono text-sm font-medium">
+                          {report.notificationNumber}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <div className="font-medium">{report.vaccinatedSubject.age} años, {translateGender(report.vaccinatedSubject.gender)}</div>
+                          <div className="text-xs text-gray-500">{report.vaccinatedSubject.provinceName}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {report.vaccinesName.map((vaccine) => (
+                              <div key={vaccine} className="text-xs bg-blue-50 px-2 py-1 rounded mb-1">
+                                {vaccine}
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm max-w-xs">
+                            {report.adverseEventsName.map((event) => (
+                              <div key={event} className="text-xs bg-orange-50 px-2 py-1 rounded mb-1">
+                                {event}
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {getSeverityBadge(report.globalSeverityLevel)}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(report.status)}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {report.medicalReviewerName ? (
+                            <span className="font-medium">{report.medicalReviewerName}</span>
+                          ) : (
+                            <span className="text-gray-400 italic">Sin asignar</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => onNavigate("detail", report.id)}
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -329,14 +336,14 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 border-t">
                 <div className="text-sm text-gray-600">
-                  Mostrando {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredReports.length)} de {filteredReports.length}
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)} - {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount}
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || loading}
                   >
                     Anterior
                   </Button>
@@ -346,6 +353,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                       variant={page === currentPage ? "default" : "outline"}
                       size="sm"
                       onClick={() => setCurrentPage(page)}
+                      disabled={loading}
                       style={page === currentPage ? { backgroundColor: "#0A4B8F" } : {}}
                       className={page === currentPage ? "text-white" : ""}
                     >
@@ -356,7 +364,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || loading}
                   >
                     Siguiente
                   </Button>

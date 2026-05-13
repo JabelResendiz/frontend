@@ -1,8 +1,8 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { Separator } from "@/app/components/ui/separator";
-import { ReportStatusTimeline, ReportStatus } from "@/app/components/ui/report-status-timeline";
 import { 
   ArrowLeft, 
   User, 
@@ -11,117 +11,158 @@ import {
   Calendar, 
   MapPin, 
   FileText,
-  CheckCircle2,
-  Clock,
-  Activity
+  Loader2
 } from "lucide-react";
+import { api } from "@/app/services/api";
+import { 
+  translateGender,
+  translateAdministrationSite,
+  translatePatientStatus,
+  translateIntensity,
+  translateReporterRelationship,
+  translateReviewAssignmentStatus,
+  translateCausality,
+  translateClinicalSignificance
+} from "@/app/utils/translations";
+
 
 interface DetailPageProps {
   reportId?: string;
   onNavigate: (page: string) => void;
 }
 
-export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPageProps) {
-  // Mock detailed data
-  const reportDetail = {
-    id: reportId,
-    status: "revisado",
-    submissionDate: "2026-01-24T10:30:00",
-    reviewDate: "2026-01-25T14:20:00",
-    reportStatus: ReportStatus.UnderReview, // Current status for timeline
-    
-    patient: {
-      age: 45,
-      gender: "Femenino",
-      province: "La Habana",
-      medicalHistory: "Hipertensión controlada con medicación",
-      allergies: "Alergia a penicilina y mariscos",
-      currentMedications: "Enalapril 10mg diario, Aspirina 100mg diario",
-      otherVaccinesLastMonth: "Vacuna contra la gripe (hace 2 semanas)"
-    },
-    
-    vaccine: {
-      name: "Soberana 02",
-      manufacturer: "Instituto Finlay de Vacunas",
-      batchNumber: "L-2025-042",
-      vaccinationDate: "2026-01-22",
-      vaccinationSite: "Policlínico Vedado, La Habana",
-      doseNumber: "Segunda dosis"
-    },
-    
-    event: {
-      startDate: "2026-01-22",
-      severity: "leve",
-      outcome: "recuperado",
-      hospitalization: "No",
-      symptoms: [
-        "Dolor en el sitio de inyección",
-        "Fiebre leve (37.8°C)",
-        "Fatiga"
-      ],
-      description: "La paciente reporta dolor moderado en el sitio de inyección aproximadamente 2 horas después de la vacunación. Durante la noche presentó fiebre leve (37.8°C) y fatiga. Los síntomas fueron manejados con paracetamol según indicación médica. A las 48 horas, todos los síntomas habían desaparecido completamente.",
-      treatment: "Paracetamol 500mg cada 8 horas por 24 horas",
-      medicalAttention: "Consultó al médico de familia",
-      laboratoryResults: "No se realizaron exámenes de laboratorio",
-      professionalDiagnosis: "Reacción adversa leve post-vacunación"
-    },
-    
-    reporter: {
-      type: "Profesional de la Salud",
-      name: "Dr. Carlos Méndez (opcional)",
-      contact: "carlos.mendez@salud.cu"
-    },
-    
-    timeline: [
-      {
-        date: "2026-01-22 09:00",
-        event: "Administración de vacuna",
-        description: "Segunda dosis de Soberana 02 administrada"
-      },
-      {
-        date: "2026-01-22 11:00",
-        event: "Inicio de síntomas",
-        description: "Dolor en sitio de inyección"
-      },
-      {
-        date: "2026-01-22 22:00",
-        event: "Fiebre leve",
-        description: "Temperatura 37.8°C, se inicia paracetamol"
-      },
-      {
-        date: "2026-01-24 10:00",
-        event: "Resolución completa",
-        description: "Todos los síntomas han desaparecido"
-      },
-      {
-        date: "2026-01-24 10:30",
-        event: "Reporte enviado",
-        description: "Reporte registrado en el sistema"
-      },
-      {
-        date: "2026-01-25 14:20",
-        event: "Evaluación completada",
-        description: "Reporte revisado y clasificado"
-      }
-    ],
-    
-    technicalNotes: [
-      {
-        date: "2026-01-25 14:20",
-        author: "Dra. María Rodríguez - Farmacovigilancia",
-        note: "Evento adverso consistente con reacciones post-vacunación esperadas. Evolución favorable sin complicaciones. No requiere seguimiento adicional. Clasificado como evento adverso leve y esperado según literatura científica."
-      }
-    ]
+interface DetailReport {
+  id: string;
+  notificationNumber: string;
+  createdAt: string;
+  reportDate: string;
+  status: string;
+  globalSeverityLevel: string;
+  reporter: {
+    reporterRelationship: string;
+    fullName: string;
+    phoneNumber: string;
+    email: string;
   };
+  vaccinatedSubject: {
+    age: number;
+    gender: string;
+    isPregnant: boolean;
+    provinceName: string;
+    currentMedications: string;
+    allergies: string;
+    medicalHistory: string;
+  };
+  vaccinations: Array<{
+    vaccineName: string;
+    lotNumber: string;
+    administrationSite: string;
+    doseNumber: number;
+    administrationDate: string;
+    vaccinationCenterName: string;
+  }>;
+  adverseEvents: Array<{
+    startDate: string;
+    visitedDoctor: boolean;
+    wentToEmergencyRoom: boolean;
+    permanentDisability: boolean;
+    isLifeThreatening: boolean;
+    resultedInDeath: boolean;
+    deathDate: string | null;
+    currentStatus: string;
+    intensity: string;
+    severityLevel: string;
+    symptom: string;
+    description: string;
+    medDRACode: string;
+    retClassification: string;
+  }>;
+  medicalReviewAssignments: Array<{
+    id: string;
+    medicalReviewerName: string;
+    assignedAt: string;
+    sectionResponsibleName: string;
+    status: string;
+    rejectionReason: string | null;
+  }>;
+  medicalReview: {
+    clinicalSignificance: string;
+    causality: string;
+    medicalReviewAssignmentId: string;
+    reviewedAt: string;
+  } | null;
+}
+
+export function DetailPage({ reportId, onNavigate }: DetailPageProps) {
+  const [detail, setDetail] = useState<DetailReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDetail = async () => {
+      if (!reportId) {
+        setError("No report ID provided");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.get(`/Report/admin/detail?reportId=${reportId}`);
+        setDetail(response.data);
+      } catch (err) {
+        console.error("Error loading report detail:", err);
+        setError("Error al cargar los detalles del reporte");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDetail();
+  }, [reportId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-600" />
+          <p className="text-gray-600">Cargando detalle del reporte...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !detail) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Button
+            variant="ghost"
+            className="mb-4"
+            onClick={() => onNavigate("consultation")}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a Consulta
+          </Button>
+          <Card className="border-2 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <p className="text-red-600 font-semibold">{error || "No se encontraron datos del reporte"}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const getSeverityBadge = (severity: string) => {
-    const styles = {
-      leve: { bg: "#E8F5EB", text: "#2D7A3E", label: "Leve" },
-      moderado: { bg: "#FEF3C7", text: "#D97706", label: "Moderado" },
-      severo: { bg: "#FEE2E2", text: "#DC2626", label: "Severo" }
+    const styles: Record<string, { bg: string; text: string; label: string }> = {
+      Mild: { bg: "#E8F5EB", text: "#2D7A3E", label: "Leve" },
+      Moderate: { bg: "#FEF3C7", text: "#D97706", label: "Moderado" },
+      Severe: { bg: "#FEE2E2", text: "#DC2626", label: "Severo" }
     };
-    const style = styles[severity as keyof typeof styles] || styles.leve;
-    
+    const style = styles[severity] || styles.Mild;
+
     return (
       <Badge 
         variant="secondary" 
@@ -133,104 +174,119 @@ export function DetailPage({ reportId = "RPT-2026-0142", onNavigate }: DetailPag
     );
   };
 
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, { bg: string; text: string; label: string }> = {
+      UnderReview: { bg: "#FEF3C7", text: "#D97706", label: "En Revisión" },
+      Submitted: { bg: "#DBEAFE", text: "#1E40AF", label: "Enviado" },
+      Approved: { bg: "#E8F5EB", text: "#2D7A3E", label: "Aprobado" },
+      Rejected: { bg: "#FEE2E2", text: "#DC2626", label: "Rechazado" }
+    };
+    const statusStyle = styles[status] || styles.Submitted;
+    
+    return (
+      <Badge 
+        variant="secondary" 
+        className="font-medium"
+        style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
+      >
+        {statusStyle.label}
+      </Badge>
+    );
+  };
+
   const handleDownloadTxt = () => {
     const txtContent = `
 REPORTE DETALLADO DE EVENTO ADVERSO
 =====================================
 
-ID DEL REPORTE: ${reportDetail.id}
-ESTADO: ${reportDetail.status}
-FECHA DE ENVÍO: ${new Date(reportDetail.submissionDate).toLocaleString('es-ES')}
-FECHA DE REVISIÓN: ${new Date(reportDetail.reviewDate).toLocaleString('es-ES')}
+NÚMERO DE NOTIFICACIÓN: ${detail.notificationNumber}
+ESTADO: ${detail.status}
+FECHA DE CREACIÓN: ${new Date(detail.createdAt).toLocaleString('es-ES')}
+FECHA DEL REPORTE: ${new Date(detail.reportDate).toLocaleString('es-ES')}
 
 INFORMACIÓN DEL PACIENTE
 ========================
-Edad: ${reportDetail.patient.age} años
-Sexo: ${reportDetail.patient.gender}
-Provincia: ${reportDetail.patient.province}
-Antecedentes Médicos: ${reportDetail.patient.medicalHistory}
-Medicamentos Actuales: ${reportDetail.patient.currentMedications}
-Alergias: ${reportDetail.patient.allergies}
-Otras Vacunas (Último Mes): ${reportDetail.patient.otherVaccinesLastMonth}
-
-INFORMACIÓN DE LA VACUNA
-========================
-Nombre: ${reportDetail.vaccine.name}
-Fabricante: ${reportDetail.vaccine.manufacturer}
-Lote: ${reportDetail.vaccine.batchNumber}
-Dosis: ${reportDetail.vaccine.doseNumber}
-Fecha de Vacunación: ${new Date(reportDetail.vaccine.vaccinationDate).toLocaleDateString('es-ES')}
-Sitio de Vacunación: ${reportDetail.vaccine.vaccinationSite}
-
-EVENTO ADVERSO
-==============
-Fecha de Inicio: ${new Date(reportDetail.event.startDate).toLocaleDateString('es-ES')}
-Severidad: ${reportDetail.event.severity}
-Estado Actual: ${reportDetail.event.outcome}
-Hospitalización: ${reportDetail.event.hospitalization}
-
-Síntomas Reportados:
-${reportDetail.event.symptoms.map(s => `- ${s}`).join('\n')}
-
-Descripción Detallada:
-${reportDetail.event.description}
-
-Tratamiento Recibido:
-${reportDetail.event.treatment}
-
-Atención Médica:
-${reportDetail.event.medicalAttention}
-
-Resultados de Laboratorio:
-${reportDetail.event.laboratoryResults}
-
-Diagnóstico Profesional:
-${reportDetail.event.professionalDiagnosis}
+Edad: ${detail.vaccinatedSubject.age} años
+Sexo: ${translateGender(detail.vaccinatedSubject.gender)}
+Embarazada: ${detail.vaccinatedSubject.isPregnant ? 'Sí' : 'No'}
+Provincia: ${detail.vaccinatedSubject.provinceName}
+Antecedentes Médicos: ${detail.vaccinatedSubject.medicalHistory || 'N/A'}
+Medicamentos Actuales: ${detail.vaccinatedSubject.currentMedications || 'N/A'}
+Alergias: ${detail.vaccinatedSubject.allergies || 'N/A'}
 
 INFORMACIÓN DEL REPORTANTE
 ==========================
-Tipo: ${reportDetail.reporter.type}
-Nombre: ${reportDetail.reporter.name}
-Contacto: ${reportDetail.reporter.contact}
+Nombre: ${detail.reporter.fullName}
+Relación: ${detail.reporter.reporterRelationship}
+Teléfono: ${detail.reporter.phoneNumber}
+Email: ${detail.reporter.email}
 
-LÍNEA DE TIEMPO DEL CASO
-========================
-${reportDetail.timeline.map(item => `${item.date}: ${item.event} - ${item.description}`).join('\n')}
+VACUNACIONES
+=============
+${detail.vaccinations.map((v, idx) => `
+Vacunación ${idx + 1}:
+- Vacuna: ${v.vaccineName}
+- Lote: ${v.lotNumber}
+- Dosis: ${v.doseNumber}
+- Sitio: ${v.administrationSite}
+- Fecha: ${new Date(v.administrationDate).toLocaleString('es-ES')}
+- Centro: ${v.vaccinationCenterName}
+`).join('\n')}
 
-NOTAS TÉCNICAS
-==============
-${reportDetail.technicalNotes.map(note => `${new Date(note.date).toLocaleString('es-ES')} - ${note.author}:
-${note.note}`).join('\n\n')}
+EVENTOS ADVERSOS
+================
+${detail.adverseEvents.map((event, idx) => `
+Evento ${idx + 1}:
+- Fecha de Inicio: ${new Date(event.startDate).toLocaleString('es-ES')}
+- Síntoma: ${event.symptom || 'N/A'}
+- Intensidad: ${event.intensity || 'N/A'}
+- Severidad: ${event.severityLevel || 'N/A'}
+- Estado Actual: ${event.currentStatus || 'N/A'}
+- Visitó Doctor: ${event.visitedDoctor ? 'Sí' : 'No'}
+- Fue a Emergencias: ${event.wentToEmergencyRoom ? 'Sí' : 'No'}
+- Discapacidad Permanente: ${event.permanentDisability ? 'Sí' : 'No'}
+- Amenaza Vital: ${event.isLifeThreatening ? 'Sí' : 'No'}
+- Resultó en Muerte: ${event.resultedInDeath ? 'Sí' : 'No'}
+- Descripción: ${event.description || 'N/A'}
+- Código MedDRA: ${event.medDRACode || 'N/A'}
+- Clasificación RET: ${event.retClassification || 'N/A'}
+`).join('\n')}
+
+ASIGNACIONES DE REVISIÓN MÉDICA
+================================
+${detail.medicalReviewAssignments && detail.medicalReviewAssignments.length > 0 
+  ? detail.medicalReviewAssignments.map((assignment, idx) => `
+Asignación ${idx + 1}:
+- Médico Revisor: ${assignment.medicalReviewerName}
+- Responsable de Sección: ${assignment.sectionResponsibleName}
+- Estado: ${translateReviewAssignmentStatus(assignment.status)}
+- Asignado en: ${new Date(assignment.assignedAt).toLocaleString('es-ES')}
+- Razón de Rechazo: ${assignment.rejectionReason || 'N/A'}
+`).join('\n')
+  : 'No hay asignaciones de revisión médica registradas'}
+
+REVISIÓN MÉDICA
+===============
+${detail.medicalReview
+  ? `
+- Causalidad: ${detail.medicalReview.causality}
+- Significancia Clínica: ${detail.medicalReview.clinicalSignificance}
+- Revisado en: ${new Date(detail.medicalReview.reviewedAt).toLocaleString('es-ES')}
+`
+  : 'No hay revisión médica registrada'}
+
+SEVERIDAD GENERAL: ${detail.globalSeverityLevel}
     `.trim();
 
     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reporte-${reportDetail.id}.txt`;
+    a.download = `reporte-${detail.id}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      pendiente: { bg: "#FEF3C7", text: "#D97706", label: "Pendiente" },
-      revisado: { bg: "#E8F0F7", text: "#0A4B8F", label: "Revisado" },
-      cerrado: { bg: "#E8F5EB", text: "#2D7A3E", label: "Cerrado" }
-    };
-    const style = styles[status as keyof typeof styles] || styles.pendiente;
-    
-    return (
-      <Badge 
-        variant="secondary" 
-        className="font-medium"
-        style={{ backgroundColor: style.bg, color: style.text }}
-      >
-        {style.label}
-      </Badge>
-    );
   };
 
   return (
@@ -254,10 +310,10 @@ ${note.note}`).join('\n\n')}
               </h1>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="font-mono text-lg font-semibold text-gray-700">
-                  {reportDetail.id}
+                  {detail.notificationNumber}
                 </span>
-                {getStatusBadge(reportDetail.status)}
-                {getSeverityBadge(reportDetail.event.severity)}
+                {getStatusBadge(detail.status)}
+                {getSeverityBadge(detail.globalSeverityLevel)}
               </div>
             </div>
             <div className="flex gap-2">
@@ -288,41 +344,39 @@ ${note.note}`).join('\n\n')}
               <CardContent className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Edad</div>
-                  <div className="font-medium">{reportDetail.patient.age} años</div>
+                  <div className="font-medium">{detail.vaccinatedSubject.age} años</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Sexo</div>
-                  <div className="font-medium">{reportDetail.patient.gender}</div>
+                  <div className="font-medium">{translateGender(detail.vaccinatedSubject.gender)}</div>
                 </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1">Provincia</div>
                   <div className="font-medium flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
-                    {reportDetail.patient.province}
+                    {detail.vaccinatedSubject.provinceName}
                   </div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm text-gray-600 mb-1">Embarazada</div>
+                  <div className="font-medium">{detail.vaccinatedSubject.isPregnant ? 'Sí' : 'No'}</div>
                 </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1">Antecedentes Médicos</div>
                   <div className="text-sm bg-gray-50 p-3 rounded-md">
-                    {reportDetail.patient.medicalHistory}
+                    {detail.vaccinatedSubject.medicalHistory || 'N/A'}
                   </div>
                 </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1">Medicamentos Actuales</div>
                   <div className="text-sm bg-gray-50 p-3 rounded-md">
-                    {reportDetail.patient.currentMedications}
+                    {detail.vaccinatedSubject.currentMedications || 'N/A'}
                   </div>
                 </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1">Alergias</div>
                   <div className="text-sm bg-gray-50 p-3 rounded-md">
-                    {reportDetail.patient.allergies}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-sm text-gray-600 mb-1">Otras Vacunas (Último Mes)</div>
-                  <div className="text-sm bg-gray-50 p-3 rounded-md">
-                    {reportDetail.patient.otherVaccinesLastMonth}
+                    {detail.vaccinatedSubject.allergies || 'N/A'}
                   </div>
                 </div>
               </CardContent>
@@ -333,46 +387,49 @@ ${note.note}`).join('\n\n')}
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Syringe className="w-5 h-5" />
-                  Información de la Vacuna
+                  Vacunaciones
                 </CardTitle>
-                <CardDescription>Detalles de la vacunación</CardDescription>
+                <CardDescription>Detalles de las vacunaciones</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Vacuna</div>
-                    <div className="font-medium">{reportDetail.vaccine.name}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Fabricante</div>
-                    <div className="font-medium text-sm">{reportDetail.vaccine.manufacturer}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Lote</div>
-                    <div className="font-mono text-sm font-medium">{reportDetail.vaccine.batchNumber}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Dosis</div>
-                    <div className="font-medium">{reportDetail.vaccine.doseNumber}</div>
-                  </div>
-                </div>
-                <Separator />
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Fecha de Vacunación</div>
-                  <div className="font-medium flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    {new Date(reportDetail.vaccine.vaccinationDate).toLocaleDateString('es-ES', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Sitio de Vacunación</div>
-                  <div className="font-medium text-sm">{reportDetail.vaccine.vaccinationSite}</div>
-                </div>
+                {detail.vaccinations && detail.vaccinations.length > 0 ? (
+                  detail.vaccinations.map((vaccination, idx) => (
+                    <div key={idx} className="p-4 bg-white border rounded-lg">
+                      <h4 className="font-semibold mb-3">Vacunación #{idx + 1}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Vacuna</div>
+                          <div className="font-medium">{vaccination.vaccineName}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Lote</div>
+                          <div className="font-mono text-sm font-medium">{vaccination.lotNumber}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Dosis</div>
+                          <div className="font-medium">{vaccination.doseNumber}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Sitio</div>
+                          <div className="font-medium text-sm">{translateAdministrationSite(vaccination.administrationSite)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Fecha</div>
+                          <div className="font-medium flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            {new Date(vaccination.administrationDate).toLocaleDateString('es-ES')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Centro</div>
+                          <div className="font-medium text-sm">{vaccination.vaccinationCenterName}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">No hay vacunaciones registradas</p>
+                )}
               </CardContent>
             </Card>
 
@@ -381,108 +438,81 @@ ${note.note}`).join('\n\n')}
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5" />
-                  Descripción del Evento Adverso
+                  Eventos Adversos
                 </CardTitle>
-                <CardDescription>Síntomas y evolución del evento</CardDescription>
+                <CardDescription>Síntomas y evolución de los eventos</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Fecha de Inicio</div>
-                    <div className="font-medium">
-                      {new Date(reportDetail.event.startDate).toLocaleDateString('es-ES')}
+              <CardContent className="space-y-6">
+                {detail.adverseEvents && detail.adverseEvents.length > 0 ? (
+                  detail.adverseEvents.map((event, idx) => (
+                    <div key={idx} className="p-4 bg-gray-50 border rounded-lg">
+                      <h4 className="font-semibold text-gray-800 mb-3">Evento Adverso #{idx + 1}</h4>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Fecha de Inicio</div>
+                          <div className="font-medium">
+                            {new Date(event.startDate).toLocaleDateString('es-ES')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Severidad</div>
+                          {getSeverityBadge(event.severityLevel || event.intensity || 'Mild')}
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Intensidad</div>
+                          <div className="font-medium">{translateIntensity(event.intensity)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Estado Actual</div>
+                          <div className="font-medium">{translatePatientStatus(event.currentStatus)}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Visitó Doctor</div>
+                          <div className="font-medium">{event.visitedDoctor ? 'Sí' : 'No'}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Fue a Emergencias</div>
+                          <div className="font-medium">{event.wentToEmergencyRoom ? 'Sí' : 'No'}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Discapacidad Permanente</div>
+                          <div className="font-medium">{event.permanentDisability ? 'Sí' : 'No'}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Amenaza Vital</div>
+                          <div className="font-medium">{event.isLifeThreatening ? 'Sí' : 'No'}</div>
+                        </div>
+                      </div>
+                      <Separator className="my-4" />
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Síntoma</div>
+                          <div className="text-sm font-medium bg-blue-50 p-2 rounded border border-blue-100">
+                            {event.symptom || 'N/A'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-gray-600 mb-1">Descripción</div>
+                          <div className="text-sm bg-white p-2 rounded border">{event.description || 'N/A'}</div>
+                        </div>
+                        {event.medDRACode && (
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">Código MedDRA</div>
+                            <div className="text-sm font-mono">{event.medDRACode}</div>
+                          </div>
+                        )}
+                        {event.retClassification && (
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">Clasificación RET</div>
+                            <div className="text-sm font-mono">{event.retClassification}</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Estado Actual</div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      <span className="font-medium capitalize">{reportDetail.event.outcome}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Hospitalización</div>
-                    <div className="font-medium">{reportDetail.event.hospitalization}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Severidad</div>
-                    <div>{getSeverityBadge(reportDetail.event.severity)}</div>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Síntomas Reportados</div>
-                  <div className="flex flex-wrap gap-2">
-                    {reportDetail.event.symptoms.map((symptom, index) => (
-                      <Badge key={index} variant="outline" className="bg-gray-50">
-                        {symptom}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Descripción Detallada</div>
-                  <div className="text-sm bg-gray-50 p-4 rounded-md leading-relaxed">
-                    {reportDetail.event.description}
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Tratamiento Recibido</div>
-                  <div className="text-sm bg-blue-50 p-3 rounded-md border border-blue-100">
-                    {reportDetail.event.treatment}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Atención Médica</div>
-                  <div className="text-sm bg-green-50 p-3 rounded-md border border-green-100">
-                    {reportDetail.event.medicalAttention}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Resultados de Laboratorio</div>
-                  <div className="text-sm bg-yellow-50 p-3 rounded-md border border-yellow-100">
-                    {reportDetail.event.laboratoryResults}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Diagnóstico Profesional</div>
-                  <div className="text-sm bg-purple-50 p-3 rounded-md border border-purple-100">
-                    {reportDetail.event.professionalDiagnosis}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Technical Notes */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Notas Técnicas
-                </CardTitle>
-                <CardDescription>Evaluación del equipo de farmacovigilancia</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {reportDetail.technicalNotes.map((note, index) => (
-                  <div key={index} className="border-l-4 pl-4" style={{ borderColor: "#0A4B8F" }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-gray-500">
-                        {new Date(note.date).toLocaleString('es-ES')}
-                      </span>
-                      <span className="text-xs text-gray-400">•</span>
-                      <span className="text-xs font-medium" style={{ color: "#0A4B8F" }}>
-                        {note.author}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {note.note}
-                    </p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">No hay eventos adversos registrados</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -492,56 +522,28 @@ ${note.note}`).join('\n\n')}
             {/* Status Timeline */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Estado del Reporte
-                </CardTitle>
-                <CardDescription>Progreso de evaluación</CardDescription>
+                <CardTitle className="text-base">Estado del Reporte</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ReportStatusTimeline 
-                  currentStatus={reportDetail.reportStatus}
-                  statusHistory={[
-                    {
-                      status: ReportStatus.Submitted,
-                      date: reportDetail.submissionDate,
-                      comments: "Reporte recibido en el sistema"
-                    },
-                    {
-                      status: ReportStatus.UnderReview,
-                      date: reportDetail.reviewDate,
-                      comments: "En evaluación por profesional de farmacovigilancia"
-                    }
-                  ]}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Historic Timeline */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Línea de Tiempo del Caso
-                </CardTitle>
-                <CardDescription>Historial de eventos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {reportDetail.timeline.map((item, index) => (
-                    <div key={index} className="relative pl-6 pb-4 last:pb-0">
-                      {index !== reportDetail.timeline.length - 1 && (
-                        <div className="absolute left-2 top-6 bottom-0 w-0.5 bg-gray-200" />
-                      )}
-                      <div 
-                        className="absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white" 
-                        style={{ backgroundColor: "#0A4B8F" }}
-                      />
-                      <div className="text-xs text-gray-500 mb-1">{item.date}</div>
-                      <div className="text-sm font-medium mb-1">{item.event}</div>
-                      <div className="text-xs text-gray-600">{item.description}</div>
-                    </div>
-                  ))}
+              <CardContent className="space-y-3 text-sm">
+                <div>
+                  <div className="text-gray-600 mb-1">Estado General</div>
+                  <div>{getStatusBadge(detail.status)}</div>
+                </div>
+                <div>
+                  <div className="text-gray-600 mb-1">Severidad Global</div>
+                  <div>{getSeverityBadge(detail.globalSeverityLevel)}</div>
+                </div>
+                <div>
+                  <div className="text-gray-600 mb-1">Fecha de Creación</div>
+                  <div className="font-medium">
+                    {new Date(detail.createdAt).toLocaleString('es-ES')}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-600 mb-1">Fecha del Reporte</div>
+                  <div className="font-medium">
+                    {new Date(detail.reportDate).toLocaleString('es-ES')}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -549,48 +551,95 @@ ${note.note}`).join('\n\n')}
             {/* Reporter Info */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-base">Información del Reportante</CardTitle>
+                <CardTitle className="text-base">Reportante</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">Tipo</div>
-                  <div className="text-sm font-medium">{reportDetail.reporter.type}</div>
-                </div>
-                <div>
                   <div className="text-sm text-gray-600 mb-1">Nombre</div>
-                  <div className="text-sm font-medium">{reportDetail.reporter.name}</div>
+                  <div className="text-sm font-medium">{detail.reporter.fullName}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">Contacto</div>
-                  <div className="text-sm font-medium">{reportDetail.reporter.contact}</div>
+                  <div className="text-sm text-gray-600 mb-1">Relación</div>
+                  <div className="text-sm font-medium">{translateReporterRelationship(detail.reporter.reporterRelationship)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Teléfono</div>
+                  <div className="text-sm font-medium">{detail.reporter.phoneNumber}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Email</div>
+                  <div className="text-sm font-medium break-words">{detail.reporter.email}</div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Report Metadata */}
-            <Card className="border-0 shadow-lg bg-gray-50">
+            {/* Medical Review Assignments */}
+            <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-base">Metadatos del Reporte</CardTitle>
+                <CardTitle className="text-base">Asignaciones de Revisión</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div>
-                  <div className="text-gray-600 mb-1">Fecha de Envío</div>
-                  <div className="font-medium">
-                    {new Date(reportDetail.submissionDate).toLocaleString('es-ES')}
+              <CardContent>
+                {detail.medicalReviewAssignments && detail.medicalReviewAssignments.length > 0 ? (
+                  <div className="space-y-3">
+                    {detail.medicalReviewAssignments.map((assignment, idx) => (
+                      <div key={idx} className="p-3 bg-gray-50 rounded border">
+                        <div className="text-sm font-medium mb-2">Asignación #{idx + 1}</div>
+                        <div className="space-y-1 text-xs">
+                          <div><span className="text-gray-600">Médico:</span> {assignment.medicalReviewerName}</div>
+                          <div><span className="text-gray-600">Responsable:</span> {assignment.sectionResponsibleName}</div>
+                          <div><span className="text-gray-600">Estado:</span> <Badge className="text-xs mt-1">{translateReviewAssignmentStatus(assignment.status)}</Badge></div>
+                          <div><span className="text-gray-600">Asignado:</span> {new Date(assignment.assignedAt).toLocaleDateString('es-ES')}</div>
+                          {assignment.rejectionReason && (
+                            <div><span className="text-gray-600">Rechazo:</span> {assignment.rejectionReason}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 mb-1">Fecha de Revisión</div>
-                  <div className="font-medium">
-                    {new Date(reportDetail.reviewDate).toLocaleString('es-ES')}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 mb-1">ID del Reporte</div>
-                  <div className="font-mono font-medium">{reportDetail.id}</div>
-                </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No hay asignaciones de revisión médica registradas</p>
+                )}
               </CardContent>
             </Card>
+
+            {/* Medical Review */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-base">Revisión Médica</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {detail.medicalReview ? (
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <div className="text-gray-600 mb-1">Causalidad</div>
+                      <div className="font-medium">{translateCausality(detail.medicalReview.causality)}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600 mb-1">Significancia Clínica</div>
+                      <div className="font-medium">{translateClinicalSignificance(detail.medicalReview.clinicalSignificance)}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600 mb-1">Revisado en</div>
+                      <div className="font-medium">
+                        {new Date(detail.medicalReview.reviewedAt).toLocaleString('es-ES')}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No hay revisión médica registrada</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Report ID Card */}
+            {/* <Card className="border-0 shadow-lg bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-base">ID del Reporte</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                <div className="font-mono text-xs break-words bg-white p-2 rounded border">{detail.id}</div>
+              </CardContent>
+            </Card> */}
           </div>
         </div>
       </div>

@@ -56,7 +56,6 @@ export const AdminDashboard = () => {
 
   // Datos para gráfico de estado
   const statusData = [
-    { name: 'Borradores', value: draftReports },
     { name: 'Completados', value: completedReports },
     { name: 'Revisados', value: reviewedReports },
   ];
@@ -122,18 +121,7 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Borradores
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">{draftReports}</div>
-            <p className="text-xs text-gray-500 mt-1">Sin completar</p>
-          </CardContent>
-        </Card>
+        
       </div>
 
       {/* Tarjetas de Estadísticas - Segunda Fila */}
@@ -163,15 +151,7 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Promedio por Médico</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-indigo-600">{avgReportsPerDoctor}</div>
-            <p className="text-xs text-gray-500 mt-1">Reportes por médico</p>
-          </CardContent>
-        </Card>
+        
 
         <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
@@ -338,7 +318,7 @@ export const AdminDashboard = () => {
       </Card>
 
       {/* Tabla de Reportes Recientes */}
-      <Card className="border-0 shadow-md mb-8">
+      {/* <Card className="border-0 shadow-md mb-8">
         <CardHeader>
           <CardTitle>Reportes Recientes</CardTitle>
           <CardDescription>
@@ -398,10 +378,10 @@ export const AdminDashboard = () => {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Tabla de Reportes Críticos */}
-      {criticalReports.length > 0 && (
+      {/* {criticalReports.length > 0 && (
         <Card className="border-0 shadow-md border-l-4 border-red-500">
           <CardHeader>
             <CardTitle className="text-red-600 flex items-center gap-2">
@@ -430,7 +410,7 @@ export const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
     </div>
   );
 };

@@ -3,13 +3,16 @@ import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Progress } from "@/app/components/ui/progress";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield, FileJson } from "lucide-react";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/context/AuthContext";
-import { FormData, UpdateFormData } from "./report-page/types";
+import { FormData, UpdateFormData, AdverseEvent } from "./report-page/types";
 import { PatientInfoSection } from "./report-page/patient-info-section";
 import { VaccineInfoSection } from "./report-page/vaccine-info-section";
 import { AdverseEventSection } from "./report-page/adverse-event-section";
+import { PatientHistorySection } from "./report-page/patient-history-section";
+import { PatientMedicalInfoSection } from "./report-page/patient-medical-info-section";
 import { ReporterInfoSection } from "./report-page/reporter-info-section";
 import { SuccessReportDialog } from "@/app/components/ui/success-report-dialog";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -46,35 +49,37 @@ const initialFormData: FormData = {
   vaccinations: [
     {
       vaccineId: "",
-      vaccineName: "",
-      vaccineManufacturer: "",
-      vaccineBatchNumber: "",
+
+      vaccinationLotId: "",
       vaccinationDate: "",
-      vaccinationSite: "",
+     
       doseNumber: "",
-      administrationSite: ""
+      administrationSite: "",
+      vaccinationProvince: "",
+      vaccinationMunicipality: "",
+      vaccinationCenterId: "",
+      
     }
   ],
-  eventDate: "",
-  eventTime: "",
-  eventDescription: "",
-  eventSymptoms: [],
-  eventOutcome: "",
-  eventHospitalization: "",
-  eventMedicalAttention: "",
-  eventSeverity: "",
+  adverseEvents: [
+    {
+      eventDate: "",
+      eventFinishDate: "",
+      eventDescription: "",
+      eventSymptom: "",
+      eventOutcome: "",
+      eventHospitalization: "",
+      eventMedicalAttention: "",
+      eventIntensity: "",
+      eventSeverityLevel: ""
+    }
+  ],
   patientMedicalHistory: "",
   currentMedications: "",
   allergies: "",
   otherVaccinesLastMonth: "",
-  professionalDiagnosis: "",
-  medicalTerminology: "",
-  retClassification: "",
-  laboratoryResults: "",
-  clinicalSignificance: "",
-  vaccinationFacilityType: "",
-  contraindicationCriterion: "",
-  reporterType: ""
+  reporterType: "",
+  confidentialityAgreed: false
 };
 
 export function ReportPage({ onNavigate }: ReportPageProps) {
@@ -84,6 +89,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const [isAutoFilled, setIsAutoFilled] = useState(false);
   const reporterFieldsRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
   const [backendErrors, setBackendErrors] = useState<string[]>([]);
@@ -93,22 +99,22 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const inactivityTimer = useRef<number | null>(null);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progress = (currentStep / totalSteps) * 100;
 
-  const utcMinus5Iso = (value: Date) => {
-    const offsetMs = -5 * 60 * 60 * 1000;
-    const target = new Date(value.getTime() + offsetMs);
-    const pad = (num: number) => num.toString().padStart(2, "0");
-    const year = target.getUTCFullYear();
-    const month = pad(target.getUTCMonth() + 1);
-    const day = pad(target.getUTCDate());
-    const hours = pad(target.getUTCHours());
-    const minutes = pad(target.getUTCMinutes());
-    const seconds = pad(target.getUTCSeconds());
-    const milliseconds = target.getUTCMilliseconds().toString().padStart(3, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}-05:00`;
-  };
+  // const utcMinus5Iso = (value: Date) => {
+  //   const offsetMs = -5 * 60 * 60 * 1000;
+  //   const target = new Date(value.getTime() + offsetMs);
+  //   const pad = (num: number) => num.toString().padStart(2, "0");
+  //   const year = target.getUTCFullYear();
+  //   const month = pad(target.getUTCMonth() + 1);
+  //   const day = pad(target.getUTCDate());
+  //   const hours = pad(target.getUTCHours());
+  //   const minutes = pad(target.getUTCMinutes());
+  //   const seconds = pad(target.getUTCSeconds());
+  //   const milliseconds = target.getUTCMilliseconds().toString().padStart(3, "0");
+  //   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}-05:00`;
+  // };
 
   // Helper functions for date parsing to avoid timezone issues
   const normalizeDate = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -120,7 +126,41 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
   const updateFormData: UpdateFormData = (field, value) => {
     setFormData((prev) => {
-      const updated = { ...prev, [field]: value };
+      // List of fields that belong to the adverseEvents array
+      const eventFields = [
+        "eventDate",
+        "eventFinishDate",
+        "eventDescription",
+        "eventSymptom",
+        "eventOutcome",
+        "eventHospitalization",
+        "eventMedicalAttention",
+        "eventIntensity",
+        "eventSeverityLevel",
+        "deathDate",
+        "deathDateType",
+        "professionalDiagnosis",
+        "medicalTerminology",
+        "retClassification",
+        "laboratoryResults",
+        "clinicalSignificance",
+        "vaccinationFacilityType",
+        "contraindicationCriterion",
+      ];
+
+      const updated = { ...prev };
+
+      // If it's an event field, update the specific event
+      if (eventFields.includes(field)) {
+        updated.adverseEvents = prev.adverseEvents.map((event, idx) => 
+          idx === currentEventIndex
+            ? { ...event, [field]: value }
+            : event
+        );
+      } else {
+        // Otherwise, update the root level
+        Object.assign(updated, { [field]: value });
+      }
 
       if (field === "reporterRelationship") {
         const isChangingToPaciente = value === "paciente" && prev.reporterRelationship !== "paciente";
@@ -167,6 +207,54 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       }
 
       return updated;
+    });
+  };
+
+  const handleAddEvent = () => {
+    const newEvent: AdverseEvent = {
+      eventDate: "",
+      eventFinishDate: "",
+      eventDescription: "",
+      eventSymptom: "",
+      eventOutcome: "",
+      eventHospitalization: "",
+      eventMedicalAttention: "",
+      eventIntensity: "",
+      eventSeverityLevel: ""
+    };
+    
+    setFormData((prev) => ({
+      ...prev,
+      adverseEvents: [...prev.adverseEvents, newEvent]
+    }));
+    
+    // Set the current index to the newly added event
+    setCurrentEventIndex(formData.adverseEvents.length);
+    toast.success("Nuevo evento adverso agregado", {
+      description: "Puedes completar la información del nuevo evento."
+    });
+  };
+
+  const handleRemoveEvent = (index: number) => {
+    if (formData.adverseEvents.length === 1) {
+      toast.error("No se puede eliminar", {
+        description: "Debe haber al menos un evento adverso reportado."
+      });
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      adverseEvents: prev.adverseEvents.filter((_, i) => i !== index)
+    }));
+
+    // Adjust current index if needed
+    if (currentEventIndex >= formData.adverseEvents.length - 1) {
+      setCurrentEventIndex(Math.max(0, currentEventIndex - 1));
+    }
+
+    toast.success("Evento eliminado", {
+      description: "El evento adverso ha sido removido."
     });
   };
 
@@ -235,10 +323,16 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   ]);
 
   // Validación dinámica de fechas en tiempo real
-  const validateDatesDynamic = (data: FormData): Record<string, string> => {
+  const validateDatesDynamic = (data: FormData, eventIndex: number): Record<string, string> => {
     const errors: Record<string, string> = {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // Obtener el evento actual
+    const currentEvent = data.adverseEvents[eventIndex];
+    if (!currentEvent) {
+      return errors;
+    }
 
     // Validar fecha de nacimiento del paciente
     if (data.patientDateOfBirth) {
@@ -249,8 +343,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       }
 
       // Validar contra evento si existe
-      if (data.eventDate) {
-        const eventDateObj = parseDateOnly(data.eventDate);
+      if (currentEvent.eventDate) {
+        const eventDateObj = parseDateOnly(currentEvent.eventDate);
         if (patientBirthDate >= eventDateObj) {
           errors.patientDateOfBirth = "Debe ser anterior a la fecha del evento adverso";
         }
@@ -279,8 +373,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           errors[`vaccination_${i}_date`] = "No puede ser en el futuro";
         }
 
-        if (data.eventDate) {
-          const eventDateObj = parseDateOnly(data.eventDate);
+        if (currentEvent.eventDate) {
+          const eventDateObj = parseDateOnly(currentEvent.eventDate);
           if (vaccinationDate > eventDateObj) {
             errors[`vaccination_${i}_date`] = "Debe ser anterior al evento adverso";
           }
@@ -289,8 +383,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     }
 
     // Validar fecha del evento
-    if (data.eventDate) {
-      const eventDateObj = parseDateOnly(data.eventDate);
+    if (currentEvent.eventDate) {
+      const eventDateObj = parseDateOnly(currentEvent.eventDate);
 
       if (eventDateObj > today) {
         errors.eventDate = "No puede ser en el futuro";
@@ -323,6 +417,31 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       }
     }
 
+    // Validar fecha final del evento
+    if (currentEvent.eventFinishDate) {
+      const eventFinishDateObj = parseDateOnly(currentEvent.eventFinishDate);
+
+      if (eventFinishDateObj > today) {
+        errors.eventFinishDate = "No puede ser en el futuro";
+      }
+
+      if (currentEvent.eventDate) {
+        const eventDateObj = parseDateOnly(currentEvent.eventDate);
+        if (eventFinishDateObj < eventDateObj) {
+          errors.eventFinishDate = "Debe ser posterior o igual a la fecha de inicio del evento";
+        }
+      }
+    }
+
+    // Validar que se hayan completado intensidad y severidad
+    if (!currentEvent.eventIntensity) {
+      errors.eventIntensity = "La intensidad del evento es obligatoria";
+    }
+
+    if (!currentEvent.eventSeverityLevel) {
+      errors.eventSeverityLevel = "El nivel de gravedad del evento es obligatorio";
+    }
+
     // Validar fecha de nacimiento del reportante
     if (!isDoctor && data.reporterRelationship !== "paciente" && data.reporterDateOfBirth) {
       const reporterBirthDate = parseDateOnly(data.reporterDateOfBirth);
@@ -343,9 +462,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     }
 
     // Validar fecha de muerte en tiempo real
-    if (data.eventHospitalization.includes("death")) {
-      if (data.deathDate) {
-        const deathDate = parseDateOnly(data.deathDate);
+    if (currentEvent.eventHospitalization?.includes("death")) {
+      if (currentEvent.deathDate) {
+        const deathDate = parseDateOnly(currentEvent.deathDate);
 
         // Fecha del reporte en UTC-5 (solo la fecha, sin hora)
         const reportDate = normalizeDate(new Date());
@@ -376,9 +495,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
   // Actualizar errores dinámicamente cuando formData cambie
   useEffect(() => {
-    const errors = validateDatesDynamic(formData);
+    const errors = validateDatesDynamic(formData, currentEventIndex);
     setDateErrors(errors);
-  }, [formData, isDoctor]);
+  }, [formData, currentEventIndex, isDoctor]);
 
   const validateDates = (): string | null => {
     const today = new Date();
@@ -396,16 +515,20 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       return "La fecha de nacimiento del paciente no puede ser en el futuro";
     }
 
-    // Validar que la fecha de nacimiento sea anterior a la fecha del evento
-    const eventDateObj = parseDateOnly(formData.eventDate);
-
-    if (patientBirthDate >= eventDateObj) {
-      return "La fecha de nacimiento del paciente debe ser anterior a la fecha del evento adverso";
+    // Validar que la fecha de nacimiento sea anterior a la fecha del primer evento
+    if (formData.adverseEvents.length > 0 && formData.adverseEvents[0].eventDate) {
+      const firstEventDate = parseDateOnly(formData.adverseEvents[0].eventDate);
+      if (patientBirthDate >= firstEventDate) {
+        return "La fecha de nacimiento del paciente debe ser anterior a la fecha del evento adverso";
+      }
     }
 
     // Validar que el evento sea anterior a hoy
-    if (eventDateObj > today) {
-      return "La fecha del evento adverso no puede ser en el futuro";
+    if (formData.adverseEvents.length > 0 && formData.adverseEvents[0].eventDate) {
+      const firstEventDate = parseDateOnly(formData.adverseEvents[0].eventDate);
+      if (firstEventDate > today) {
+        return "La fecha del evento adverso no puede ser en el futuro";
+      }
     }
 
     // Validar cada vacunación
@@ -416,7 +539,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         return `La fecha de vacunación #${i + 1} es obligatoria`;
       }
 
-      if (!vaccination.vaccineBatchNumber || vaccination.vaccineBatchNumber.trim() === "") {
+      if (!vaccination.vaccinationLotId || vaccination.vaccinationLotId.trim() === "") {
         return `El número de lote de la vacunación #${i + 1} es obligatorio`;
       }
 
@@ -432,9 +555,67 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         return `La fecha de nacimiento del paciente debe ser anterior a la fecha de vacunación #${i + 1}`;
       }
 
-      // Validar que vacunación sea anterior al evento
-      if (vaccinationDate > eventDateObj) {
-        return `La fecha de vacunación #${i + 1} debe ser anterior a la fecha del evento adverso`;
+      // Validar que vacunación sea anterior a todos los eventos
+      for (const event of formData.adverseEvents) {
+        if (event.eventDate) {
+          const eventDate = parseDateOnly(event.eventDate);
+          if (vaccinationDate > eventDate) {
+            return `La fecha de vacunación #${i + 1} debe ser anterior a la fecha del evento adverso`;
+          }
+        }
+      }
+    }
+
+    // Validar cada evento adverso
+    for (let i = 0; i < formData.adverseEvents.length; i++) {
+      const event = formData.adverseEvents[i];
+
+      if (!event.eventDate) {
+        return `La fecha de inicio del evento adverso #${i + 1} es obligatoria`;
+      }
+
+      if (!event.eventFinishDate) {
+        return `La fecha final del evento adverso #${i + 1} es obligatoria`;
+      }
+
+      const eventStartDate = parseDateOnly(event.eventDate);
+      const eventFinishDate = parseDateOnly(event.eventFinishDate);
+
+      if (eventFinishDate < eventStartDate) {
+        return `La fecha final del evento #${i + 1} debe ser posterior o igual a la fecha de inicio`;
+      }
+
+      if (eventFinishDate > today) {
+        return `La fecha final del evento #${i + 1} no puede ser posterior a la fecha actual`;
+      }
+
+      // Validar fecha de muerte si aplica para este evento
+      if (event.eventHospitalization.includes("death")) {
+        if (!event.deathDate) {
+          return `La fecha de fallecimiento es obligatoria para el evento adverso #${i + 1}`;
+        }
+
+        const deathDate = parseDateOnly(event.deathDate);
+        const reportDate = normalizeDate(new Date());
+
+        if (deathDate > reportDate) {
+          return `La fecha de fallecimiento del evento #${i + 1} no puede ser posterior a la fecha actual`;
+        }
+
+        // Encontrar la fecha de vacunación más reciente
+        let latestVaccinationDate = new Date(0);
+        for (const v of formData.vaccinations) {
+          if (v.vaccinationDate) {
+            const vaccDate = parseDateOnly(v.vaccinationDate);
+            if (vaccDate > latestVaccinationDate) {
+              latestVaccinationDate = vaccDate;
+            }
+          }
+        }
+
+        if (latestVaccinationDate.getTime() > 0 && deathDate < latestVaccinationDate) {
+          return `La fecha de fallecimiento del evento #${i + 1} debe ser posterior a la fecha de vacunación más reciente`;
+        }
       }
     }
 
@@ -472,35 +653,6 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       }
     }
 
-    // Validar fecha de muerte si aplica
-    if (formData.eventHospitalization.includes("death")) {
-      if (!formData.deathDate) {
-        return "La fecha de fallecimiento es obligatoria cuando se indica que el paciente falleció";
-      }
-
-      const deathDate = parseDateOnly(formData.deathDate);
-      const reportDate = normalizeDate(new Date());
-
-      if (deathDate > reportDate) {
-        return "La fecha de fallecimiento no puede ser posterior a la fecha actual";
-      }
-
-      // Encontrar la fecha de vacunación más reciente
-      let latestVaccinationDate = new Date(0);
-      for (const v of formData.vaccinations) {
-        if (v.vaccinationDate) {
-          const vaccDate = parseDateOnly(v.vaccinationDate);
-          if (vaccDate > latestVaccinationDate) {
-            latestVaccinationDate = vaccDate;
-          }
-        }
-      }
-
-      if (latestVaccinationDate.getTime() > 0 && deathDate < latestVaccinationDate) {
-        return "La fecha de fallecimiento debe ser posterior a la fecha de vacunación más reciente";
-      }
-    }
-
     return null;
   };
 
@@ -522,13 +674,23 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     } else if (step === 2) {
       formData.vaccinations.forEach((vaccination, index) => {
         if (!vaccination.vaccinationDate) missing.push(`Fecha de vacunación #${index + 1}`);
-        if (!vaccination.vaccineBatchNumber?.trim()) missing.push(`Número de lote de vacunación #${index + 1}`);
+        if (!vaccination.vaccinationLotId?.trim()) missing.push(`Número de lote de vacunación #${index + 1}`);
       });
     } else if (step === 3) {
-      if (!formData.eventDate) missing.push("Fecha del evento adverso");
-      if (!formData.eventDescription?.trim()) missing.push("Descripción del evento adverso");
-      if (!formData.eventOutcome) missing.push("Estado actual del paciente");
-      if (!formData.eventSymptoms || formData.eventSymptoms.length === 0) missing.push("Síntomas del evento adverso");
+      // Validar que al menos haya un evento
+      if (formData.adverseEvents.length === 0) {
+        missing.push("Debe haber al menos un evento adverso");
+      } else {
+        // Validar cada evento
+        formData.adverseEvents.forEach((event, index) => {
+          if (!event.eventDate) missing.push(`Fecha del evento adverso #${index + 1}`);
+          if (!event.eventFinishDate) missing.push(`Fecha final del evento adverso #${index + 1}`);
+          if (!event.eventOutcome) missing.push(`Estado actual del paciente - Evento #${index + 1}`);
+          if (!event.eventIntensity) missing.push(`Intensidad del evento adverso #${index + 1}`);
+          if (!event.eventSeverityLevel) missing.push(`Nivel de gravedad del evento adverso #${index + 1}`);
+          if (!event.eventSymptom) missing.push(`Síntoma del evento adverso #${index + 1}`);
+        });
+      }
     } else if (step === 4) {
       if (!formData.reporterFullName?.trim()) missing.push("Nombre completo del reportante");
       if (!formData.reporterIdentityNumber?.trim()) missing.push("Número de identidad del reportante");
@@ -568,6 +730,14 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
   const handleSubmit = async () => {
     setBackendErrors([]);
+
+    // Validar checkbox de confidencialidad
+    if (!formData.confidentialityAgreed) {
+      toast.error("Confirmación de confidencialidad requerida", {
+        description: "Debe confirmar que los datos serán tratados de forma confidencial antes de enviar el reporte."
+      });
+      return;
+    }
 
     if (!isDoctor && !captchaValue) {
       toast.error("Por favor verifica que no eres un robot");
@@ -623,28 +793,21 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     }
 
     // Validar campos obligatorios del evento adverso
-    if (!formData.eventDate) {
+    if (!formData.adverseEvents[currentEventIndex]?.eventDate) {
       toast.error("Fecha del evento requerida", {
         description: "Debe especificar la fecha en que ocurrió el evento adverso."
       });
       return;
     }
 
-    if (!formData.eventDescription || formData.eventDescription.trim() === "") {
-      toast.error("Descripción del evento requerida", {
-        description: "Debe proporcionar una descripción detallada del evento adverso."
-      });
-      return;
-    }
-
-    if (!formData.eventOutcome) {
+    if (!formData.adverseEvents[currentEventIndex]?.eventOutcome) {
       toast.error("Estado del paciente requerido", {
         description: "Debe seleccionar el estado actual del paciente."
       });
       return;
     }
 
-    if (!formData.eventSymptoms || formData.eventSymptoms.length === 0) {
+    if (!formData.adverseEvents[currentEventIndex]?.eventSymptom || formData.adverseEvents[currentEventIndex]?.eventSymptom?.trim() === "") {
       toast.error("Síntomas requeridos", {
         description: "Debe seleccionar al menos un síntoma relacionado con el evento adverso."
       });
@@ -712,21 +875,24 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         },
         vaccinations: formData.vaccinations.map(v => ({
           vaccineId: v.vaccineId,
-          batchNumber: v.vaccineBatchNumber || "",
+          // batchNumber: v.vaccineBatchNumber || "",
           site: siteMap[v.administrationSite as keyof typeof siteMap] || "leftarm",
           doseNumber: parseInt(v.doseNumber || "1"),
           administrationDate: v.vaccinationDate ? new Date(v.vaccinationDate).toISOString() : "",
-          vaccinationCenter: v.vaccinationSite || "string"
+          lotId: v.vaccinationLotId,
+          vaccinationCenterId: v.vaccinationCenterId
+          // vaccinationCenter: v.vaccinationSite || "string"
         })),
-        adverseEvents: [{
-          startDate: formData.eventDate ? new Date(formData.eventDate).toISOString() : "",
-          description: formData.eventDescription,
-          visitedDoctor: formData.eventHospitalization.includes("doctor"),
-          wentToEmergencyRoom: formData.eventHospitalization.includes("emergency"),
-          permanentDisability: formData.eventHospitalization.includes("disability"),
-          isLifeThreatening: formData.eventHospitalization.includes("anomaly"),
-          resultedInDeath: formData.eventHospitalization.includes("death"),
-          deathDate: formData.eventHospitalization.includes("death") ? (formData.deathDate ? parseDateOnly(formData.deathDate).toISOString() : null) : null,
+        adverseEvents: formData.adverseEvents.map(event => ({
+          startDate: event.eventDate ? new Date(event.eventDate).toISOString() : "",
+          finishDate: event.eventFinishDate ? new Date(event.eventFinishDate).toISOString() : "",
+          description: event.eventDescription,
+          visitedDoctor: event.eventHospitalization.includes("doctor"),
+          wentToEmergencyRoom: event.eventHospitalization.includes("emergency"),
+          permanentDisability: event.eventHospitalization.includes("disability"),
+          isLifeThreatening: event.eventHospitalization.includes("anomaly"),
+          resultedInDeath: event.eventHospitalization.includes("death"),
+          deathDate: event.eventHospitalization.includes("death") ? (event.deathDate ? parseDateOnly(event.deathDate).toISOString() : null) : null,
           currentStatus: (() => {
             const map = {
               "recovered": "Recovered",
@@ -736,10 +902,12 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
               "unchanged": "NotRecovered",
               "unknown": "Unknown"
             };
-            return map[formData.eventOutcome as keyof typeof map] || "Unknown";
+            return map[event.eventOutcome as keyof typeof map] || "Unknown";
           })(),
-          symptoms: formData.eventSymptoms
-        }],
+          intensity: event.eventIntensity,
+          severityLevel: event.eventSeverityLevel,
+          symptomId : event.eventSymptom
+        })),
         ...(captchaValue && { token: captchaValue })
       };
 
@@ -837,8 +1005,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           <CardContent className="p-6 sm:p-8">
             {currentStep === 1 && <PatientInfoSection formData={formData} updateFormData={updateFormData} dateErrors={dateErrors} />}
             {currentStep === 2 && <VaccineInfoSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} />}
-            {currentStep === 3 && <AdverseEventSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} />}
-            {currentStep === 4 && (
+            {currentStep === 3 && <AdverseEventSection formData={formData} updateFormData={updateFormData} userRole={user?.role} dateErrors={dateErrors} currentEventIndex={currentEventIndex} onCurrentEventIndexChange={setCurrentEventIndex} onAddEvent={handleAddEvent} onRemoveEvent={handleRemoveEvent} />}
+            {currentStep === 4 && <PatientMedicalInfoSection formData={formData} updateFormData={updateFormData} />}
+            {currentStep === 5 && (
               <>
                 <ReporterInfoSection
                   formData={formData}
@@ -848,9 +1017,27 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   dateErrors={dateErrors}
                 />
 
+                {/* � CONFIDENTIALITY AGREEMENT */}
+                <div className="mt-8 p-4 border-t space-y-4">
+                  <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Checkbox
+                      id="confidentiality"
+                      checked={formData.confidentialityAgreed}
+                      onCheckedChange={(checked) => updateFormData("confidentialityAgreed", checked as boolean)}
+                      className="mt-1"
+                    />
+                    <label htmlFor="confidentiality" className="flex-1 cursor-pointer text-sm">
+                      <span className="font-semibold text-blue-900">Confirmación de Confidencialidad *</span>
+                      <p className="text-gray-700 mt-1">
+                        Declaro conocer que los datos proporcionados serán confidenciales y utilizados únicamente para fines de farmacovigilancia, conforme a la normativa vigente de protección de datos personales.
+                      </p>
+                    </label>
+                  </div>
+                </div>
+
                 {/* 🔐 CAPTCHA (solo usuarios no médicos/admin) */}
                 {!isDoctor && (
-                  <div className="mt-8 p-4 border-t space-y-4">
+                  <div className="mt-4 p-4 border-t space-y-4">
                     <p className="text-sm text-gray-600 mb-2">Por favor verifica que no eres un robot:</p>
                     <div className="flex justify-center">
                       <ReCAPTCHA
@@ -892,11 +1079,13 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                 </Button>
               ) : (
                 <Button
-                  style={{ backgroundColor: "#2D7A3E" }}
+                  style={{ 
+                    backgroundColor: formData.confidentialityAgreed && (isDoctor || captchaValue) ? "#2D7A3E" : "#999999"
+                  }}
                   className="text-white"
                   onClick={handleSubmit}
-                  disabled={!isDoctor && !captchaValue}
-                  title={!isDoctor && !captchaValue ? "Completa el captcha primero" : ""}
+                  disabled={!formData.confidentialityAgreed || (!isDoctor && !captchaValue)}
+                  title={!formData.confidentialityAgreed ? "Marca el checkbox de confidencialidad" : (!isDoctor && !captchaValue ? "Completa el captcha primero" : "")}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Enviar Reporte

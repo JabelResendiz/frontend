@@ -12,6 +12,8 @@ import { Badge } from '@/app/components/ui/badge';
 import { Switch } from '@/app/components/ui/switch';
 import { Plus, CheckCircle2, AlertCircle, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/app/services/api';
+import { catalogService, VaccineCatalog, Manufacturer } from "@/app/services/catalog.service";
+import { Loader2 } from "lucide-react";
 
 interface Symptom {
   id: string;
@@ -32,6 +34,12 @@ interface Vaccine {
   approvalDate: string;
   isActive: boolean;
 }
+
+// interface Lot {
+//   lotNumber: string;
+//   vaccineId: string;
+// }
+
 
 interface PagedResultSymptoms {
   items: Symptom[];
@@ -67,7 +75,21 @@ interface VaccineFormData {
   description: string;
   approvalDate: string;
   isActive: boolean;
+  manufacturerDto: {
+    id: string;
+    name: string;
+    country: string;
+    isNew: boolean;
+  };
 }
+
+
+interface LotFormData {
+  lotNumber: string;
+  vaccineId: string;
+}
+
+
 
 const vaccineTypes = [
   { id: 'mRNA', name: 'mRNA' },
@@ -100,9 +122,15 @@ export const ManageCatalogPage = () => {
   const [symFilterActive, setSymFilterActive] = useState<string | null>(null);
   const [vacSearchTerm, setVacSearchTerm] = useState('');
   const [vacFilterActive, setVacFilterActive] = useState<string | null>(null);
-  
+  const [isLoadingVaccines, setIsLoadingVaccines] = useState(false);
+  const [finlayVaccines, setFinlayVaccines] = useState<VaccineCatalog[]>([]);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [isLoadingManufacturers, setIsLoadingManufacturers] = useState(false);
+  const [showNewManufacturer, setShowNewManufacturer] = useState(false);
+
   const [loadingToggleVac, setLoadingToggleVac] = useState<Record<string, boolean>>({});
  
+
 
   // Estado de formularios
   const [symptomForm, setSymptomForm] = useState<SymptomFormData>({
@@ -121,12 +149,24 @@ export const ManageCatalogPage = () => {
     description: '',
     approvalDate: new Date().toISOString().split('T')[0],
     isActive: true,
+    manufacturerDto: {
+      id: '',
+      name: '',
+      country: '',
+      isNew: false
+    }
+  });
+
+  const [lotForm, setLotForm] = useState<LotFormData>({
+      lotNumber: '',
+      vaccineId: ''
   });
 
   // Estado de UI
   const [loadingData, setLoadingData] = useState(false);
   const [loadingSymForm, setLoadingSymForm] = useState(false);
   const [loadingVacForm, setLoadingVacForm] = useState(false);
+  const [loadingLotForm, setLoadingLotForm] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -134,7 +174,35 @@ export const ManageCatalogPage = () => {
   useEffect(() => {
     fetchSymptoms(1);
     fetchVaccines(1);
+    loadFinlayVaccines();
+    loadManufacturers();
   }, []);
+
+  const loadFinlayVaccines = async () => {
+    setIsLoadingVaccines(true);
+    try {
+      const data = await catalogService.getFinlayVaccines();
+      setFinlayVaccines(data);
+    } catch (err) {
+      console.error('Error cargando vacunas de Finlay:', err);
+      setErrorMsg('Error al cargar vacunas del Instituto Finlay');
+    } finally {
+      setIsLoadingVaccines(false);
+    }
+  };
+
+  const loadManufacturers = async () => {
+    setIsLoadingManufacturers(true);
+    try {
+      const data = await catalogService.getManufacturers();
+      setManufacturers(data);
+    } catch (err) {
+      console.error('Error cargando fabricantes:', err);
+      setErrorMsg('Error al cargar fabricantes');
+    } finally {
+      setIsLoadingManufacturers(false);
+    }
+  };
 
   // Manejar agregar síntoma
   const handleAddSymptom = async (e: React.FormEvent) => {
@@ -174,11 +242,23 @@ export const ManageCatalogPage = () => {
     setSuccessMsg(null);
 
     try {
-      await api.post('/Catalog/register/vaccine', {
+      const payload = {
         ...vaccineForm,
         approvalDate: new Date(vaccineForm.approvalDate).toISOString(),
-      });
+        manufacturerDto: vaccineForm.manufacturerDto.isNew
+          ? {
+              name: vaccineForm.manufacturerDto.name,
+              country: vaccineForm.manufacturerDto.country,
+              isNew: true
+            }
+          : vaccineForm.manufacturerDto
+      };
 
+      await api.post('/Catalog/register/vaccine', payload);
+
+      await loadFinlayVaccines();
+
+      await loadManufacturers();
       // ✅ mensaje de éxito
       setSuccessMsg(`✅ Vacuna "${vaccineForm.name}" registrada exitosamente`);
 
@@ -190,7 +270,14 @@ export const ManageCatalogPage = () => {
         description: '',
         approvalDate: new Date().toISOString().split('T')[0],
         isActive: true,
+        manufacturerDto: {
+          id: '',
+          name: '',
+          country: '',
+          isNew: false
+        }
       });
+      setShowNewManufacturer(false);
       // Recargar vacunas desde la primera página
       fetchVaccines(1, vacSearchTerm, vacFilterActive);
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -199,6 +286,34 @@ export const ManageCatalogPage = () => {
       setErrorMsg(errorMsg);
     } finally {
       setLoadingVacForm(false);
+    }
+  };
+
+
+  const handleAddLot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingLotForm(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      await api.post('/Lot/register', lotForm);
+
+      // ✅ mensaje de éxito
+      setSuccessMsg(`✅ Lote "${lotForm.lotNumber}" registrado exitosamente`);
+
+      // ✅ limpiar formulario
+      setLotForm({
+          lotNumber: '',
+          vaccineId: ''
+      });
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Error al registrar lote';
+      setErrorMsg(errorMsg);
+      setTimeout(() => setErrorMsg(null), 3000);
+    } finally {
+      setLoadingLotForm(false);
     }
   };
 
@@ -401,13 +516,7 @@ export const ManageCatalogPage = () => {
     return () => clearTimeout(delayDebounce);
   }, [symSearchTerm, symFilterActive]);
 
-  // Filtrar vacunas
-  // const filteredVaccines = vaccines.filter(v => {
-  //   const matchesSearch = v.name.toLowerCase().includes(vacSearchTerm.toLowerCase());
-  //   const matchesActive = vacFilterActive === null || (vacFilterActive === 'active' ? v.isActive : !v.isActive);
-  //   return matchesSearch && matchesActive;
-  // });
-
+ 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
@@ -440,8 +549,9 @@ export const ManageCatalogPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="symptoms" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="symptoms">Síntomas</TabsTrigger>
+          <TabsTrigger value="lotes">Lotes</TabsTrigger>
           <TabsTrigger value="vaccines">Vacunas</TabsTrigger>
         </TabsList>
 
@@ -725,7 +835,99 @@ export const ManageCatalogPage = () => {
                       disabled={loadingVacForm}
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="vac-manufacturer">Fabricante *</Label>
+                    {isLoadingManufacturers ? (
+                      <div className="flex items-center justify-center h-10 bg-gray-100 rounded border border-gray-300">
+                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                      </div>
+                    ) : (
+                      <Select
+                        value={showNewManufacturer ? 'new' : vaccineForm.manufacturerDto.id}
+                        onValueChange={(value) => {
+                          if (value === 'new') {
+                            setShowNewManufacturer(true);
+                            setVaccineForm({
+                              ...vaccineForm,
+                              manufacturerDto: {
+                                id: '',
+                                name: '',
+                                country: '',
+                                isNew: true
+                              }
+                            });
+                          } else {
+                            const selected = manufacturers.find(m => m.id === value);
+                            if (selected) {
+                              setShowNewManufacturer(false);
+                              setVaccineForm({
+                                ...vaccineForm,
+                                manufacturerDto: {
+                                  id: selected.id,
+                                  name: selected.name,
+                                  country: selected.country,
+                                  isNew: false
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        disabled={loadingVacForm}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un fabricante" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {manufacturers.map(mfg => (
+                            <SelectItem key={mfg.id} value={mfg.id}>
+                              {mfg.name} - {mfg.country}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="new">+ Agregar otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
+
+                {showNewManufacturer && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded border border-blue-200">
+                    <div>
+                      <Label htmlFor="new-mfg-name">Nombre del Fabricante *</Label>
+                      <Input
+                        id="new-mfg-name"
+                        placeholder="Ej: Instituto Finlay de Vacunas"
+                        value={vaccineForm.manufacturerDto.name}
+                        onChange={(e) => setVaccineForm({
+                          ...vaccineForm,
+                          manufacturerDto: {
+                            ...vaccineForm.manufacturerDto,
+                            name: e.target.value
+                          }
+                        })}
+                        required={showNewManufacturer}
+                        disabled={loadingVacForm}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="new-mfg-country">País *</Label>
+                      <Input
+                        id="new-mfg-country"
+                        placeholder="Ej: Cuba"
+                        value={vaccineForm.manufacturerDto.country}
+                        onChange={(e) => setVaccineForm({
+                          ...vaccineForm,
+                          manufacturerDto: {
+                            ...vaccineForm.manufacturerDto,
+                            country: e.target.value
+                          }
+                        })}
+                        required={showNewManufacturer}
+                        disabled={loadingVacForm}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label htmlFor="vac-description">Descripción</Label>
@@ -884,6 +1086,79 @@ export const ManageCatalogPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* TAB 3: LOTES */}
+        <TabsContent value="lotes" className="space-y-6">
+          {/* Formulario Agregar Lotes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Agregar Nuevo Lote</CardTitle>
+              <CardDescription>Selecciona una vacuna del Instituto Finlay y registra el lote</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAddLot} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="lot-number">Número de Lote *</Label>
+                    <Input
+                      id="lot-number"
+                      placeholder="Ej: ABD-1223"
+                      value={lotForm.lotNumber}
+                      onChange={(e) => setLotForm({ ...lotForm, lotNumber: e.target.value })}
+                      required
+                      disabled={loadingLotForm}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lot-vaccine">Vacuna (Instituto Finlay) *</Label>
+                    {isLoadingVaccines ? (
+                      <div className="flex items-center justify-center h-10 bg-gray-100 rounded border border-gray-300">
+                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                      </div>
+                    ) : (
+                      <Select
+                        value={lotForm.vaccineId}
+                        onValueChange={(value) =>
+                          setLotForm({ ...lotForm, vaccineId: value })
+                        }
+                        disabled={loadingLotForm}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Seleccione la vacuna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {finlayVaccines.length > 0 ? (
+                            finlayVaccines.map((vaccine) => (
+                              <SelectItem key={vaccine.id} value={vaccine.id}>
+                                {vaccine.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="otro" disabled>
+                              No hay vacunas disponibles
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loadingLotForm || !lotForm.lotNumber || !lotForm.vaccineId}
+                  className="w-full gap-2"
+                  style={{ backgroundColor: '#0A4B8F' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  {loadingLotForm ? 'Registrando...' : 'Registrar Lote'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+        </TabsContent>
+
       </Tabs>
     </div>
   );

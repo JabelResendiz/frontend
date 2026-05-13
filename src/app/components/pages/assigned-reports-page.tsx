@@ -161,19 +161,19 @@ Email: ${report.reporter.email}
 
 VACUNAS ADMINISTRADAS
 =====================
-${report.vaccinations.map((v, idx) => `
+${report.vaccinations && Array.isArray(report.vaccinations) ? report.vaccinations.map((v, idx) => `
 Vacuna ${idx + 1}:
 - Nombre: ${v.vaccineName}
-- Lote: ${v.batchNumber}
+- Lote: ${v.lotNumber}
 - Sitio: ${v.administrationSite}
 - Dosis: ${v.doseNumber}
 - Fecha: ${new Date(v.administrationDate).toLocaleDateString('es-ES')}
-- Centro: ${v.vaccinationCenter}
-`).join('\n')}
+- Centro: ${v.vaccinationCenterName}
+`).join('\n') : 'No hay vacunas registradas'}
 
 EVENTOS ADVERSOS
 ================
-${report.adverseEvents.map((event, idx) => `
+${report.adverseEvents && Array.isArray(report.adverseEvents) ? report.adverseEvents.map((event, idx) => `
 Evento ${idx + 1}:
 - Fecha de Inicio: ${new Date(event.startDate).toLocaleDateString('es-ES')}
 - Estado Actual: ${event.currentStatus}
@@ -183,8 +183,8 @@ Evento ${idx + 1}:
 - Amenaza Vital: ${event.isLifeThreatening ? 'Sí' : 'No'}
 - Resultó en Muerte: ${event.resultedInDeath ? 'Sí' : 'No'}
 - Fecha de Muerte: ${event.deathDate || 'N/A'}
-- Síntomas: ${event.symptoms.map(s => s.name).join(', ')}
-`).join('\n')}
+- Síntomas: ${event.symptoms && Array.isArray(event.symptoms) ? event.symptoms.map(s => s.name).join(', ') : 'N/A'}
+`).join('\n') : 'No hay eventos adversos'}
     `.trim();
 
     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
@@ -216,7 +216,7 @@ Evento ${idx + 1}:
           {Array.isArray(reports) && reports.map((report) => {
             const status = getStatusFromReport(report);
             const severity = getSeverityFromReport(report);
-            const vaccineNames = report.vaccinations.map(v => v.vaccineName).join(', ');
+            const vaccineNames = report.vaccinations && Array.isArray(report.vaccinations) ? report.vaccinations.map(v => v.vaccineName).join(', ') : 'N/A';
 
             return (
               <Card key={report.id} className="hover:shadow-lg transition-shadow">
@@ -241,7 +241,17 @@ Evento ${idx + 1}:
                         </span>
                         {report.adverseEvents.length > 0 && (
                           <span className="mt-2 text-sm block">
-                            <span>Síntomas: <strong>{report.adverseEvents[0].symptoms.map(s => s.name).join(', ')}</strong></span>
+                            <span>Síntomas: <strong>
+                              {report.adverseEvents
+                                .flatMap((event) => {
+                                  if (event.symptom) return [event.symptom.name];
+                                  if (event.symptoms && Array.isArray(event.symptoms)) {
+                                    return event.symptoms.map(s => s.name);
+                                  }
+                                  return [];
+                                })
+                                .join(', ') || 'N/A'}
+                            </strong></span>
                           </span>
                         )}
                       </CardDescription>

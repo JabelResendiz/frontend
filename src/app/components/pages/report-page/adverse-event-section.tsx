@@ -8,27 +8,61 @@ import { FormData, UpdateFormData } from "./types";
 import { useEffect, useState } from "react";
 import { catalogService, SymptomCatalog } from "@/app/services/catalog.service";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
 
 interface AdverseEventSectionProps {
   userRole?: string | null;
   formData: FormData;
   updateFormData: UpdateFormData;
   dateErrors?: Record<string, string>;
+  currentEventIndex: number;
+  onCurrentEventIndexChange: (index: number) => void;
+  onAddEvent: () => void;
+  onRemoveEvent: (index: number) => void;
 }
 
-function toggleSymptom(symptom: string, formData: FormData, updateFormData: UpdateFormData) {
-  if (formData.eventSymptoms.includes(symptom)) {
-    updateFormData("eventSymptoms", formData.eventSymptoms.filter((s) => s !== symptom));
+function toggleSymptom(symptom: string, currentEvent: any, updateFormData: UpdateFormData, field: string = "eventSymptom") {
+  // Only allow one symptom per event
+  const currentSymptom = currentEvent[field];
+  
+  if (currentSymptom === symptom) {
+    // Deselect if clicking the same symptom
+    updateFormData(field, "");
   } else {
-    updateFormData("eventSymptoms", [...formData.eventSymptoms, symptom]);
+    // Replace with new symptom (only one allowed)
+    updateFormData(field, symptom);
   }
 }
 
-export function AdverseEventSection({ userRole, formData, updateFormData, dateErrors }: AdverseEventSectionProps) {
+export function AdverseEventSection({ userRole, formData, updateFormData, dateErrors, currentEventIndex, onCurrentEventIndexChange, onAddEvent, onRemoveEvent }: AdverseEventSectionProps) {
   const isDoctor = userRole === "MedicalReviewer" || userRole === "Admin";
   const [symptoms, setSymptoms] = useState<SymptomCatalog[]>([]);
   const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(true);
+
+  // Get current event data
+  const currentEvent = formData.adverseEvents[currentEventIndex];
+  
+  if (!currentEvent) {
+    return <div className="text-red-500">Error: No event data found</div>;
+  }
+
+  // Validate if current event is complete
+  const isEventComplete = (): boolean => {
+    const requiredFields = [
+      currentEvent.eventDate,
+      currentEvent.eventFinishDate,
+      currentEvent.eventSymptom,
+      currentEvent.eventIntensity,
+      currentEvent.eventSeverityLevel,
+      currentEvent.eventOutcome,
+      currentEvent.eventHospitalization,
+    ];
+    
+    return requiredFields.every(field => field && String(field).trim() !== "");
+  };
+
+  const canAddNewEvent = isEventComplete();
 
   // Cargar síntomas activos desde el catálogo
   useEffect(() => {
@@ -48,14 +82,69 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
     fetchSymptoms();
   }, []);
 
-  const isDeathSelected = formData.eventHospitalization?.includes("death");
+  const isDeathSelected = currentEvent.eventHospitalization?.includes("death");
 
   if (!isDoctor) {
     return (
       <div className="space-y-6">
         <div>
-          <CardTitle className="text-xl mb-2">Descripción del Evento Adverso</CardTitle>
-          <CardDescription>Describa con detalle lo que sintió y cómo evolucionó después de la vacunación. Use sus propias palabras.</CardDescription>
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex-1">
+              <CardTitle className="text-xl mb-2">Descripción del Evento Adverso</CardTitle>
+              <CardDescription>Describa con detalle lo que sintió y cómo evolucionó después de la vacunación. Use sus propias palabras.</CardDescription>
+            </div>
+          </div>
+          
+          {formData.adverseEvents.length > 1 && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Label className="text-sm font-semibold">Editando evento</Label>
+              <div className="flex items-center gap-2 mt-2">
+                <select 
+                  value={currentEventIndex} 
+                  onChange={(e) => onCurrentEventIndexChange(parseInt(e.target.value))}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white"
+                >
+                  {formData.adverseEvents.map((_, idx) => (
+                    <option key={idx} value={idx}>
+                      Evento {idx + 1} {idx === currentEventIndex ? '(Actual)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {formData.adverseEvents.length > 1 && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => onRemoveEvent(currentEventIndex)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="mt-4">
+            <Button 
+              onClick={() => {
+                if (!canAddNewEvent) {
+                  toast.error("Evento incompleto", {
+                    description: "Complete todos los campos obligatorios antes de agregar un nuevo evento."
+                  });
+                  return;
+                }
+
+                // const lastEvent = formData.adverseEvents[formData.adverseEvents.length - 1];
+                // console.log("Evento completado:", lastEvent);
+
+
+                onAddEvent();
+              }} 
+              size="sm" 
+              className="whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-1" /> Nuevo Evento
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -64,7 +153,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
             <Input
               id="eventDate"
               type="date"
-              value={formData.eventDate}
+              value={currentEvent.eventDate}
               onChange={(e) => updateFormData("eventDate", e.target.value)}
               className={`bg-white ${dateErrors?.eventDate ? "border-red-500" : ""}`}
             />
@@ -73,55 +162,88 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="eventTime">Hora del Síntoma *</Label>
+            <Label htmlFor="eventFinishDate">Fecha Final del Evento Adverso *</Label>
             <Input
-              id="eventTime"
-              type="time"
-              value={formData.eventTime}
-              onChange={(e) => updateFormData("eventTime", e.target.value)}
-              className="bg-white"
+              id="eventFinishDate"
+              type="date"
+              value={currentEvent.eventFinishDate}
+              onChange={(e) => updateFormData("eventFinishDate", e.target.value)}
+              className={`bg-white ${dateErrors?.eventFinishDate ? "border-red-500" : ""}`}
             />
+            {dateErrors?.eventFinishDate && (
+              <p className="text-sm text-red-600">{dateErrors.eventFinishDate}</p>
+            )}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>¿Qué síntomas presentó? *</Label>
+          <Label>¿Qué síntoma presentó? *</Label>
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-3">
+            <p className="text-sm text-blue-700">
+              ℹ️ <strong>Un síntoma por evento:</strong> Cada síntoma debe reportarse como un evento adverso separado. Si el paciente presentó múltiples síntomas, deberá crear eventos adicionales para cada uno.
+            </p>
+          </div>
           {isLoadingSymptoms ? (
             <div className="flex items-center justify-center h-20 bg-gray-50 rounded-lg">
               <Loader2 className="w-5 h-5 animate-spin text-gray-500 mr-2" />
               <span className="text-gray-500">Cargando síntomas...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
-              {symptoms.length > 0 ? (
-                symptoms.map((symptom) => (
-                  <div key={symptom.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={symptom.id}
-                      checked={formData.eventSymptoms.includes(symptom.id)}
-                      onCheckedChange={() => toggleSymptom(symptom.id, formData, updateFormData)}
-                    />
-                    <label htmlFor={symptom.id} className="text-sm font-normal leading-none cursor-pointer">
-                      {symptom.name}
-                    </label>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No hay síntomas disponibles</p>
+            <div className="space-y-2">
+              {currentEvent.eventSymptom && (
+                <div className="p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                  ✓ Síntoma seleccionado: <strong>{symptoms.find(s => s.id === currentEvent.eventSymptom)?.name || currentEvent.eventSymptom}</strong>
+                </div>
               )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
+                {symptoms.length > 0 ? (
+                  symptoms.map((symptom) => (
+                    <div key={symptom.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={symptom.id}
+                        checked={currentEvent.eventSymptom === symptom.id}
+                        onCheckedChange={() => toggleSymptom(symptom.id, currentEvent, updateFormData, "eventSymptom")}
+                      />
+                      <label htmlFor={symptom.id} className="text-sm font-normal leading-none cursor-pointer">
+                        {symptom.name}
+                      </label>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No hay síntomas disponibles</p>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="eventDescription">Cuéntenos en detalle qué ocurrió *</Label>
-          <Textarea
-            id="eventDescription"
-            placeholder="Describa cómo empezaron los síntomas, cuánto tiempo duraron, cómo se sintió, qué hizo para mejorarse, si necesitó ir al médico, etc."
-            value={formData.eventDescription}
-            onChange={(e) => updateFormData("eventDescription", e.target.value)}
-            className="bg-white min-h-[140px]"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="eventIntensity">Intensidad del Evento Adverso *</Label>
+            <Select value={currentEvent.eventIntensity} onValueChange={(value) => updateFormData("eventIntensity", value)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Seleccione intensidad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mild">Leve</SelectItem>
+                <SelectItem value="Moderate">Moderado</SelectItem>
+                <SelectItem value="Severe">Grave</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="eventSeverityLevel">Nivel de Gravedad *</Label>
+            <Select value={currentEvent.eventSeverityLevel} onValueChange={(value) => updateFormData("eventSeverityLevel", value)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Seleccione gravedad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mild">Leve</SelectItem>
+                <SelectItem value="Moderate">Moderado</SelectItem>
+                <SelectItem value="Severe">Grave</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -137,9 +259,9 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
               <div key={item.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                 <Checkbox
                   id={item.id}
-                  checked={formData.eventHospitalization.includes(item.value)}
+                  checked={currentEvent.eventHospitalization?.includes(item.value)}
                   onCheckedChange={(checked: any) => {
-                    let value = formData.eventHospitalization;
+                    let value = currentEvent.eventHospitalization || "";
                     if (checked) {
                       value = value ? `${value},${item.value}` : item.value;
                     } else {
@@ -159,7 +281,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
             <div className="p-4 border rounded-lg bg-red-50">
               <Label className="block mb-2">Fecha de fallecimiento *</Label>
                 <Select
-                  value={formData.deathDateType || ""}
+                  value={currentEvent.deathDateType || ""}
                   onValueChange={(value) => updateFormData("deathDateType",value)}
                 >
                       <SelectTrigger className="mb-3">
@@ -171,11 +293,11 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
                   </SelectContent>
                 </Select>
 
-              {formData.deathDateType == "full" && (
+              {currentEvent.deathDateType == "full" && (
                 <>
                   <Input
                     type="date"
-                    value={formData.deathDate || ""}
+                    value={currentEvent.deathDate || ""}
                     onChange={(e) => updateFormData("deathDate",e.target.value)}
                     className={dateErrors?.deathDate ? "border-red-500" : ""}
                   />
@@ -185,11 +307,11 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
                 </>
               )}
 
-              {formData.deathDateType == "partial" && (
+              {currentEvent.deathDateType == "partial" && (
                 <>
                   <Input
                     type="month"
-                    value={formData.deathDate || ""}
+                    value={currentEvent.deathDate || ""}
                     onChange={(e) => updateFormData("deathDate",e.target.value)}
                     className={dateErrors?.deathDate ? "border-red-500" : ""}
                   />
@@ -205,7 +327,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
         <div className="space-y-2">
           <Label htmlFor="eventOutcome">Estado Actual *</Label>
-          <Select value={formData.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
+          <Select value={currentEvent.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
             <SelectTrigger className="bg-white">
               <SelectValue placeholder="Seleccione" />
             </SelectTrigger>
@@ -220,37 +342,17 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="patientMedicalHistory">Problemas de salud que tenía antes de la vacuna</Label>
-          <Textarea
-            id="patientMedicalHistory"
-            placeholder="Ej: diabetes, presión alta, asma, otras enfermedades..."
-            value={formData.patientMedicalHistory}
-            onChange={(e) => updateFormData("patientMedicalHistory", e.target.value)}
-            className="bg-white min-h-[80px]"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="currentMedications">¿Toma medicamentos regularmente? (Especifique cuáles)</Label>
-          <Textarea
-            id="currentMedications"
-            placeholder="Ej: insulina, aspirina, antibióticos, etc..."
-            value={formData.currentMedications}
-            onChange={(e) => updateFormData("currentMedications", e.target.value)}
-            className="bg-white min-h-[80px]"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="allergies">¿Tiene alergias conocidas? (Especifique a qué)</Label>
-          <Textarea
-            id="allergies"
-            placeholder="Ej: penicilina, mariscos, látex, etc..."
-            value={formData.allergies}
-            onChange={(e) => updateFormData("allergies", e.target.value)}
-            className="bg-white min-h-[80px]"
-          />
+        <div className="border-t pt-6 mt-6">
+          <div className="space-y-2">
+            <Label htmlFor="eventDescription">Cuéntenos en detalle qué ocurrió</Label>
+            <Textarea
+              id="eventDescription"
+              placeholder="Describa algo más que considere relevante sobre el evento adverso. Use sus propias palabras."
+              value={currentEvent.eventDescription}
+              onChange={(e) => updateFormData("eventDescription", e.target.value)}
+              className="bg-white min-h-[140px]"
+            />
+          </div>
         </div>
       </div>
     );
@@ -260,8 +362,58 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
   return (
     <div className="space-y-6">
       <div>
-        <CardTitle className="text-xl mb-2">Crear Reporte del Evento Adverso</CardTitle>
-        <CardDescription>Complete el reporte basado en su evaluación clínica del paciente en el consultorio.</CardDescription>
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <CardTitle className="text-xl mb-2">Crear Reporte del Evento Adverso</CardTitle>
+            <CardDescription>Complete el reporte basado en su evaluación clínica del paciente en el consultorio.</CardDescription>
+          </div>
+        </div>
+        
+        {formData.adverseEvents.length > 1 && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <Label className="text-sm font-semibold">Editando evento</Label>
+            <div className="flex items-center gap-2 mt-2">
+              <select 
+                value={currentEventIndex} 
+                onChange={(e) => onCurrentEventIndexChange(parseInt(e.target.value))}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white"
+              >
+                {formData.adverseEvents.map((_, idx) => (
+                  <option key={idx} value={idx}>
+                    Evento {idx + 1} {idx === currentEventIndex ? '(Actual)' : ''}
+                  </option>
+                ))}
+              </select>
+              {formData.adverseEvents.length > 1 && (
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => onRemoveEvent(currentEventIndex)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        
+        <div className="mt-4">
+          <Button 
+            onClick={() => {
+              if (!canAddNewEvent) {
+                toast.error("Evento incompleto", {
+                  description: "Complete todos los campos obligatorios antes de agregar un nuevo evento."
+                });
+                return;
+              }
+              onAddEvent();
+            }} 
+            size="sm" 
+            className="whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4 mr-1" /> Nuevo Evento
+          </Button>
+        </div>
       </div>
 
       <div className="border-l-4 border-blue-500 bg-blue-50 p-4 rounded">
@@ -269,14 +421,17 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div className="space-y-2">
             <Label htmlFor="eventDate">Fecha de Inicio del Evento *</Label>
-            <Input id="eventDate" type="date" value={formData.eventDate} onChange={(e) => updateFormData("eventDate", e.target.value)} className={`bg-white ${dateErrors?.eventDate ? "border-red-500" : ""}`} />
+            <Input id="eventDate" type="date" value={currentEvent.eventDate} onChange={(e) => updateFormData("eventDate", e.target.value)} className={`bg-white ${dateErrors?.eventDate ? "border-red-500" : ""}`} />
             {dateErrors?.eventDate && (
               <p className="text-sm text-red-600">{dateErrors.eventDate}</p>
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="eventTime">Hora de Inicio del Evento *</Label>
-            <Input id="eventTime" type="time" value={formData.eventTime} onChange={(e) => updateFormData("eventTime", e.target.value)} className="bg-white" />
+            <Label htmlFor="eventFinishDate">Fecha Final del Evento Adverso *</Label>
+            <Input id="eventFinishDate" type="date" value={currentEvent.eventFinishDate} onChange={(e) => updateFormData("eventFinishDate", e.target.value)} className={`bg-white ${dateErrors?.eventFinishDate ? "border-red-500" : ""}`} />
+            {dateErrors?.eventFinishDate && (
+              <p className="text-sm text-red-600">{dateErrors.eventFinishDate}</p>
+            )}
           </div>
         </div>
 
@@ -294,8 +449,8 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
                   <div key={symptom.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`symptom-${symptom.id}`}
-                      checked={formData.eventSymptoms.includes(symptom.id)}
-                      onCheckedChange={() => toggleSymptom(symptom.id, formData, updateFormData)}
+                      checked={currentEvent.eventSymptom?.includes(symptom.id)}
+                      onCheckedChange={() => toggleSymptom(symptom.id, currentEvent, updateFormData, "eventSymptom")}
                     />
                     <label htmlFor={`symptom-${symptom.id}`} className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
                       {symptom.name}
@@ -309,15 +464,33 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           )}
         </div>
 
-        <div className="space-y-2 mb-4">
-          <Label htmlFor="eventDescription">Descripción Clínica del Evento *</Label>
-          <Textarea
-            id="eventDescription"
-            placeholder="Describa en detalle el evento: cómo comenzó, evolución, duración, síntomas observados, presentación clínica, etc."
-            value={formData.eventDescription}
-            onChange={(e) => updateFormData("eventDescription", e.target.value)}
-            className="bg-white min-h-[120px]"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="space-y-2">
+            <Label htmlFor="eventIntensity">Intensidad del Evento Adverso *</Label>
+            <Select value={currentEvent.eventIntensity} onValueChange={(value) => updateFormData("eventIntensity", value)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Seleccione intensidad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mild">Leve</SelectItem>
+                <SelectItem value="Moderate">Moderado</SelectItem>
+                <SelectItem value="Severe">Grave</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="eventSeverityLevel">Nivel de Gravedad *</Label>
+            <Select value={currentEvent.eventSeverityLevel} onValueChange={(value) => updateFormData("eventSeverityLevel", value)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Seleccione gravedad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mild">Leve</SelectItem>
+                <SelectItem value="Moderate">Moderado</SelectItem>
+                <SelectItem value="Severe">Grave</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -328,7 +501,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           <Textarea
             id="professionalDiagnosis"
             placeholder="Diagnóstico basado en síntomas, antecedentes clínicos, hallazgos del examen físico y evaluación profesional..."
-            value={formData.professionalDiagnosis}
+            value={currentEvent.professionalDiagnosis}
             onChange={(e) => updateFormData("professionalDiagnosis", e.target.value)}
             className="bg-white min-h-[100px]"
           />
@@ -339,7 +512,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           <Textarea
             id="medicalTerminology"
             placeholder="Expresar el evento en términos médicos estándar usados en farmacovigilancia (ej: 'Anafilaxia', 'Síncope vasovagal', etc.)..."
-            value={formData.medicalTerminology}
+            value={currentEvent.medicalTerminology}
             onChange={(e) => updateFormData("medicalTerminology", e.target.value)}
             className="bg-white min-h-[80px]"
           />
@@ -361,7 +534,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
         <h3 className="font-semibold text-purple-900 mb-4">📊 Clasificación RET y Análisis Técnico</h3>
         <div className="space-y-2 mb-4">
           <Label htmlFor="retClassification">Clasificación RET (Tabla de Eventos Reportables) *</Label>
-          <Select value={formData.retClassification} onValueChange={(value) => updateFormData("retClassification", value)}>
+          <Select value={currentEvent.retClassification} onValueChange={(value) => updateFormData("retClassification", value)}>
             <SelectTrigger className="bg-white">
               <SelectValue placeholder="Seleccione clasificación RET" />
             </SelectTrigger>
@@ -383,7 +556,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
         <div className="space-y-2 mb-4">
           <Label htmlFor="clinicalSignificance">Evaluación de Significancia Clínica *</Label>
-          <Select value={formData.clinicalSignificance} onValueChange={(value) => updateFormData("clinicalSignificance", value)}>
+          <Select value={currentEvent.clinicalSignificance} onValueChange={(value) => updateFormData("clinicalSignificance", value)}>
             <SelectTrigger className="bg-white">
               <SelectValue placeholder="Seleccione" />
             </SelectTrigger>
@@ -402,7 +575,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           <Textarea
             id="laboratoryResults"
             placeholder="ECG, análisis de sangre, resonancia, biopsias, cultivos, etc. Incluya valores anormales relevantes..."
-            value={formData.laboratoryResults}
+            value={currentEvent.laboratoryResults}
             onChange={(e) => updateFormData("laboratoryResults", e.target.value)}
             className="bg-white min-h-[100px]"
           />
@@ -413,7 +586,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
         <h3 className="font-semibold text-orange-900 mb-4">📝 Información Adicional</h3>
         <div className="space-y-2 mb-4">
           <Label htmlFor="vaccinationFacilityType">Tipo de Centro de Vacunación *</Label>
-          <Select value={formData.vaccinationFacilityType} onValueChange={(value) => updateFormData("vaccinationFacilityType", value)}>
+          <Select value={currentEvent.vaccinationFacilityType} onValueChange={(value) => updateFormData("vaccinationFacilityType", value)}>
             <SelectTrigger className="bg-white">
               <SelectValue placeholder="Seleccione" />
             </SelectTrigger>
@@ -434,7 +607,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           <Textarea
             id="contraindicationCriterion"
             placeholder="¿Este evento constituye una contraindicación según el prospecto del fabricante para administrar dosis futuras? Especifique..."
-            value={formData.contraindicationCriterion}
+            value={currentEvent.contraindicationCriterion}
             onChange={(e) => updateFormData("contraindicationCriterion", e.target.value)}
             className="bg-white min-h-[80px]"
           />
@@ -442,7 +615,7 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
         <div className="space-y-2">
           <Label htmlFor="eventOutcome">Desenlace del Evento al Momento del Reporte *</Label>
-          <Select value={formData.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
+          <Select value={currentEvent.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
             <SelectTrigger className="bg-white">
               <SelectValue placeholder="Seleccione" />
             </SelectTrigger>
@@ -454,6 +627,20 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
               <SelectItem value="unknown">Desconocido/Pendiente de seguimiento</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="border-t pt-6 mt-6">
+          <div className="space-y-2">
+            <Label htmlFor="eventDescription">Descripción Clínica del Evento</Label>
+            <Textarea
+              id="eventDescription"
+              placeholder="Describa en detalle el evento: cómo comenzó, evolución, duración, síntomas observados, presentación clínica, etc."
+              value={currentEvent.eventDescription}
+              onChange={(e) => updateFormData("eventDescription", e.target.value)}
+              className="bg-white min-h-[120px]"
+            />
+            <p className="text-xs text-gray-500">Nota: Este campo es opcional y puede dejarse en blanco.</p>
+          </div>
         </div>
       </div>
     </div>

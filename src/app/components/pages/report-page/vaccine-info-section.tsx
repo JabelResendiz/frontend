@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { catalogService, VaccineCatalog } from "@/app/services/catalog.service";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getProvinces, getMunicipalitiesByProvince, getProvinceId, getMunicipalityId } from "@/app/data/municipalities";
 
 interface VaccineInfoSectionProps {
   formData: FormData;
@@ -16,21 +17,39 @@ interface VaccineInfoSectionProps {
   dateErrors?: Record<string, string>;
 }
 
+interface VaccinationCenter {
+  id: string;
+  name: string;
+  address: string;
+}
+
+interface VaccinationLot {
+  id: string;
+  lotNumber: string;
+}
+
 const EMPTY_VACCINATION: VaccinationProcess = {
   vaccineId: "",
-  vaccineName: "",
-  vaccineManufacturer: "",
-  vaccineBatchNumber: "",
+
+  vaccinationLotId: "",
   vaccinationDate: "",
-  vaccinationSite: "",
+
   doseNumber: "",
-  administrationSite: ""
+
+  administrationSite: "",
+  vaccinationProvince: "",
+  vaccinationMunicipality: "",
+  vaccinationCenterId: "",
 };
 
 export function VaccineInfoSection({ formData, updateFormData, userRole, dateErrors = {} }: VaccineInfoSectionProps) {
   const isDoctor = userRole === "MedicalReviewer" || userRole === "Admin";
   const [vaccines, setVaccines] = useState<VaccineCatalog[]>([]);
   const [isLoadingVaccines, setIsLoadingVaccines] = useState(false);
+  const [vaccinationCenters, setVaccinationCenters] = useState<Record<number, VaccinationCenter[]>>({});
+  const [isLoadingCenters, setIsLoadingCenters] = useState<Record<number, boolean>>({});
+  const [vaccinationLots, setVaccinationLots] = useState<Record<number, VaccinationLot[]>>({});
+  const [isLoadingLots, setIsLoadingLots] = useState<Record<number, boolean>>({});
 
   // Cargar vacunas activas desde el catálogo
   useEffect(() => {
@@ -54,9 +73,93 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
     const updated = [...formData.vaccinations];
     updated[index] = { ...updated[index], [field]: value };
     updateFormData("vaccinations", updated);
+    
+    // Clear and fetch lots when vaccine changes
+    if (field === "vaccineId") {
+      updated[index].vaccinationLotId = "";
+      // updated[index].vaccineBatchNumber = "";
+      updateFormData("vaccinations", updated);
+      
+      if (value) {
+        fetchVaccinationLots(index, value);
+      }
+    }
+    
+    // Clear municipality and center when province changes
+    if (field === "vaccinationProvince") {
+      updated[index].vaccinationMunicipality = "";
+      updated[index].vaccinationCenterId = "";
+      // updated[index].vaccinationCenterName = "";
+      updateFormData("vaccinations", updated);
+    }
+    
+    // Clear center when municipality changes
+    if (field === "vaccinationMunicipality") {
+      updated[index].vaccinationCenterId = "";
+      // updated[index].vaccinationCenterName = "";
+      updateFormData("vaccinations", updated);
+      
+      // Fetch vaccination centers
+      if (value && updated[index].vaccinationProvince) {
+        fetchVaccinationCenters(index, updated[index].vaccinationProvince, value);
+      }
+    }
+  };
+
+  const fetchVaccinationCenters = async (index: number, province: string, municipality: string) => {
+    try {
+      setIsLoadingCenters(prev => ({ ...prev, [index]: true }));
+      
+      const provinceId = getProvinceId(province);
+      const municipalityId = getMunicipalityId(province, municipality);
+      
+      const response = await fetch(
+        `${(import.meta as any).env.VITE_API_BASE_URL}/VaccinationCenter/getByMunicipality?municipalityId=${municipalityId}&provinceId=${provinceId}`
+      );
+      
+      if (!response.ok) {
+        throw new Error("Error fetching vaccination centers");
+      }
+      
+      const centers: VaccinationCenter[] = await response.json();
+      setVaccinationCenters(prev => ({ ...prev, [index]: centers }));
+    } catch (error) {
+      console.error("Error loading vaccination centers:", error);
+      toast.error("Error al cargar los centros de vacunación");
+    } finally {
+      setIsLoadingCenters(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const fetchVaccinationLots = async (index: number, vaccineId: string) => {
+    try {
+      setIsLoadingLots(prev => ({ ...prev, [index]: true }));
+      
+      const response = await fetch(
+        `${(import.meta as any).env.VITE_API_BASE_URL}/Lot/getByVaccine?vaccineId=${vaccineId}`
+      );
+      
+      if (!response.ok) {
+        throw new Error("Error fetching vaccination lots");
+      }
+      
+      const lots: VaccinationLot[] = await response.json();
+      setVaccinationLots(prev => ({ ...prev, [index]: lots }));
+    } catch (error) {
+      console.error("Error loading vaccination lots:", error);
+      toast.error("Error al cargar los lotes disponibles");
+    } finally {
+      setIsLoadingLots(prev => ({ ...prev, [index]: false }));
+    }
   };
 
   const addVaccination = () => {
+
+  //   const lastVaccination = formData.vaccinations[formData.vaccinations.length - 1];
+
+  // console.log("Vacunación guardada:", lastVaccination);
+
+
     updateFormData("vaccinations", [...formData.vaccinations, { ...EMPTY_VACCINATION }]);
   };
 
@@ -122,11 +225,10 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
               <div className="space-y-2">
                 <Label htmlFor={`doseNumber-${index}`}>Número de Dosis</Label>
                 <Select
-                  id={`doseNumber-${index}`}
                   value={vaccination.doseNumber || ""}
                   onValueChange={(value) => updateVaccination(index, "doseNumber", value)}
                 >
-                  <SelectTrigger className="bg-white">
+                  <SelectTrigger id={`doseNumber-${index}`} className="bg-white">
                     <SelectValue placeholder="Seleccione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -144,11 +246,10 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
               <div className="space-y-2">
                 <Label htmlFor={`administrationRoute-${index}`}>Vía de Administración</Label>
                 <Select
-                  id={`administrationRoute-${index}`}
                   value={vaccination.administrationRoute || ""}
                   onValueChange={(value) => updateVaccination(index, "administrationRoute", value)}
                 >
-                  <SelectTrigger className="bg-white">
+                  <SelectTrigger id={`administrationRoute-${index}`} className="bg-white">
                     <SelectValue placeholder="Seleccione vía" />
                   </SelectTrigger>
                   <SelectContent>
@@ -183,14 +284,87 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor={`vaccinationSite-${index}`}>Centro de Vacunación *</Label>
-              <Input
-                id={`vaccinationSite-${index}`}
-                value={vaccination.vaccinationSite}
-                onChange={(e) => updateVaccination(index, "vaccinationSite", e.target.value)}
-                placeholder="Ej: Policlínico Vedado, La Habana"
-                className="bg-white"
-              />
+              <Label htmlFor={`vaccinationProvince-${index}`}>Provincia del Centro de Vacunación *</Label>
+              <Select
+                value={vaccination.vaccinationProvince || ""}
+                onValueChange={(value) => updateVaccination(index, "vaccinationProvince", value)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Seleccione provincia" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getProvinces().map((province) => (
+                    <SelectItem key={province} value={province}>
+                      {province}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`vaccinationMunicipality-${index}`}>Municipio *</Label>
+              <Select
+                value={vaccination.vaccinationMunicipality || ""}
+                onValueChange={(value) => updateVaccination(index, "vaccinationMunicipality", value)}
+                disabled={!vaccination.vaccinationProvince}
+              >
+                <SelectTrigger className={`bg-white ${!vaccination.vaccinationProvince ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  <SelectValue placeholder={!vaccination.vaccinationProvince ? "Seleccione provincia primero" : "Seleccione municipio"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {vaccination.vaccinationProvince && getMunicipalitiesByProvince(vaccination.vaccinationProvince).map((municipality) => (
+                    <SelectItem key={municipality} value={municipality}>
+                      {municipality}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`vaccinationCenter-${index}`}>Centro de Vacunación *</Label>
+              {isLoadingCenters[index] ? (
+                <div className="flex items-center justify-center h-10 bg-gray-100 rounded border border-gray-300">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                </div>
+              ) : (
+                <Select
+                  value={vaccination.vaccinationCenterId || ""}
+                  onValueChange={(value) => {
+  const center = vaccinationCenters[index]?.find(
+    c => c.id === value
+  );
+
+  const updated = [...formData.vaccinations];
+
+  updated[index] = {
+    ...updated[index],
+    vaccinationCenterId: value,
+  };
+
+  updateFormData("vaccinations", updated);
+}}
+                  disabled={!vaccination.vaccinationMunicipality || !vaccinationCenters[index] || vaccinationCenters[index].length === 0}
+                >
+                  <SelectTrigger className={`bg-white ${!vaccination.vaccinationMunicipality ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <SelectValue placeholder={vaccination.vaccinationCenterId ? `${vaccination.vaccinationCenterId}` : (!vaccination.vaccinationMunicipality ? "Seleccione municipio primero" : "Seleccione centro")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vaccinationCenters[index] && vaccinationCenters[index].length > 0 ? (
+                      vaccinationCenters[index].map((center) => (
+                        <SelectItem key={center.id} value={center.id}>
+                          {center.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-centers" disabled>
+                        {vaccination.vaccinationMunicipality ? "No hay centros disponibles" : ""}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -212,7 +386,7 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             {isDoctor && (
               <div className="space-y-2">
                 <Label htmlFor={`vaccineManufacturer-${index}`}>Fabricante</Label>
@@ -224,20 +398,47 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                   className="bg-white"
                 />
               </div>
-            )}
+            )} */}
 
             <div className="space-y-2">
               <Label htmlFor={`vaccineBatchNumber-${index}`}>Número de Lote *</Label>
-              <Input
-                id={`vaccineBatchNumber-${index}`}
-                value={vaccination.vaccineBatchNumber || ""}
-                onChange={(e) => updateVaccination(index, "vaccineBatchNumber", e.target.value)}
-                placeholder="Ej: L-2024-001"
-                className="bg-white"
-              />
+              {isLoadingLots[index] ? (
+                <div className="flex items-center justify-center h-10 bg-gray-100 rounded border border-gray-300">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                </div>
+              ) : (
+                <Select
+                  value={vaccination.vaccinationLotId || ""}
+                  onValueChange={(value) => {
+                    //const lot = vaccinationLots[index]?.find(l => l.id === value);
+                    updateVaccination(index, "vaccinationLotId", value);
+                    // if (lot) {
+                    //   updateVaccination(index, "vaccineBatchNumber", lot.lotNumber);
+                    // }
+                  }}
+                  disabled={!vaccination.vaccineId || !vaccinationLots[index] || vaccinationLots[index].length === 0}
+                >
+                  <SelectTrigger className={`bg-white ${!vaccination.vaccineId ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <SelectValue placeholder={vaccination.vaccinationLotId ? `${vaccination.vaccinationLotId}` : (!vaccination.vaccineId ? "Seleccione vacuna primero" : "Seleccione lote")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vaccinationLots[index] && vaccinationLots[index].length > 0 ? (
+                      vaccinationLots[index].map((lot) => (
+                        <SelectItem key={lot.id} value={lot.id}>
+                          {lot.lotNumber}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-lots" disabled>
+                        {vaccination.vaccineId ? "No hay lotes disponibles" : ""}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
-        </div>
+        
       ))}
 
       <Button type="button" onClick={addVaccination} className="mt-2">

@@ -12,11 +12,11 @@ export interface Reporter {
 
 export interface Vaccination {
   vaccineName: string;
-  batchNumber: string;
+  lotNumber: string;
   administrationSite: string;
   doseNumber: number;
   administrationDate: string;
-  vaccinationCenter: string;
+  vaccinationCenterName: string;
 }
 
 export interface Symptom {
@@ -25,8 +25,9 @@ export interface Symptom {
 }
 
 export interface AdverseEvent {
-  id?: number;
+  id?: string;
   startDate: string;
+  finishDate?: string;
   visitedDoctor: boolean;
   wentToEmergencyRoom: boolean;
   permanentDisability: boolean;
@@ -34,7 +35,8 @@ export interface AdverseEvent {
   resultedInDeath: boolean;
   deathDate: string | null;
   currentStatus: string;
-  symptoms: Symptom[];
+  symptom?: Symptom;
+  symptoms?: Symptom[];
 }
 
 export interface ClinicalMedicalReviewRequest {

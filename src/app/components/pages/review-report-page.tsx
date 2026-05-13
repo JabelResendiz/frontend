@@ -233,37 +233,41 @@ Clasificación RET: ${retClassification}
               <CardDescription>Datos de vacunación del backend</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
-              {report.vaccinations.map((vaccination, index) => (
-                <div key={index} className="p-4 bg-white border rounded-lg shadow-sm">
-                  <h4 className="font-semibold text-gray-800 mb-3">Vacunación #{index + 1}</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Vacuna</Label>
-                      <p className="text-gray-900 mt-1">{vaccination.vaccineName}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Lote</Label>
-                      <p className="text-gray-900 mt-1">{vaccination.batchNumber}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Sitio de Administración</Label>
-                      <p className="text-gray-900 mt-1">{vaccination.administrationSite}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Dosis</Label>
-                      <p className="text-gray-900 mt-1">{vaccination.doseNumber}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Fecha de Administración</Label>
-                      <p className="text-gray-900 mt-1">{new Date(vaccination.administrationDate).toLocaleString('es-ES')}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Centro de Vacunación</Label>
-                      <p className="text-gray-900 mt-1">{vaccination.vaccinationCenter}</p>
+              {report.vaccinations && Array.isArray(report.vaccinations) ? (
+                report.vaccinations.map((vaccination, index) => (
+                  <div key={index} className="p-4 bg-white border rounded-lg shadow-sm">
+                    <h4 className="font-semibold text-gray-800 mb-3">Vacunación #{index + 1}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Vacuna</Label>
+                        <p className="text-gray-900 mt-1">{vaccination.vaccineName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Número de Lote</Label>
+                        <p className="text-gray-900 mt-1">{vaccination.lotNumber}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Sitio de Administración</Label>
+                        <p className="text-gray-900 mt-1">{vaccination.administrationSite}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Dosis</Label>
+                        <p className="text-gray-900 mt-1">{vaccination.doseNumber}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Fecha de Administración</Label>
+                        <p className="text-gray-900 mt-1">{new Date(vaccination.administrationDate).toLocaleString('es-ES')}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Centro de Vacunación</Label>
+                        <p className="text-gray-900 mt-1">{vaccination.vaccinationCenterName}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm">No hay datos de vacunación registrados</p>
+              )}
             </CardContent>
           </Card>
 
@@ -273,7 +277,8 @@ Clasificación RET: ${retClassification}
               <CardDescription>Datos del backend</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
-              {report.adverseEvents.map((event, index) => (
+              {report.adverseEvents && Array.isArray(report.adverseEvents) ? (
+                report.adverseEvents.map((event, index) => (
                 <div key={index} className="p-4 bg-white border rounded-lg shadow-sm">
                   <h4 className="font-semibold text-gray-800 mb-3">Evento Adverso #{index + 1}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -316,15 +321,26 @@ Clasificación RET: ${retClassification}
                   <div className="mt-4">
                     <Label className="text-sm font-semibold text-gray-700">Síntomas</Label>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {event.symptoms.map((symptom) => (
-                        <span key={symptom.id} className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                          {symptom.name}
+                      {event.symptom ? (
+                        <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                          {event.symptom.name}
                         </span>
-                      ))}
+                      ) : event.symptoms && Array.isArray(event.symptoms) ? (
+                        event.symptoms.map((symptom) => (
+                          <span key={symptom.id} className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                            {symptom.name}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-sm">No hay síntomas registrados</p>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+              ))
+              ) : (
+                <p className="text-gray-500 text-sm">No hay eventos adversos registrados</p>
+              )}
             </CardContent>
           </Card>
 
