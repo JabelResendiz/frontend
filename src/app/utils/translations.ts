@@ -2,6 +2,16 @@
 
 // Mapeos de enums (inglés) a texto en español
 export const enumTranslations = {
+
+  //Roles
+
+  role:
+  {
+    SectionResponsible: "Jefe de Vacunación Municipal",
+    Admin: "Administrador",
+    MedicalReviewer : "Profesional Evaluador"
+  },
+
   // Severidad
   severity: {
     Mild: "Leve",
@@ -112,6 +122,13 @@ export const translateSeverity = (severity: string) =>
 
 export const translateReviewAssignmentStatus = (review: string) => 
   translateEnum(review, 'reviewAssignmentStatus', review);
+
+export const translateRole = (role: string) => 
+{
+  console.log(role);
+  return translateEnum(role, 'role', role);
+}
+  
 
 
 export const translateReportStatus = (status: string) => 

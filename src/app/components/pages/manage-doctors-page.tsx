@@ -465,7 +465,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="professionalLicense">Cédula Profesional *</Label>
+                  <Label htmlFor="professionalLicense">Número de Registro Profesional *</Label>
                   <Input
                     id="professionalLicense"
                     placeholder="334324eref"
@@ -474,10 +474,10 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="identityNumber">Cédula de Identidad *</Label>
+                  <Label htmlFor="identityNumber">Número de Identidad *</Label>
                   <Input
                     id="identityNumber"
-                    placeholder="Solo números, 11 dígitos, ej: 03040712121"
+                    placeholder="Solo números, 11 dígitos, ej: 80040712121"
                     maxLength={11}
                     value={formData.identityNumber}
                     onChange={(e) => {
