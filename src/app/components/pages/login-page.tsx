@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/app/components/ui/alert';
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
+  contextAction?: string;
 }
 
 export const LoginPage = ({ onNavigate }: LoginPageProps) => {

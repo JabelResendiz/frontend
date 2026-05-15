@@ -30,15 +30,21 @@ function AppContent() {
   const [selectedReport, setSelectedReport] = useState<AssignedReport | undefined>();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [contextAction, setContextAction] = useState<string | undefined>();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
 
   // 🔄 Resetear a home cada vez que se autentica o desautentica
   useEffect(() => {
     if (isAuthenticated) {
-      // Usuario acaba de autenticarse - ir a home
       setCurrentPage("home");
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const publicPages = ["home", "report", "information", "login"];
+    if (!isLoading && !isAuthenticated && !publicPages.includes(currentPage)) {
+      setCurrentPage("login");
+    }
+  }, [currentPage, isAuthenticated, isLoading]);
 
   const handleNavigate = (page: string, reportId?: string, action?: string, payload?: AssignedReport) => {
     setIsTransitioning(true);
@@ -58,6 +64,14 @@ function AppContent() {
       window.scrollTo(0, 0);
     }, 300);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center text-gray-700">Cargando sesión...</div>
+      </div>
+    );
+  }
 
   // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
   // Nota: "report" NO está incluido aquí porque cualquiera puede crear un reporte sin autenticarse

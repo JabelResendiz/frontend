@@ -41,8 +41,13 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     { id: "information", label: "Información", icon: Info },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // Ignorar errores de logout, la navegación y limpieza local deben continuar.
+    }
+
     onNavigate('login');
   };
 
