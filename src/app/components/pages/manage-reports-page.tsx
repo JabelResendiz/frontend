@@ -8,6 +8,14 @@ import { doctorService, type MedicalReviewer } from "@/app/services/doctor.servi
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/components/ui/command";
+import { catalogService } from "@/app/services/catalog.service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/app/components/ui/select";
 
 interface ManageReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
@@ -45,12 +53,38 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [open, setOpen] = useState(false);
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+  
+  
+const [severityFilter, setSeverityFilter] = useState<string>("");
+const [vaccineFilter, setVaccineFilter] = useState<string>("");
+const [vaccinationCenterIdFilter, setVaccinationCenterIdFilter] = useState<string>("");
+
+const [fromFilter, setFromFilter] = useState<string>("");
+const [toFilter, setToFilter] = useState<string>("");
+
+const [sortByFilter, setSortByFilter] = useState<string>("reportDate");
+const [orderFilter, setOrderFilter] = useState<"asc" | "desc">("desc");
+
+
+  const [vaccines, setVaccines] = useState<any[]>([]);
+  const [isLoadingVaccines, setIsLoadingVaccines] = useState(false);
+
 
   const loadReports = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await reportService.getAssignedReports(pageNumber, PAGE_SIZE);
+      const response = await reportService.getAssignedReports(
+        pageNumber, 
+        PAGE_SIZE,
+        severityFilter,
+        vaccineFilter,
+        vaccinationCenterIdFilter,
+      fromFilter ,
+      toFilter,
+      sortByFilter,
+      orderFilter
+      );
       setReports(response.items);
       setTotalCount(response.totalCount);
       setExpandedReports(new Set()); // Reset expandidos al cambiar página
@@ -66,7 +100,33 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
   // Cargar reportes cuando cambia la página
   useEffect(() => {
     loadReports();
-  }, [pageNumber]);
+  }, [pageNumber,
+    severityFilter,
+    vaccineFilter,
+  vaccinationCenterIdFilter,
+fromFilter,
+toFilter,
+sortByFilter,
+orderFilter]);
+
+
+  useEffect(() => {
+  const fetchVaccines = async () => {
+    try {
+      setIsLoadingVaccines(true);
+      const data = await catalogService.getActiveVaccines();
+      setVaccines(data);
+    } catch (error) {
+      console.error("Error loading vaccines:", error);
+      toast.error("Error al cargar vacunas");
+    } finally {
+      setIsLoadingVaccines(false);
+    }
+  };
+
+  fetchVaccines();
+}, []);
+
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -184,6 +244,68 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
             </CardContent>
           </Card>
         )}
+
+        <div className="flex gap-4 mb-4">
+  <select
+    value={severityFilter}
+    onChange={(e) => {
+      setPageNumber(1);
+      setSeverityFilter(e.target.value);
+    }}
+    className="border p-2 rounded"
+  >
+    <option value="">Todas las severidades</option>
+    <option value="serious">Grave</option>
+    <option value="nonserious">Leve</option>
+  </select>
+
+ <select
+  value={vaccineFilter}
+  onChange={(e) => {
+    setPageNumber(1);
+    setVaccineFilter(e.target.value);
+  }}
+  className="border p-2 rounded"
+>
+  <option value="">Todas las vacunas</option>
+
+  {vaccines.map((vaccine) => (
+    <option key={vaccine.id} value={vaccine.name}>
+      {vaccine.name}
+    </option>
+  ))}
+</select>
+
+
+
+  {/* Ordenar por */}
+  <select
+    value={sortByFilter}
+    onChange={(e) => {
+      setPageNumber(1);
+      setSortByFilter(e.target.value);
+    }}
+    className="border p-2 rounded"
+  >
+    <option value="reportDate">Fecha de reporte</option>
+    <option value="vaccinatedSubject.fullName">Nombre paciente</option>
+  </select>
+
+  {/* Orden asc/desc */}
+  <select
+    value={orderFilter}
+    onChange={(e) => {
+      setPageNumber(1);
+      setOrderFilter(e.target.value as "asc" | "desc");
+    }}
+    className="border p-2 rounded"
+  >
+    <option value="desc">Descendente</option>
+    <option value="asc">Ascendente</option>
+  </select>
+
+
+</div>
 
         {/* Reports List */}
         {isLoading ? (

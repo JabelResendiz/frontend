@@ -84,6 +84,24 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
   const isDeathSelected = currentEvent.eventHospitalization?.includes("death");
 
+  useEffect(() => {
+  if (isDeathSelected && currentEvent.eventOutcome !== "fatal") {
+    updateFormData("eventOutcome", "fatal");
+  }
+
+  if (!isDeathSelected && currentEvent.eventOutcome === "fatal") {
+    updateFormData("eventOutcome", "");
+  }
+}, [isDeathSelected]);
+
+
+useEffect(() => {
+  if (isDeathSelected && currentEvent.deathDate) {
+    updateFormData("eventFinishDate", currentEvent.deathDate);
+  }
+}, [isDeathSelected, currentEvent.deathDate]);
+
+
   if (!isDoctor) {
     return (
       <div className="space-y-6">
@@ -168,8 +186,18 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
               type="date"
               value={currentEvent.eventFinishDate}
               onChange={(e) => updateFormData("eventFinishDate", e.target.value)}
-              className={`bg-white ${dateErrors?.eventFinishDate ? "border-red-500" : ""}`}
+               disabled={isDeathSelected}
+  className={`bg-white ${
+    isDeathSelected ? "opacity-60 cursor-not-allowed" : ""
+  } ${dateErrors?.eventFinishDate ? "border-red-500" : ""}`}
             />
+
+             {isDeathSelected && (
+    <p className="text-xs text-gray-500 mt-1">
+      La fecha final del evento se establece automáticamente con la fecha de fallecimiento.
+    </p>
+  )}
+  
             {dateErrors?.eventFinishDate && (
               <p className="text-sm text-red-600">{dateErrors.eventFinishDate}</p>
             )}
@@ -217,108 +245,97 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="eventIntensity">Intensidad del Evento Adverso *</Label>
-            <Select value={currentEvent.eventIntensity} onValueChange={(value) => updateFormData("eventIntensity", value)}>
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="Seleccione intensidad" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Mild">Leve</SelectItem>
-                <SelectItem value="Moderate">Moderado</SelectItem>
-                <SelectItem value="Severe">Grave</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="eventSeverityLevel">Nivel de Gravedad *</Label>
-            <Select value={currentEvent.eventSeverityLevel} onValueChange={(value) => updateFormData("eventSeverityLevel", value)}>
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="Seleccione gravedad" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Mild">Leve</SelectItem>
-                <SelectItem value="Moderate">Moderado</SelectItem>
-                <SelectItem value="Severe">Grave</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="eventIntensity">Intensidad del Evento Adverso *</Label>
+          <Select value={currentEvent.eventIntensity} onValueChange={(value) => updateFormData("eventIntensity", value)}>
+            <SelectTrigger className="bg-white">
+              <SelectValue placeholder="Seleccione intensidad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Mild">No interfiere con las actividades diarias</SelectItem>
+              <SelectItem value="Moderate">Dificulta pero no impide realizar las actividades diarias</SelectItem>
+              <SelectItem value="Severe">Impide realizar las actividades diarias</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-3">
           <Label> Resultado del evento(s) adverso *</Label>
           <div className="space-y-2">
+            {/* Checkbox for "No complications" */}
+            <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <Checkbox
+                id="no-complication"
+                checked={currentEvent.eventHospitalization === "no-complication"}
+                onCheckedChange={(checked: any) => {
+                  if (checked) {
+                    updateFormData("eventHospitalization", "no-complication");
+                    updateFormData("eventSeverityLevel", "NonSerious");
+                  } else {
+                    updateFormData("eventHospitalization", "");
+                  }
+                }}
+              />
+              <label htmlFor="no-complication" className="flex-1 cursor-pointer font-medium">
+                No tuvo ninguna complicación grave / El evento no fue serio
+              </label>
+            </div>
+
+            {/* Severity criteria checkboxes */}
             {[
               { id: "visited-doctor", value: "doctor", label: "¿Tuvo que visitar al médico o clínica?" },
               { id: "emergency", value: "emergency", label: "¿Fue a la sala de emergencias?" },
+              { id: "hospitalization", value: "hospitalization", label: "¿Fue hospitalizado?" },
               { id: "permanent-disability", value: "disability", label: "¿Ha quedado con una discapacidad o limitación permanente?" },
               {id: "death", value: "death", label: "¿El sujeto falleció como consecuencia del evento adverso posiblemente relacionado con la vacunación?"},
               {id: "anomaly", value: "anomaly", label: "¿Hubo alguna anomalía relacionada con la vacunación?"}
-            ].map((item) => (
-              <div key={item.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <Checkbox
-                  id={item.id}
-                  checked={currentEvent.eventHospitalization?.includes(item.value)}
-                  onCheckedChange={(checked: any) => {
-                    let value = currentEvent.eventHospitalization || "";
-                    if (checked) {
-                      value = value ? `${value},${item.value}` : item.value;
-                    } else {
-                      value = value.replace(`,${item.value}`, "").replace(item.value, "");
-                    }
-                    updateFormData("eventHospitalization", value);
-                  }}
-                />
-                <label htmlFor={item.id} className="flex-1 cursor-pointer">
-                  {item.label}
-                </label>
-              </div>
-            ))}
+            ].map((item) => {
+              const hasNonComplication = currentEvent.eventHospitalization === "no-complication";
+              const isChecked = currentEvent.eventHospitalization?.includes(item.value);
+              return (
+                <div key={item.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" style={{
+                  opacity: hasNonComplication ? 0.5 : 1,
+                  pointerEvents: hasNonComplication ? "none" : "auto"
+                }}>
+                  <Checkbox
+                    id={item.id}
+                    checked={isChecked}
+                    disabled={hasNonComplication}
+                    onCheckedChange={(checked: any) => {
+                      let value = currentEvent.eventHospitalization || "";
+                      if (checked) {
+                        value = value ? `${value},${item.value}` : item.value;
+                        updateFormData("eventSeverityLevel", "Serious");
+                      } else {
+                        value = value.replace(`,${item.value}`, "").replace(item.value, "");
+                        // If no criteria selected anymore, keep as Serious but allow user to decide
+                        if (!value || value === ",") {
+                          value = "";
+                        }
+                      }
+                      updateFormData("eventHospitalization", value);
+                    }}
+                  />
+                  <label htmlFor={item.id} className="flex-1 cursor-pointer">
+                    {item.label}
+                  </label>
+                </div>
+              );
+            })}
           </div>
 
           {isDeathSelected && (
             <div className="p-4 border rounded-lg bg-red-50">
               <Label className="block mb-2">Fecha de fallecimiento *</Label>
-                <Select
-                  value={currentEvent.deathDateType || ""}
-                  onValueChange={(value) => updateFormData("deathDateType",value)}
-                >
-                      <SelectTrigger className="mb-3">
-                    <SelectValue placeholder="Tipo de fecha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="full">Día / Mes / Año</SelectItem>
-                    <SelectItem value="partial">Mes / Año</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="date"
+                  value={currentEvent.deathDate || ""}
+                  onChange={(e) => updateFormData("deathDate",e.target.value)}
+                  className={dateErrors?.deathDate ? "border-red-500" : ""}
+                />
 
-              {currentEvent.deathDateType == "full" && (
-                <>
-                  <Input
-                    type="date"
-                    value={currentEvent.deathDate || ""}
-                    onChange={(e) => updateFormData("deathDate",e.target.value)}
-                    className={dateErrors?.deathDate ? "border-red-500" : ""}
-                  />
-                  {dateErrors?.deathDate && (
-                    <p className="text-sm text-red-600 mt-1">{dateErrors.deathDate}</p>
-                  )}
-                </>
-              )}
-
-              {currentEvent.deathDateType == "partial" && (
-                <>
-                  <Input
-                    type="month"
-                    value={currentEvent.deathDate || ""}
-                    onChange={(e) => updateFormData("deathDate",e.target.value)}
-                    className={dateErrors?.deathDate ? "border-red-500" : ""}
-                  />
-                  {dateErrors?.deathDate && (
-                    <p className="text-sm text-red-600 mt-1">{dateErrors.deathDate}</p>
-                  )}
-                </>
+              {dateErrors?.deathDate && (
+                <p className="text-sm text-red-600 mt-1">{dateErrors.deathDate}</p>
               )}
 
               </div>
@@ -326,18 +343,22 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="eventOutcome">Estado Actual *</Label>
-          <Select value={currentEvent.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
-            <SelectTrigger className="bg-white">
+          <Label htmlFor="eventOutcome">Estado Actual respecto al síntoma *</Label>
+          <Select 
+            value={isDeathSelected ? "fatal" : currentEvent.eventOutcome} 
+            onValueChange={(value) => updateFormData("eventOutcome", value)}
+            disabled={isDeathSelected}
+          >
+            <SelectTrigger className={`bg-white ${isDeathSelected ? "opacity-60 cursor-not-allowed" : ""}`}>
               <SelectValue placeholder="Seleccione" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recovered">Totalmente recuperado/a</SelectItem>
-              <SelectItem value="recovering">Aún estoy recuperándome</SelectItem>
-              <SelectItem value="sequelae">Recuperado/a pero con secuelas</SelectItem>
-              <SelectItem value="dangerous">Grave</SelectItem>
-              <SelectItem value="unchanged">Sin cambios</SelectItem>
-              <SelectItem value="unknown">Desconocido</SelectItem>
+              <SelectItem value="recovered" disabled={isDeathSelected}>Totalmente recuperado/a</SelectItem>
+              <SelectItem value="recovering" disabled={isDeathSelected}>En recuperación</SelectItem>
+              <SelectItem value="sequelae" disabled={isDeathSelected}>Recuperado/a pero con secuelas</SelectItem>
+              <SelectItem value="notRecovered" disabled={isDeathSelected}>Sigue con el síntomas, no se ha recuperado</SelectItem>
+              <SelectItem value="fatal">Falleció (por cualquier causa)</SelectItem>
+              <SelectItem value="unknown" disabled={isDeathSelected}>No sé / Prefiero no decirlo</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -615,16 +636,20 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
 
         <div className="space-y-2">
           <Label htmlFor="eventOutcome">Desenlace del Evento al Momento del Reporte *</Label>
-          <Select value={currentEvent.eventOutcome} onValueChange={(value) => updateFormData("eventOutcome", value)}>
-            <SelectTrigger className="bg-white">
+          <Select 
+            value={isDeathSelected ? "fatal" : currentEvent.eventOutcome} 
+            onValueChange={(value) => updateFormData("eventOutcome", value)}
+            disabled={isDeathSelected}
+          >
+            <SelectTrigger className={`bg-white ${isDeathSelected ? "opacity-60 cursor-not-allowed" : ""}`}>
               <SelectValue placeholder="Seleccione" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recovered">Recuperado sin secuelas</SelectItem>
-              <SelectItem value="recovering">En recuperación</SelectItem>
-              <SelectItem value="sequelae">Recuperado con secuelas</SelectItem>
+              <SelectItem value="recovered" disabled={isDeathSelected}>Recuperado sin secuelas</SelectItem>
+              <SelectItem value="recovering" disabled={isDeathSelected}>En recuperación</SelectItem>
+              <SelectItem value="sequelae" disabled={isDeathSelected}>Recuperado con secuelas</SelectItem>
               <SelectItem value="fatal">Fatal/Defunción</SelectItem>
-              <SelectItem value="unknown">Desconocido/Pendiente de seguimiento</SelectItem>
+              <SelectItem value="unknown" disabled={isDeathSelected}>Desconocido/Pendiente de seguimiento</SelectItem>
             </SelectContent>
           </Select>
         </div>

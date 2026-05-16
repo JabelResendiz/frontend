@@ -4,10 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/app/components/ui/alert-dialog";
-import { Plus, Edit2, Trash2, Users, Search, AlertTriangle } from "lucide-react";
+import { Plus, Users, Search, AlertTriangle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
+import {
+  PROVINCES,
+  getMunicipalitiesByProvince,
+  getProvinceId,
+  getMunicipalityId,
+  getProvinceNameById,
+  getMunicipalityNameById,
+} from "@/app/data/municipalities";
 import { api } from "@/app/services/api";
 
 interface SectionResponsible {
@@ -23,51 +29,17 @@ interface ManageSectionResponsiblePageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
-const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES);
-
-// Get province ID based on name
-const getProvinceId = (provinceName: string): number => {
-  return PROVINCES.indexOf(provinceName) + 1;
-};
-// Get municipality ID based on province name and municipality name
-const getMunicipalityId = (provinceName: string, municipalityName: string): number => {
-  const province = getProvinceId(provinceName);
-  let total = 0;
-  for (let i = 0; i < province; i++) {
-    total += getMunicipalitiesByProvince(PROVINCES[i]).length;
-  }
-  return total;
-};
-
-// Get province name by ID
-const getProvinceNameById = (provinceId: number): string => {
-  return PROVINCES[provinceId - 1] || "";
-};
-
-// Get municipality name by province ID and municipality ID
-const getMunicipalityNameById = (provinceId: number, municipalityId: number): string => {
-  const provinceName = getProvinceNameById(provinceId);
-  const municipalities = getMunicipalitiesByProvince(provinceName);
-  // Calculate the actual index within the province
-  let provinceStartIndex = 0;
-  for (let i = 0; i < provinceId - 1; i++) {
-    provinceStartIndex += getMunicipalitiesByProvince(PROVINCES[i]).length;
-  }
-  const indexInProvince = municipalityId - provinceStartIndex - 1;
-  return municipalities[indexInProvince] || "";
-};
 
 
-
-export function ManageSectionResponsiblePage({ onNavigate }: ManageSectionResponsiblePageProps) {
+export function ManageSectionResponsiblePage(_: ManageSectionResponsiblePageProps) {
   const [sectionResponsibles, setSectionResponsibles] = useState<SectionResponsible[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("");
+  const [municipalityFilter, setMunicipalityFilter] = useState("");
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize] = useState(10);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -93,6 +65,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
 
   try {
     let provinceName = provinceNameOverride !== undefined ? provinceNameOverride || undefined : provinceFilter || undefined;
+    let municipalityName = municipalityFilter;
     let params: any = {
       pageNumber,
       pageSize,
@@ -109,6 +82,14 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
         ? provinceNameOverride || undefined
         : urlParams.get("provinceName") || undefined;
 
+      const municipalityIdFromUrl = urlParams.get("municipalityId");
+      if (municipalityIdFromUrl && provinceName) {
+        municipalityName = getMunicipalityNameById(
+          getProvinceId(provinceName),
+          Number(municipalityIdFromUrl)
+        );
+      }
+
       params = {
         pageNumber: Number(urlParams.get("pageNumber")) || 1,
         pageSize: Number(urlParams.get("pageSize")) || 10,
@@ -116,8 +97,22 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
         provinceName,
       };
 
+      if (provinceName && municipalityName) {
+        params.municipalityId = getMunicipalityId(provinceName, municipalityName);
+      }
+
       if (urlParams.get("provinceName") && provinceNameOverride === undefined) {
         setProvinceFilter(urlParams.get("provinceName")!);
+      }
+      if (municipalityName && provinceNameOverride === undefined) {
+        setMunicipalityFilter(municipalityName);
+      }
+      if (!municipalityName && provinceNameOverride === null) {
+        setMunicipalityFilter("");
+      }
+    } else {
+      if (provinceName && municipalityName) {
+        params.municipalityId = getMunicipalityId(provinceName, municipalityName);
       }
     }
 
@@ -176,7 +171,6 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
   }, [pageNumber, searchTerm]);
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
 
   const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
 
@@ -310,29 +304,6 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
     }
   };
 
-  const handleEdit = (responsible: SectionResponsible) => {
-    setFormData({
-      userName: responsible.userName,
-      email: responsible.email,
-      password: "",
-      phoneNumber: responsible.phoneNumber,
-      province: responsible.provinceName,
-      municipality: responsible.municipalityName,
-    });
-    setEditingId(responsible.id);
-    setShowForm(true);
-  };
-
-  const handleDelete = () => {
-    if (deleteConfirm) {
-      setSectionResponsibles(
-        sectionResponsibles.filter(r => r.id !== deleteConfirm)
-      );
-      toast.success("Jefe de sección eliminado exitosamente");
-      setDeleteConfirm(null);
-    }
-  };
-
   const handleCancel = () => {
     setFormData({
       userName: "",
@@ -366,6 +337,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
 
   const clearProvinceFilter = () => {
     setProvinceFilter("");
+    setMunicipalityFilter("");
     if (pageNumber === 1) {
       loadSectionResponsibles(undefined, null);
     } else {
@@ -424,14 +396,17 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
                 <div>
                   <Label htmlFor="province-filter" className="text-sm font-medium text-gray-700">
                     Filtrar por provincia
                   </Label>
                   <Select
                     value={provinceFilter}
-                    onValueChange={(value) => setProvinceFilter(value)}
+                    onValueChange={(value) => {
+                      setProvinceFilter(value);
+                      setMunicipalityFilter("");
+                    }}
                   >
                     <SelectTrigger id="province-filter">
                       <SelectValue placeholder="Selecciona provincia" />
@@ -442,6 +417,34 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                           {province}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="municipality-filter" className="text-sm font-medium text-gray-700">
+                    Filtrar por municipio
+                  </Label>
+                  <Select
+                    value={municipalityFilter}
+                    onValueChange={(value) => setMunicipalityFilter(value)}
+                    disabled={!provinceFilter}
+                  >
+                    <SelectTrigger id="municipality-filter" disabled={!provinceFilter}>
+                      <SelectValue
+                        placeholder={
+                          provinceFilter
+                            ? "Selecciona municipio"
+                            : "Selecciona provincia primero"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {provinceFilter &&
+                        getMunicipalitiesByProvince(provinceFilter).map((municipality) => (
+                          <SelectItem key={municipality} value={municipality}>
+                            {municipality}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -669,9 +672,19 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2">
-                          {responsible.userName}
-                        </h3>
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                            <ShieldCheck className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {responsible.userName}
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Jefe de vacunación municipal
+                            </p>
+                          </div>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
                           {/* <div>
                             <span className="font-medium">Email:</span>{" "}

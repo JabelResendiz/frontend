@@ -46,7 +46,7 @@ const getUserFromToken = (token: string): User | null => {
   const user: User = {
     id: payload.sub || payload.nameid || payload.uid || '',
     email: payload.email || payload.unique_name || '',
-    name: payload.unique_name || payload.name || payload.email || 'Usuario',
+    name: payload.given_name || payload.name || payload.email || 'Usuario',
     role: role === 'Admin'
       ? 'Admin'
       : role === 'SectionResponsible'
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }: any) => {
         setIsLoading(false);
       }
     };
-
+    
     restoreSession();
   }, []);
 

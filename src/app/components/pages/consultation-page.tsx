@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { Badge } from "@/app/components/ui/badge";
-import { Search, Filter, Download, Eye, Loader2 } from "lucide-react";
+import { Filter, Download, Eye, Loader2 } from "lucide-react";
 import { api } from "@/app/services/api";
 import { catalogService } from "@/app/services/catalog.service";
 import { translateGender} from "@/app/utils/translations";
@@ -50,9 +49,9 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterVaccine, setFilterVaccine] = useState("all");
   const [filterSeverity, setFilterSeverity] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [filterProvince, setFilterProvince] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [vaccines, setVaccines] = useState<{id: string; name: string}[]>([]);
@@ -79,7 +78,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
   // Fetch reports from API
   useEffect(() => {
     fetchReports();
-  }, [currentPage, filterVaccine, filterSeverity, filterProvince]);
+  }, [currentPage, filterVaccine, filterSeverity, filterStatus, filterProvince]);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -91,6 +90,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
 
       if (filterVaccine && filterVaccine !== "all") params.append("vaccineName", filterVaccine);
       if (filterSeverity && filterSeverity !== "all") params.append("severity", filterSeverity);
+      if (filterStatus && filterStatus !== "all") params.append("reportStatus", filterStatus);
       if (filterProvince && filterProvince !== "all") params.append("provinceName", filterProvince);
 
       const response = await api.get<ApiResponse>(
@@ -110,11 +110,11 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
 
   const getSeverityBadge = (severity: string) => {
     const styles: Record<string, { bg: string; text: string; label: string }> = {
-      Mild: { bg: "#E8F5EB", text: "#2D7A3E", label: "Leve" },
-      Moderate: { bg: "#FEF3C7", text: "#D97706", label: "Moderado" },
-      Severe: { bg: "#FEE2E2", text: "#DC2626", label: "Severo" }
+      Serious: { bg: "#FEE2E2", text: "#DC2626", label: "Serio" },
+      NonSerious: { bg: "#E8F5EB", text: "#2D7A3E", label: "No serio" }
+
     };
-    const style = styles[severity] || styles.Mild;
+    const style = styles[severity] || { bg: "#F3F4F6", text: "#374151", label: severity || "No definida" };
 
     return (
       <Badge
@@ -171,7 +171,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="filterVaccine">Vacuna</Label>
                 <Select value={filterVaccine} onValueChange={(value) => {
@@ -203,9 +203,28 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="Mild">Leve</SelectItem>
-                    <SelectItem value="Moderate">Moderado</SelectItem>
-                    <SelectItem value="Severe">Severo</SelectItem>
+                    <SelectItem value="NonSerious">No serio</SelectItem>
+                    <SelectItem value="Serious">Serio</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="filterStatus">Estado</Label>
+                <Select value={filterStatus} onValueChange={(value) => {
+                  setFilterStatus(value);
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="Submitted">Enviado</SelectItem>
+                    <SelectItem value="UnderReview">En Revisión</SelectItem>
+                    <SelectItem value="Approved">Aprobado</SelectItem>
+                    <SelectItem value="Rejected">Rechazado</SelectItem>
+                    <SelectItem value="Closed">Cerrado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -257,7 +276,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                     <TableHead className="font-semibold">Severidad</TableHead>
                     <TableHead className="font-semibold">Estado</TableHead>
                     <TableHead className="font-semibold">Médico Asignado</TableHead>
-                    <TableHead className="font-semibold">Acciones</TableHead>
+                    {/* <TableHead className="font-semibold">Acciones</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -277,7 +296,12 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                     reports.map((report) => (
                       <TableRow key={report.id} className="hover:bg-gray-50">
                         <TableCell className="font-mono text-sm font-medium">
-                          {report.notificationNumber}
+                          <button
+                            className="text-left text-sky-600 hover:text-sky-800 transition-colors"
+                            onClick={() => onNavigate("detail", report.id)}
+                          >
+                            {report.notificationNumber}
+                          </button>
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className="font-medium">{report.vaccinatedSubject.age} años, {translateGender(report.vaccinatedSubject.gender)}</div>
@@ -314,7 +338,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                             <span className="text-gray-400 italic">Sin asignar</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        {/* <TableCell>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -324,7 +348,7 @@ export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
                             <Eye className="w-4 h-4" />
                             Ver
                           </Button>
-                        </TableCell>
+                        </TableCell> */}
                       </TableRow>
                     ))
                   )}

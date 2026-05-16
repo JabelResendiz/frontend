@@ -78,8 +78,7 @@ export const getMunicipalitiesByProvince = (province: string): string[] => {
   return PROVINCES_AND_MUNICIPALITIES[province as keyof typeof PROVINCES_AND_MUNICIPALITIES] || [];
 };
 
-
-const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES);
+export const PROVINCES = Object.keys(PROVINCES_AND_MUNICIPALITIES);
 
 // Get province ID based on name
 export const getProvinceId = (provinceName: string): number => {

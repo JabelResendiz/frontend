@@ -50,6 +50,7 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
   const [isLoadingCenters, setIsLoadingCenters] = useState<Record<number, boolean>>({});
   const [vaccinationLots, setVaccinationLots] = useState<Record<number, VaccinationLot[]>>({});
   const [isLoadingLots, setIsLoadingLots] = useState<Record<number, boolean>>({});
+  const [vaccineDuplicateErrors, setVaccineDuplicateErrors] = useState<Record<number, string>>({});
 
   // Cargar vacunas activas desde el catálogo
   useEffect(() => {
@@ -72,6 +73,45 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
   const updateVaccination = (index: number, field: keyof VaccinationProcess, value: string) => {
     const updated = [...formData.vaccinations];
     updated[index] = { ...updated[index], [field]: value };
+    
+    // Validar duplicado de vacuna + fecha
+    if ((field === "vaccineId" || field === "vaccinationDate") && value) {
+      const currentVaccine = updated[index].vaccineId;
+      const currentDate = updated[index].vaccinationDate;
+      
+      // Si ambos campos están llenos, validar
+      if (currentVaccine && currentDate) {
+        const hasDuplicate = updated.some((vac, idx) => {
+          // No comparar consigo mismo
+          if (idx === index) return false;
+          // Verificar si existe otra vacuna con el mismo ID y fecha
+          return vac.vaccineId === currentVaccine && vac.vaccinationDate === currentDate;
+        });
+        
+        if (hasDuplicate) {
+          setVaccineDuplicateErrors(prev => ({
+            ...prev,
+            [index]: `Ya existe un registro de esta vacuna para la fecha ${currentDate}.`
+          }));
+          return; // No actualizar si hay duplicado
+        } else {
+          // Limpiar error si se resolvió
+          setVaccineDuplicateErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[index];
+            return newErrors;
+          });
+        }
+      } else {
+        // Limpiar error si uno de los campos está vacío
+        setVaccineDuplicateErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[index];
+          return newErrors;
+        });
+      }
+    }
+    
     updateFormData("vaccinations", updated);
     
     // Clear and fetch lots when vaccine changes
@@ -276,10 +316,13 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                 type="date"
                 value={vaccination.vaccinationDate}
                 onChange={(e) => updateVaccination(index, "vaccinationDate", e.target.value)}
-                className={`bg-white ${dateErrors[`vaccination_${index}_date`] ? "border-red-500" : ""}`}
+                className={`bg-white ${dateErrors[`vaccination_${index}_date`] || vaccineDuplicateErrors[index] ? "border-red-500" : ""}`}
               />
               {dateErrors[`vaccination_${index}_date`] && (
                 <p className="text-sm text-red-600">{dateErrors[`vaccination_${index}_date`]}</p>
+              )}
+              {vaccineDuplicateErrors[index] && (
+                <p className="text-sm text-red-600">{vaccineDuplicateErrors[index]}</p>
               )}
             </div>
 

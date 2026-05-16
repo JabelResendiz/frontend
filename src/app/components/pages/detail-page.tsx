@@ -49,6 +49,7 @@ interface DetailReport {
     gender: string;
     isPregnant: boolean;
     provinceName: string;
+    municipalityName: string;
     currentMedications: string;
     allergies: string;
     medicalHistory: string;
@@ -157,11 +158,10 @@ export function DetailPage({ reportId, onNavigate }: DetailPageProps) {
 
   const getSeverityBadge = (severity: string) => {
     const styles: Record<string, { bg: string; text: string; label: string }> = {
-      Mild: { bg: "#E8F5EB", text: "#2D7A3E", label: "Leve" },
-      Moderate: { bg: "#FEF3C7", text: "#D97706", label: "Moderado" },
-      Severe: { bg: "#FEE2E2", text: "#DC2626", label: "Severo" }
+      Serious: { bg: "#FEE2E2", text: "#DC2626", label: "Serio" },
+      NonSerious: { bg: "#E8F5EB", text: "#2D7A3E", label: "No serio" }
     };
-    const style = styles[severity] || styles.Mild;
+    const style = styles[severity] || { bg: "#F3F4F6", text: "#374151", label: severity || "No definido" };
 
     return (
       <Badge 
@@ -350,13 +350,35 @@ SEVERIDAD GENERAL: ${detail.globalSeverityLevel}
                   <div className="text-sm text-gray-600 mb-1">Sexo</div>
                   <div className="font-medium">{translateGender(detail.vaccinatedSubject.gender)}</div>
                 </div>
-                <div className="col-span-2">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Provincia</div>
+                  <div className="font-medium flex items-center gap-2">
+                     <MapPin className="w-4 h-4 text-gray-400" />
+                     {detail.vaccinatedSubject.provinceName}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Municipio</div>
+                  <div className="font-medium flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    {detail.vaccinatedSubject.municipalityName}
+                  </div>
+                </div>
+                {/* <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1">Provincia</div>
                   <div className="font-medium flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     {detail.vaccinatedSubject.provinceName}
                   </div>
-                </div>
+                </div> */}
+                
+
+                {/* {detail.vaccinatedSubject.municipalityName && (
+                  <div className="col-span-2">
+                    <div className="text-sm text-gray-600 mb-1">Municipio</div>
+                    <div className="font-medium">{detail.vaccinatedSubject.municipalityName}</div>
+                  </div>
+                )} */}
                 <div className="col-span-2">
                   <div className="text-sm text-gray-600 mb-1">Embarazada</div>
                   <div className="font-medium">{detail.vaccinatedSubject.isPregnant ? 'Sí' : 'No'}</div>
@@ -456,7 +478,7 @@ SEVERIDAD GENERAL: ${detail.globalSeverityLevel}
                         </div>
                         <div>
                           <div className="text-sm text-gray-600 mb-1">Severidad</div>
-                          {getSeverityBadge(event.severityLevel || event.intensity || 'Mild')}
+                          {getSeverityBadge(event.severityLevel || 'NonSerious')}
                         </div>
                         <div>
                           <div className="text-sm text-gray-600 mb-1">Intensidad</div>

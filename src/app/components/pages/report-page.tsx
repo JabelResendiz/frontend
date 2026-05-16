@@ -898,6 +898,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
               "recovered": "Recovered",
               "recovering": "Recovering",
               "sequelae": "RecoveredWithSequelae",
+              "fatal": "Fatal",
               "dangerous": "Serious",
               "unchanged": "NotRecovered",
               "unknown": "Unknown"

@@ -139,12 +139,85 @@ export interface MedicalReviewAssignment {
   assignedAt: string;
 }
 
+// Dashboard Statistics Interfaces - Municipal Focus
+export interface DoctorWorkload {
+  doctorId: string;
+  doctorName: string;
+  assignedReports: number;
+  completedReports: number;
+  pendingReports: number;
+  overdueDays: number;
+  avgReviewTime: number; // in hours
+  isSaturated: boolean; // > 80% capacity
+}
+
+export interface ReportsPeriodStats {
+  period: 'today' | 'week' | 'month' | '3months';
+  totalReports: number;
+  completedReports: number;
+  pendingReports: number;
+  overdueReports: number;
+  avgProcessingTime: number; // in hours
+}
+
+export interface BottleneckReport {
+  reportId: string;
+  vaccinatedPersonName: string;
+  vaccineName: string;
+  daysPending: number;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  assignedDoctor?: string;
+  urgencyScore: number; // 0-100
+}
+
+export interface UrgentEvent {
+  reportId: string;
+  patientName: string;
+  event: string;
+  eventType: 'death' | 'life-threatening' | 'emergency' | 'severe';
+  reportedDate: string;
+  status: 'pending' | 'in-review' | 'reviewed';
+}
+
+export interface VaccinationCenterStats {
+  centerId: string;
+  centerName: string;
+  reportsGenerated: number;
+  completionRate: number;
+  avgReportTime: number;
+}
+
+export interface ReviewMetrics {
+  avgReviewTime: number; // hours
+  medianReviewTime: number;
+  fastestDoctor: { name: string; time: number };
+  slowestDoctor: { name: string; time: number };
+}
+
 export const reportService = {
-  getAssignedReports: async (pageNumber: number = 1, pageSize: number = 10): Promise<AssignedReportsResponse> => {
-    const res = await api.get('/Report/assigned', {
+  getAssignedReports: async (
+    pageNumber: number = 1, 
+    pageSize: number = 10,
+    severity? : string,
+    vaccineName? : string,
+    vaccinationCenterId? : string,
+    from? : string,
+    to? : string,
+    sortBy? : string,
+    order? : "asc" | "desc"
+
+  ): Promise<AssignedReportsResponse> => {
+    const res = await api.get('/Report/sectionResponsible/assigned', {
       params: {
         pageNumber,
         pageSize,
+        severity,
+        vaccineName,
+        vaccinationCenterId,
+        from,
+        to,
+        sortBy,
+        order
       },
     });
 
@@ -183,4 +256,65 @@ export const reportService = {
     const res = await api.post('/MedicalReviewAssignment/create', assignment);
     return res.data;
   },
+
+  // Dashboard Statistics Methods - Municipal Focus
+  getDoctorWorkload: async (): Promise<DoctorWorkload[]> => {
+    try {
+      const res = await api.get('/Report/sectionResponsible/doctor-workload');
+      return res.data.data ?? res.data ?? [];
+    } catch (error) {
+      console.warn('Could not fetch doctor workload from backend');
+      return [];
+    }
+  },
+
+  getReportsPeriodStats: async (period: 'today' | 'week' | 'month' | '3months'): Promise<ReportsPeriodStats> => {
+    try {
+      const res = await api.get('/Report/sectionResponsible/period-stats', {
+        params: { period }
+      });
+      return res.data.data ?? res.data;
+    } catch (error) {
+      console.warn(`Could not fetch ${period} stats from backend`);
+      return {
+        period,
+        totalReports: 0,
+        completedReports: 0,
+        pendingReports: 0,
+        overdueReports: 0,
+        avgProcessingTime: 0,
+      };
+    }
+  },
+
+  getBottleneckReports: async (): Promise<BottleneckReport[]> => {
+    try {
+      const res = await api.get('/Report/sectionResponsible/bottleneck-reports');
+      return res.data.data ?? res.data ?? [];
+    } catch (error) {
+      console.warn('Could not fetch bottleneck reports');
+      return [];
+    }
+  },
+
+  getUrgentEvents: async (): Promise<UrgentEvent[]> => {
+    try {
+      const res = await api.get('/Report/sectionResponsible/urgent-events');
+      return res.data.data ?? res.data ?? [];
+    } catch (error) {
+      console.warn('Could not fetch urgent events');
+      return [];
+    }
+  },
+
+  getVaccinationCenterStats: async (): Promise<VaccinationCenterStats[]> => {
+    try {
+      const res = await api.get('/Report/sectionResponsible/vaccination-centers');
+      return res.data.data ?? res.data ?? [];
+    } catch (error) {
+      console.warn('Could not fetch vaccination center stats');
+      return [];
+    }
+  }
+  
 };
