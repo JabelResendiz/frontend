@@ -20,8 +20,8 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
   const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
   const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
 
-  const validateIdentityMatchesDate = (identityNumber: string, dateOfBirth: string): boolean => {
-    if (!validateIdentityNumber(identityNumber) || !dateOfBirth) return false;
+  const validateIdentityMatchesDate = (identityNumber: string): boolean => {
+    if (!validateIdentityNumber(identityNumber)) return false;
     const yy = identityNumber.substring(0, 2);
     const mm = identityNumber.substring(2, 4);
     const dd = identityNumber.substring(4, 6);
@@ -30,9 +30,23 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
     const day = parseInt(dd, 10);
     const currentYearTwoDigits = new Date().getFullYear() % 100;
     const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
-    const extractedDate = new Date(fullYear, month - 1, day);
-    if (isNaN(extractedDate.getTime())) return false;
-    return extractedDate.toISOString().slice(0, 10) === dateOfBirth;
+    
+    if(month > 12 || month < 1)return false;
+    if(day > 31 || day <1) return false;
+    if([4,6,9,11].includes(month))return day<31;
+
+    if(fullYear % 4 == 0)
+    {
+      if(month==2) return day<30;
+      
+      return true;
+
+    }
+
+    if(month==2) return day<29;
+
+    return true;
+    
   };
 
   const validatePatientField = (field: string, rawValue: string, normalizedValue = rawValue) => {
@@ -43,17 +57,10 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
           errors.patientIdentityNumber = "Solo se permiten dígitos; no se aceptan letras, espacios ni caracteres especiales.";
         } else if (normalizedValue && normalizedValue.length !== 11) {
           errors.patientIdentityNumber = "Debe contener exactamente 11 dígitos.";
-        } else if (normalizedValue && formData.patientDateOfBirth && !validateIdentityMatchesDate(normalizedValue, formData.patientDateOfBirth)) {
-          errors.patientIdentityNumber = "La fecha de nacimiento no coincide con la cédula.";
+        } else if (normalizedValue && !validateIdentityMatchesDate(normalizedValue)) {
+          errors.patientIdentityNumber = "Rectifica el número de identidad porque no es válido.";
         } else {
           delete errors.patientIdentityNumber;
-        }
-        break;
-      case 'patientDateOfBirth':
-        if (rawValue && formData.patientIdentityNumber && !validateIdentityMatchesDate(formData.patientIdentityNumber, rawValue)) {
-          errors.patientDateOfBirth = "La fecha de nacimiento no coincide con la cédula.";
-        } else {
-          delete errors.patientDateOfBirth;
         }
         break;
       case 'patientPhoneNumber':
@@ -126,19 +133,7 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="patientDateOfBirth">Fecha de Nacimiento *</Label>
-          <Input
-            id="patientDateOfBirth"
-            type="date"
-            value={formData.patientDateOfBirth}
-            onChange={(e) => handlePatientFieldChange("patientDateOfBirth", e.target.value)}
-            className={`bg-white ${(dateErrors.patientDateOfBirth || patientFieldErrors.patientDateOfBirth) ? "border-red-500" : ""}`}
-          />
-          {(dateErrors.patientDateOfBirth || patientFieldErrors.patientDateOfBirth) && (
-            <p className="text-sm text-red-600">{patientFieldErrors.patientDateOfBirth || dateErrors.patientDateOfBirth}</p>
-          )}
-        </div>
+        
 
         <div className="space-y-2">
           <Label htmlFor="patientGender">Sexo *</Label>

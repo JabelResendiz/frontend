@@ -60,7 +60,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     institution: "",
     professionalLicense: "",
     identityNumber: "",
-    dateOfBirth: "",
     specialty: "",
   });
 
@@ -107,23 +106,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
 
-  const formatDateToMidnight = (date: string) => `${date}T00:00:00`;
-
-  const getNewYorkToday = () => {
-    return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-  };
-
-  const validateMinimumAge = (dateOfBirth: string, minAge: number): boolean => {
-    const todayNY = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    todayNY.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(`${dateOfBirth}T00:00:00`);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    const cutoff = new Date(todayNY);
-    cutoff.setFullYear(cutoff.getFullYear() - minAge);
-    return selectedDate <= cutoff;
-  };
-
   const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
 
   const validatePassword = (password: string): boolean => {
@@ -132,35 +114,72 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     return password.length >= 8 && hasDigit && hasSpecial;
   };
 
-  const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
+  const validateIdentityNumber = (identityNumber: string): boolean =>/^\d{11}$/.test(identityNumber);
 
   const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
 
   const validateInstitution = (institution: string): boolean => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(institution.trim());
 
-  const validateIdentityMatchesDate = (identityNumber: string, dateOfBirth: string): boolean => {
-    if (!validateIdentityNumber(identityNumber) || !dateOfBirth) return false;
+  const validateIdentityMatchesDate = (identityNumber: string): boolean => {
+    if (!validateIdentityNumber(identityNumber)) return false;
     const yy = identityNumber.substring(0, 2);
     const mm = identityNumber.substring(2, 4);
     const dd = identityNumber.substring(4, 6);
     const year = parseInt(yy, 10);
     const month = parseInt(mm, 10);
     const day = parseInt(dd, 10);
+
+
     const currentYearTwoDigits = new Date().getFullYear() % 100;
+
+    console.log(currentYearTwoDigits);
+
     const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
-    const extractedDate = new Date(fullYear, month - 1, day);
-    if (isNaN(extractedDate.getTime())) return false;
-    return extractedDate.toISOString().slice(0, 10) === dateOfBirth;
+    
+    console.log(fullYear);
+    if(month > 12 || month < 1)return false;
+    if(day > 31 || day <1) return false;
+    if([4,6,9,11].includes(month))return day<31;
+
+    if(fullYear % 4 == 0)
+    {
+      if(month==2) return day<30;
+      
+      return true;
+
+    }
+
+    if(month==2) return day<29;
+
+    return true;
+     
   };
 
-  const validateDateOfBirth = (dateOfBirth: string): boolean => {
-    if (!dateOfBirth) return false;
-    const todayNY = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    todayNY.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(`${dateOfBirth}T00:00:00`);
-    selectedDate.setHours(0, 0, 0, 0);
-    return selectedDate <= todayNY && validateMinimumAge(dateOfBirth, 18);
+  
+  const validateAge = (identityNumber: string): boolean => {
+    if (!validateIdentityNumber(identityNumber)) return false;
+    const yy = identityNumber.substring(0, 2);
+    const mm = identityNumber.substring(2, 4);
+    const dd = identityNumber.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+
+
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+    
+    // console.log(fullYear);
+    // console.log(fullYear + 18 > currentYearTwoDigits)
+
+    if(fullYear + 18 > new Date().getFullYear()) return false;
+    
+
+    return true;
+     
   };
+
 
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors };
@@ -196,21 +215,20 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
       case 'identityNumber':
         if (value && !validateIdentityNumber(value)) {
           errors.identityNumber = "Debe contener exactamente 11 dígitos.";
-        } else if (value && formData.dateOfBirth && !validateIdentityMatchesDate(value, formData.dateOfBirth)) {
-          errors.identityNumber = "La fecha de nacimiento no coincide con la cédula de identidad.";
-        } else {
+        } 
+        if(!validateIdentityMatchesDate(value))
+        {
+          errors.identityNumber = "Rectifica el número de identidad";
+        }
+        // if(!validateAge(value))
+        // {
+        //   errors.identityNumber = "Debe ser mayor a 17 años";
+        // }
+        else {
           delete errors.identityNumber;
         }
         break;
-      case 'dateOfBirth':
-        if (value && !validateDateOfBirth(value)) {
-          errors.dateOfBirth = "La fecha debe ser anterior a hoy y corresponder a mayores de 17 años.";
-        } else if (value && formData.identityNumber && !validateIdentityMatchesDate(formData.identityNumber, value)) {
-          errors.dateOfBirth = "La fecha de nacimiento no coincide con la cédula de identidad.";
-        } else {
-          delete errors.dateOfBirth;
-        }
-        break;
+      
     }
     setFieldErrors(errors);
     setHasValidationErrors(Object.keys(errors).length > 0);
@@ -228,8 +246,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     setFieldErrors({});
 
     if (!formData.userName || !formData.email || !formData.password || !formData.phoneNumber ||
-        !formData.institution || !formData.professionalLicense || !formData.identityNumber ||
-        !formData.dateOfBirth || !formData.specialty) {
+        !formData.institution || !formData.professionalLicense || !formData.identityNumber || !formData.specialty) {
       toast.error("Por favor completa todos los campos requeridos");
       return;
     }
@@ -241,11 +258,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     if (!validatePhoneNumber(formData.phoneNumber)) errors.phoneNumber = "Teléfono inválido. Solo se permiten dígitos sin espacios.";
     if (!validateInstitution(formData.institution)) errors.institution = "La institución debe comenzar con una letra.";
     if (!validateIdentityNumber(formData.identityNumber)) errors.identityNumber = "La cédula de identidad debe contener exactamente 11 dígitos sin espacios.";
-    if (!validateDateOfBirth(formData.dateOfBirth)) errors.dateOfBirth = "La fecha de nacimiento debe ser anterior a hoy y corresponder a mayores de 17 años.";
-    if (!validateIdentityMatchesDate(formData.identityNumber, formData.dateOfBirth)) {
-      errors.identityNumber = "La fecha de nacimiento no coincide con la cédula de identidad.";
-      errors.dateOfBirth = "La fecha de nacimiento no coincide con la cédula de identidad.";
-    }
+
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -263,7 +276,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
         institution: formData.institution.trim(),
         professionalLicense: formData.professionalLicense.trim(),
         identityNumber: formData.identityNumber,
-        dateOfBirth: formatDateToMidnight(formData.dateOfBirth),
         specialty: formData.specialty,
       };
 
@@ -281,7 +293,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
           institution: "",
           professionalLicense: "",
           identityNumber: "",
-          dateOfBirth: "",
           specialty: "",
         });
         setFieldErrors({});
@@ -313,7 +324,6 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
       institution: "",
       professionalLicense: "",
       identityNumber: "",
-      dateOfBirth: "",
       specialty: "",
     });
     setFieldErrors({});
@@ -490,25 +500,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="dateOfBirth">Fecha de Nacimiento *</Label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  max={getNewYorkToday()}
-                  value={formData.dateOfBirth}
-                  onChange={(e) => {
-                    setFormData({ ...formData, dateOfBirth: e.target.value });
-                    validateField('dateOfBirth', e.target.value);
-                  }}
-                />
-                {fieldErrors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{fieldErrors.dateOfBirth}</p>}
-                {formData.identityNumber && formData.identityNumber.length === 11 && (
-                  <p className="text-blue-600 text-sm mt-1">
-                    La fecha debe coincidir con los primeros 6 dígitos de la cédula de identidad (YYMMDD).
-                  </p>
-                )}
-              </div>
+              
 
               <div className="flex gap-3 pt-4">
                 <Button

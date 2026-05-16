@@ -8,7 +8,6 @@ export interface DoctorRegistrationData {
   institution: string;
   professionalLicense: string;
   identityNumber: string;
-  dateOfBirth: string;
   specialty: string;
 }
 

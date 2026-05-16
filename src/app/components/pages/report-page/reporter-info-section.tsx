@@ -28,8 +28,8 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
 
   const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
 
-  const validateIdentityMatchesDate = (identityNumber: string, dateOfBirth: string): boolean => {
-    if (!validateIdentityNumber(identityNumber) || !dateOfBirth) return false;
+  const validateIdentityMatchesDate = (identityNumber: string): boolean => {
+    if (!validateIdentityNumber(identityNumber)) return false;
     const yy = identityNumber.substring(0, 2);
     const mm = identityNumber.substring(2, 4);
     const dd = identityNumber.substring(4, 6);
@@ -38,9 +38,23 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
     const day = parseInt(dd, 10);
     const currentYearTwoDigits = new Date().getFullYear() % 100;
     const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
-    const extractedDate = new Date(fullYear, month - 1, day);
-    if (isNaN(extractedDate.getTime())) return false;
-    return extractedDate.toISOString().slice(0, 10) === dateOfBirth;
+    
+    
+    if(month > 12 || month < 1)return false;
+    if(day > 31 || day <1) return false;
+    if([4,6,9,11].includes(month))return day<31;
+
+    if(fullYear % 4 == 0)
+    {
+      if(month==2) return day<30;
+      
+      return true;
+
+    }
+
+    if(month==2) return day<29;
+
+    return true;
   };
 
   const validateReporterField = (field: string, rawValue: string, normalizedValue = rawValue) => {
@@ -51,17 +65,10 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           errors.reporterIdentityNumber = "Solo se permiten dígitos; no se aceptan letras, espacios ni caracteres especiales.";
         } else if (normalizedValue && normalizedValue.length !== 11) {
           errors.reporterIdentityNumber = "Debe contener exactamente 11 dígitos.";
-        } else if (normalizedValue && formData.reporterDateOfBirth && !validateIdentityMatchesDate(normalizedValue, formData.reporterDateOfBirth)) {
-          errors.reporterIdentityNumber = "La fecha de nacimiento no coincide con la cédula.";
+        } else if (normalizedValue && !validateIdentityMatchesDate(normalizedValue)) {
+          errors.reporterIdentityNumber = "Rectifica el número de identidad porque no es válido";
         } else {
           delete errors.reporterIdentityNumber;
-        }
-        break;
-      case 'reporterDateOfBirth':
-        if (rawValue && formData.reporterIdentityNumber && !validateIdentityMatchesDate(formData.reporterIdentityNumber, rawValue)) {
-          errors.reporterDateOfBirth = "La fecha debe coincidir con la cédula (YYMMDD).";
-        } else {
-          delete errors.reporterDateOfBirth;
         }
         break;
       case 'reporterPhoneNumber':
@@ -174,42 +181,6 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="reporterDateOfBirth">Fecha de Nacimiento *</Label>
-            <Input
-              id="reporterDateOfBirth"
-              type="date"
-              value={formData.reporterDateOfBirth}
-              onChange={(e) => handleReporterFieldChange("reporterDateOfBirth", e.target.value)}
-              disabled={isPatient}
-              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""} ${(dateErrors?.reporterDateOfBirth || reporterFieldErrors.reporterDateOfBirth) ? "border-red-500" : ""}`}
-            />
-            {(dateErrors?.reporterDateOfBirth || reporterFieldErrors.reporterDateOfBirth) && !isPatient && (
-              <p className="text-sm text-red-600">{reporterFieldErrors.reporterDateOfBirth || dateErrors?.reporterDateOfBirth}</p>
-            )}
-          </div>
-        </div>
-
-        {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="reporterGender">Sexo *</Label>
-            <Select
-              value={formData.reporterGender}
-              onValueChange={(value) => !isPatient && updateFormData("reporterGender", value)}
-              disabled={isPatient}
-            >
-              <SelectTrigger className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}>
-                <SelectValue placeholder="Seleccione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="M">Masculino</SelectItem>
-                <SelectItem value="F">Femenino</SelectItem>
-                <SelectItem value="O">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div> */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
