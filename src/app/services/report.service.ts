@@ -37,6 +37,9 @@ export interface AdverseEvent {
   currentStatus: string;
   symptom?: Symptom;
   symptoms?: Symptom[];
+  severity?: string;
+  severityLevel?: string;
+  intensity?: string;
 }
 
 export interface ClinicalMedicalReviewRequest {
@@ -57,6 +60,8 @@ export interface CreateMedicalReviewRequest {
 export interface AssignedReport {
   id: string;
   reportDate: string;
+  status?: string;
+  globalSeverityLevel?: string;
   vaccinatedSubject: VaccinatedSubject;
   reporter: Reporter;
   vaccinations: Vaccination[];
@@ -104,11 +109,11 @@ export interface VaccinatedSubjectCreate {
 
 export interface VaccinationCreate {
   vaccineId: string;
-  batchNumber: string;
+  lotId: string;
   site: string;
-  doseNumber: number;
+  doseNumber: string;
   administrationDate: string;
-  vaccinationCenter: string;
+  vaccinationCenterId: string;
 }
 
 export interface AdverseEventCreate {

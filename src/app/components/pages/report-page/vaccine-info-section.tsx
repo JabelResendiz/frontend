@@ -261,8 +261,7 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
               )}
             </div>
 
-            {isDoctor && (
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label htmlFor={`doseNumber-${index}`}>Número de Dosis</Label>
                 <Select
                   value={vaccination.doseNumber || ""}
@@ -272,15 +271,15 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                     <SelectValue placeholder="Seleccione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Primera dosis</SelectItem>
-                    <SelectItem value="2">Segunda dosis</SelectItem>
-                    <SelectItem value="3">Tercera dosis</SelectItem>
-                    <SelectItem value="refuerzo">Dosis de refuerzo</SelectItem>
-                    <SelectItem value="unica">Dosis única</SelectItem>
+                    <SelectItem value="Primera">Primera</SelectItem>
+                    <SelectItem value="Segunda">Segunda</SelectItem>
+                    <SelectItem value="Tercer">Tercer</SelectItem>
+                    <SelectItem value="Refuerzo">Refuerzo</SelectItem>
+                    <SelectItem value="Unica">Unica</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            )}
+            </div>
+            
 
             {isDoctor && (
               <div className="space-y-2">

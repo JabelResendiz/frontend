@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
+import { Input } from "@/app/components/ui/input";
 import { ChevronLeft, ChevronRight, Loader2, AlertTriangle, Heart, ChevronDown, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { reportService, type AssignedReport } from "@/app/services/report.service";
@@ -16,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/app/components/ui/select";
+import { translateSeverity, translatePatientStatus } from "@/app/utils/translations";
 
 interface ManageReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
@@ -23,17 +25,11 @@ interface ManageReportsPageProps {
 
 const PAGE_SIZE = 10;
 
-// Función para determinar si un reporte es crítico
-const isCriticalReport = (report: AssignedReport): boolean => {
-  return report.adverseEvents.some(event =>
-    event.isLifeThreatening || event.resultedInDeath || event.permanentDisability || event.wentToEmergencyRoom
-  );
-};
-
-// Función para obtener el nivel de severidad
+// Función para obtener el nivel de severidad desde globalSeverityLevel del backend
 const getSeverityLevel = (report: AssignedReport): 'critical' | 'warning' | 'normal' => {
-  if (report.adverseEvents.some(event => event.resultedInDeath || event.isLifeThreatening)) return 'critical';
-  if (report.adverseEvents.some(event => event.permanentDisability || event.wentToEmergencyRoom)) return 'warning';
+  const globalSeverity = report.globalSeverityLevel?.toLowerCase();
+  if (globalSeverity === 'serious') return 'critical';
+  if (globalSeverity === 'nonserious') return 'warning';
   return 'normal';
 };
 
@@ -55,8 +51,8 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
   
   
-const [severityFilter, setSeverityFilter] = useState<string>("");
-const [vaccineFilter, setVaccineFilter] = useState<string>("");
+const [severityFilter, setSeverityFilter] = useState<string>("all");
+const [vaccineFilter, setVaccineFilter] = useState<string>("all");
 const [vaccinationCenterIdFilter, setVaccinationCenterIdFilter] = useState<string>("");
 
 const [fromFilter, setFromFilter] = useState<string>("");
@@ -75,15 +71,15 @@ const [orderFilter, setOrderFilter] = useState<"asc" | "desc">("desc");
       setIsLoading(true);
       setError(null);
       const response = await reportService.getAssignedReports(
-        pageNumber, 
+        pageNumber,
         PAGE_SIZE,
-        severityFilter,
-        vaccineFilter,
+        severityFilter === 'all' ? '' : severityFilter,
+        vaccineFilter === 'all' ? '' : vaccineFilter,
         vaccinationCenterIdFilter,
-      fromFilter ,
-      toFilter,
-      sortByFilter,
-      orderFilter
+        fromFilter,
+        toFilter,
+        sortByFilter,
+        orderFilter
       );
       setReports(response.items);
       setTotalCount(response.totalCount);
@@ -149,6 +145,31 @@ orderFilter]);
       default:
         return 'border-l-4 border-l-green-500 bg-white';
     }
+  };
+
+  const getEventSeverityColor = (severityLevel?: string) => {
+    if (!severityLevel) return 'bg-gray-50 border-l-4 border-l-gray-300';
+    const level = severityLevel.toLowerCase();
+    if (level === 'serious') return 'bg-red-50 border-l-4 border-l-red-400';
+    if (level === 'nonserious') return 'bg-amber-50 border-l-4 border-l-amber-400';
+    return 'bg-gray-50 border-l-4 border-l-gray-300';
+  };
+
+  const getEventSeverityBadgeColor = (severityLevel?: string) => {
+    if (!severityLevel) return 'bg-gray-200 text-gray-800';
+    const level = severityLevel.toLowerCase();
+    if (level === 'serious') return 'bg-red-200 text-red-800';
+    if (level === 'nonserious') return 'bg-amber-200 text-amber-800';
+    return 'bg-gray-200 text-gray-800';
+  };
+
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'bg-gray-100 text-gray-700';
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'recovering') return 'bg-blue-100 text-blue-800';
+    if (statusLower === 'recovered') return 'bg-green-100 text-green-800';
+    if (statusLower === 'fatal') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-700';
   };
 
   const getSeverityIcon = (severity: 'critical' | 'warning' | 'normal') => {
@@ -245,67 +266,172 @@ orderFilter]);
           </Card>
         )}
 
-        <div className="flex gap-4 mb-4">
-  <select
-    value={severityFilter}
-    onChange={(e) => {
-      setPageNumber(1);
-      setSeverityFilter(e.target.value);
-    }}
-    className="border p-2 rounded"
-  >
-    <option value="">Todas las severidades</option>
-    <option value="serious">Grave</option>
-    <option value="nonserious">Leve</option>
-  </select>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <label htmlFor="severity-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Gravedad
+                </label>
+                <Select
+                  value={severityFilter}
+                  onValueChange={(value) => {
+                    setPageNumber(1);
+                    setSeverityFilter(value);
+                  }}
+                >
+                  <SelectTrigger id="severity-filter" className="w-full">
+                    <SelectValue placeholder="Todas las gravedades" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las gravedades</SelectItem>
+                    <SelectItem value="serious">Serio</SelectItem>
+                    <SelectItem value="nonserious">No serio</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
- <select
-  value={vaccineFilter}
-  onChange={(e) => {
-    setPageNumber(1);
-    setVaccineFilter(e.target.value);
-  }}
-  className="border p-2 rounded"
->
-  <option value="">Todas las vacunas</option>
+              <div>
+                <label htmlFor="vaccine-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Vacuna
+                </label>
+                <Select
+                  value={vaccineFilter}
+                  onValueChange={(value) => {
+                    setPageNumber(1);
+                    setVaccineFilter(value);
+                  }}
+                >
+                  <SelectTrigger id="vaccine-filter" className="w-full">
+                    <SelectValue placeholder="Todas las vacunas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las vacunas</SelectItem>
+                    {vaccines.map((vaccine) => (
+                      <SelectItem key={vaccine.id} value={vaccine.name}>
+                        {vaccine.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-  {vaccines.map((vaccine) => (
-    <option key={vaccine.id} value={vaccine.name}>
-      {vaccine.name}
-    </option>
-  ))}
-</select>
+              {/* <div>
+                <label htmlFor="center-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Centro de vacunación
+                </label>
+                <Input
+                  id="center-filter"
+                  type="text"
+                  placeholder="Buscar centro..."
+                  value={vaccinationCenterIdFilter}
+                  onChange={(e) => {
+                    setPageNumber(1);
+                    setVaccinationCenterIdFilter(e.target.value);
+                  }}
+                />
+              </div> */}
 
+              {/* <div>
+                <label htmlFor="from-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Desde
+                </label>
+                <Input
+                  id="from-filter"
+                  type="date"
+                  value={fromFilter}
+                  onChange={(e) => {
+                    setPageNumber(1);
+                    setFromFilter(e.target.value);
+                  }}
+                />
+              </div>
 
+              <div>
+                <label htmlFor="to-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Hasta
+                </label>
+                <Input
+                  id="to-filter"
+                  type="date"
+                  value={toFilter}
+                  onChange={(e) => {
+                    setPageNumber(1);
+                    setToFilter(e.target.value);
+                  }}
+                />
+              </div> */}
 
-  {/* Ordenar por */}
-  <select
-    value={sortByFilter}
-    onChange={(e) => {
-      setPageNumber(1);
-      setSortByFilter(e.target.value);
-    }}
-    className="border p-2 rounded"
-  >
-    <option value="reportDate">Fecha de reporte</option>
-    <option value="vaccinatedSubject.fullName">Nombre paciente</option>
-  </select>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="sort-by-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Ordenar por
+                  </label>
+                  <Select
+                    value={sortByFilter}
+                    onValueChange={(value) => {
+                      setPageNumber(1);
+                      setSortByFilter(value);
+                    }}
+                  >
+                    <SelectTrigger id="sort-by-filter" className="w-full">
+                      <SelectValue placeholder="Fecha de reporte" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="reportDate">Fecha de reporte</SelectItem>
+                      <SelectItem value="vaccinatedSubject.fullName">Nombre sujeto vacunado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-  {/* Orden asc/desc */}
-  <select
-    value={orderFilter}
-    onChange={(e) => {
-      setPageNumber(1);
-      setOrderFilter(e.target.value as "asc" | "desc");
-    }}
-    className="border p-2 rounded"
-  >
-    <option value="desc">Descendente</option>
-    <option value="asc">Ascendente</option>
-  </select>
+                <div>
+                  <label htmlFor="order-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                    Dirección
+                  </label>
+                  <Select
+                    value={orderFilter}
+                    onValueChange={(value: any) => {
+                      setPageNumber(1);
+                      setOrderFilter(value);
+                    }}
+                  >
+                    <SelectTrigger id="order-filter" className="w-full">
+                      <SelectValue placeholder="Descendente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="desc">Descendente</SelectItem>
+                      <SelectItem value="asc">Ascendente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
 
-
-</div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-600">
+                Página {pageNumber} de {totalPages} · {totalCount} reportes totales
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPageNumber(1);
+                  setSeverityFilter("");
+                  setVaccineFilter("");
+                  setVaccinationCenterIdFilter("");
+                  setFromFilter("");
+                  setToFilter("");
+                  setSortByFilter("reportDate");
+                  setOrderFilter("desc");
+                }}
+                disabled={
+                  !severityFilter && !vaccineFilter && !vaccinationCenterIdFilter && !fromFilter && !toFilter && sortByFilter === "reportDate" && orderFilter === "desc"
+                }
+              >
+                Limpiar filtros
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Reports List */}
         {isLoading ? (
@@ -332,8 +458,8 @@ orderFilter]);
                   <Card key={index} className={`border-0 shadow-md hover:shadow-lg transition-all ${getSeverityColor(severity)}`}>
                     <CardContent className="p-4">
                       {/* Compact View */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => toggleExpandReport(index)}>
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 cursor-pointer" onClick={() => toggleExpandReport(index)}>
                           {/* Severity Icon */}
                           <div className="flex-shrink-0">
                             {getSeverityIcon(severity)}
@@ -360,7 +486,7 @@ orderFilter]);
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                           <Button
                             onClick={() => handleAssignReport(index)}
                             size="sm"
@@ -383,7 +509,7 @@ orderFilter]);
                         <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
                           {/* Paciente */}
                           <div>
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Paciente</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Sujeto Vacunado</p>
                             <p className="text-sm text-gray-900 font-medium">{report.vaccinatedSubject.fullName}</p>
                           </div>
 
@@ -408,19 +534,40 @@ orderFilter]);
                               <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Eventos Adversos</p>
                               <div className="space-y-2">
                                 {report.adverseEvents.map((event, idx) => (
-                                  <div key={idx} className={`text-sm p-2 rounded ${
-                                    event.resultedInDeath || event.isLifeThreatening ? 'bg-red-100 border border-red-300' :
-                                    event.permanentDisability || event.wentToEmergencyRoom ? 'bg-yellow-100 border border-yellow-300' :
-                                    'bg-gray-100'
-                                  }`}>
-                                    <p className="font-medium mb-1">
+                                  <div key={idx} className={`text-sm p-3 rounded ${getEventSeverityColor(event.severityLevel)}`}>
+                                    {/* Encabezado con Severidad y Estado */}
+                                    <div className="flex gap-2 mb-2 flex-wrap items-center">
+                                      {event.severityLevel && (
+                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${getEventSeverityBadgeColor(event.severityLevel)}`}>
+                                          {translateSeverity(event.severityLevel)}
+                                        </span>
+                                      )}
+                                      {event.currentStatus && (
+                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(event.currentStatus)}`}>
+                                          {translatePatientStatus(event.currentStatus)}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Fechas */}
+                                    <p className="font-medium mb-2 text-gray-700">
                                       Inicio: {new Date(event.startDate).toLocaleDateString('es-ES')}
+                                      {event.finishDate && ` • Fin: ${new Date(event.finishDate).toLocaleDateString('es-ES')}`}
                                     </p>
+
+                                    {/* Intensidad */}
+                                    {/* {event.intensity && (
+                                      <div className="text-xs text-gray-600 mb-2">
+                                        <span className="font-semibold">Intensidad:</span> {event.intensity}
+                                      </div>
+                                    )} */}
+
+                                    {/* Desenlaces y Complicaciones */}
                                     <div className="grid grid-cols-2 gap-1 text-xs">
                                       {event.resultedInDeath && <span className="text-red-800 font-semibold">❌ Resultó en Muerte</span>}
                                       {event.isLifeThreatening && <span className="text-red-800 font-semibold">⚠️ Amenaza de Vida</span>}
-                                      {event.permanentDisability && <span className="text-yellow-800 font-semibold">⚠️ Discapacidad Permanente</span>}
-                                      {event.wentToEmergencyRoom && <span className="text-yellow-800">🏥 Sala de Emergencias</span>}
+                                      {event.permanentDisability && <span className="text-orange-800 font-semibold">⚠️ Discapacidad Permanente</span>}
+                                      {event.wentToEmergencyRoom && <span className="text-orange-700">🏥 Hospitalizado</span>}
                                       {event.visitedDoctor && <span className="text-gray-700">👨‍⚕️ Visitó Doctor</span>}
                                     </div>
                                   </div>

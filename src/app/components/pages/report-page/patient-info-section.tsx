@@ -17,7 +17,6 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
-  const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
   const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
 
   const validateIdentityMatchesDate = (identityNumber: string): boolean => {
@@ -47,6 +46,27 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
 
     return true;
     
+  };
+
+  const extractDateOfBirthFromIdentity = (identityNumber: string): string => {
+    const cleaned = identityNumber.replace(/\D/g, '');
+    if (cleaned.length !== 11) return "";
+
+    const yy = cleaned.substring(0, 2);
+    const mm = cleaned.substring(2, 4);
+    const dd = cleaned.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+
+    const date = new Date(fullYear, month - 1, day);
+    if (date.getFullYear() !== fullYear || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      return "";
+    }
+
+    return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   };
 
   const validatePatientField = (field: string, rawValue: string, normalizedValue = rawValue) => {
@@ -81,18 +101,21 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
     setPatientFieldErrors(errors);
   };
 
-  const handlePatientFieldChange = (field: string, value: string) => {
+  const handlePatientFieldChange = <K extends keyof FormData>(field: K, value: string) => {
     let normalizedValue = value;
+
     if (field === 'patientIdentityNumber') {
       normalizedValue = value.replace(/\D/g, '').slice(0, 11);
+      const dateOfBirthValue = extractDateOfBirthFromIdentity(normalizedValue);
+      updateFormData("patientDateOfBirth", dateOfBirthValue as FormData["patientDateOfBirth"]);
     }
 
     if (field === 'patientPhoneNumber') {
       normalizedValue = value.replace(/\D/g, '');
     }
 
-    updateFormData(field as keyof FormData, normalizedValue);
-    validatePatientField(field, value, normalizedValue);
+    updateFormData(field, normalizedValue as FormData[K]);
+    validatePatientField(field as string, value, normalizedValue);
   };
 
   return (
@@ -128,6 +151,17 @@ export function PatientInfoSection({ formData, updateFormData, dateErrors = {} }
           />
           {patientFieldErrors.patientIdentityNumber && (
             <p className="text-sm text-red-600">{patientFieldErrors.patientIdentityNumber}</p>
+          )}
+          {formData.patientIdentityNumber.replace(/\D/g, '').length === 11 && formData.patientDateOfBirth && (
+            <p className="text-sm text-gray-700">
+              Fecha de nacimiento extraída: <strong>{formData.patientDateOfBirth}</strong>
+            </p>
+          )}
+          {formData.patientIdentityNumber.replace(/\D/g, '').length === 11 && !formData.patientDateOfBirth && (
+            <p className="text-sm text-red-600">No se pudo extraer una fecha válida del número de identidad.</p>
+          )}
+          {dateErrors.patientDateOfBirth && (
+            <p className="text-sm text-red-600">{dateErrors.patientDateOfBirth}</p>
           )}
         </div>
       </div>

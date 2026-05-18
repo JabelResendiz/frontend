@@ -57,6 +57,27 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
     return true;
   };
 
+  const extractDateOfBirthFromIdentity = (identityNumber: string): string => {
+    const cleaned = identityNumber.replace(/\D/g, '');
+    if (cleaned.length !== 11) return "";
+
+    const yy = cleaned.substring(0, 2);
+    const mm = cleaned.substring(2, 4);
+    const dd = cleaned.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+
+    const date = new Date(fullYear, month - 1, day);
+    if (date.getFullYear() !== fullYear || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      return "";
+    }
+
+    return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
   const validateReporterField = (field: string, rawValue: string, normalizedValue = rawValue) => {
     const errors = { ...reporterFieldErrors };
     switch (field) {
@@ -87,7 +108,7 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
         break;
       case 'reporterProfessionalLicense':
         if (isDoctor && !rawValue.trim()) {
-          errors.reporterProfessionalLicense = "La cédula profesional es requerida para médicos.";
+          errors.reporterProfessionalLicense = "EL número de registro profesional es requerida para médicos.";
         } else {
           delete errors.reporterProfessionalLicense;
         }
@@ -107,13 +128,15 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
     let normalizedValue = value;
     if (field === 'reporterIdentityNumber') {
       normalizedValue = value.replace(/\D/g, '').slice(0, 11);
+      const dateOfBirthValue = extractDateOfBirthFromIdentity(normalizedValue);
+      updateFormData("reporterDateOfBirth", dateOfBirthValue as FormData["reporterDateOfBirth"]);
     }
 
     if (field === 'reporterPhoneNumber') {
       normalizedValue = value.replace(/\D/g, '');
     }
 
-    updateFormData(field as keyof FormData, normalizedValue);
+    updateFormData(field as keyof FormData, normalizedValue as FormData[typeof field]);
     validateReporterField(field, value, normalizedValue);
   };
 
@@ -177,6 +200,14 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
             />
             {reporterFieldErrors.reporterIdentityNumber && !isPatient && (
               <p className="text-sm text-red-600">{reporterFieldErrors.reporterIdentityNumber}</p>
+            )}
+            {formData.reporterIdentityNumber.replace(/\D/g, '').length === 11 && formData.reporterDateOfBirth && (
+              <p className="text-sm text-gray-700">
+                Fecha de nacimiento extraída: <strong>{formData.reporterDateOfBirth}</strong>
+              </p>
+            )}
+            {formData.reporterIdentityNumber.replace(/\D/g, '').length === 11 && !formData.reporterDateOfBirth && (
+              <p className="text-sm text-red-600">No se pudo extraer una fecha válida del número de identidad.</p>
             )}
           </div>
         </div>
@@ -272,10 +303,10 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
         {isDoctor && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="reporterProfessionalLicense">Cédula Profesional *</Label>
+              <Label htmlFor="reporterProfessionalLicense">Número de registro profesional *</Label>
               <Input
                 id="reporterProfessionalLicense"
-                placeholder="Número de cédula profesional"
+                placeholder="Número de número de registro profesional"
                 value={formData.reporterProfessionalLicense || ""}
                 onChange={(e) => handleReporterFieldChange("reporterProfessionalLicense", e.target.value)}
                 className="bg-white"

@@ -10,6 +10,11 @@ import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { AlertCircle, ChevronLeft, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { reportService, AssignedReport } from '@/app/services/report.service';
+import { 
+  translateCausality,
+  translateClinicalSignificance, 
+  translatePatientStatus,
+  translateAdministrationSite } from '@/app/utils/translations';
 
 interface ReviewReportPageProps {
   reportId?: string;
@@ -100,65 +105,64 @@ console.log(reviewedAt);
     }
   };
 
-  const handleDownload = () => {
-    const txtContent = `REPORTE DE EVENTO ADVERSO - REVISIÓN MÉDICA
-===========================================
+//   const handleDownload = () => {
+//     const txtContent = `REPORTE DE EVENTO ADVERSO - REVISIÓN MÉDICA
+// ===========================================
 
-Fecha del Reporte: ${new Date(report.reportDate).toLocaleString('es-ES')}
+// Fecha del Reporte: ${new Date(report.reportDate).toLocaleString('es-ES')}
 
-PERSONA VACUNADA: ${report.vaccinatedSubject.fullName}
+// PERSONA VACUNADA: ${report.vaccinatedSubject.fullName}
 
-REPORTANTE: ${report.reporter.fullName}
-Teléfono: ${report.reporter.phoneNumber}
-Email: ${report.reporter.email}
+// REPORTANTE: ${report.reporter.fullName}
+// Teléfono: ${report.reporter.phoneNumber}
+// Email: ${report.reporter.email}
 
-VACUNACIONES:
-${report.vaccinations
-      .map(
-        (v, index) => `Vacunación #${index + 1}:
-- Vacuna: ${v.vaccineName}
-- Lote: ${v.batchNumber}
-- Sitio: ${v.administrationSite}
-- Dosis: ${v.doseNumber}
-- Fecha: ${new Date(v.administrationDate).toLocaleString('es-ES')}
-- Centro: ${v.vaccinationCenter}`
-      )
-      .join('\n\n')}
+// VACUNACIONES:
+// ${report.vaccinations
+//       .map(
+//         (v, index) => `Vacunación #${index + 1}:
+// - Vacuna: ${v.vaccineName}
+// - Lote: ${v.lotNumber}
+// - Sitio: ${translateAdministrationSite(v.administrationSite)}
+// - Dosis: ${v.doseNumber}
+// - Fecha: ${new Date(v.administrationDate).toLocaleString('es-ES')}
+// - Centro: ${v.vaccinationCenterName}`
+//       )
+//       .join('\n\n')}
 
-EVENTO(S) ADVERSO(S):
-${report.adverseEvents
-      .map(
-        (event, index) => `Evento #${index + 1}:
-- Fecha de Inicio: ${new Date(event.startDate).toLocaleString('es-ES')}
-- Estado Actual: ${event.currentStatus}
-- Visitó Doctor: ${event.visitedDoctor ? 'Sí' : 'No'}
-- Sala de Emergencias: ${event.wentToEmergencyRoom ? 'Sí' : 'No'}
-- Discapacidad Permanente: ${event.permanentDisability ? 'Sí' : 'No'}
-- Amenaza Vital: ${event.isLifeThreatening ? 'Sí' : 'No'}
-- Resultó en Muerte: ${event.resultedInDeath ? 'Sí' : 'No'}
-- Fecha de Muerte: ${event.deathDate ?? 'N/A'}
-- Síntomas: ${event.symptoms.map((s) => s.name).join(', ')}`
-      )
-      .join('\n\n')}
+// EVENTO(S) ADVERSO(S):
+// ${report.adverseEvents
+//       .map(
+//         (event, index) => `Evento #${index + 1}:
+// - Fecha de Inicio: ${new Date(event.startDate).toLocaleString('es-ES')}
+// - Estado Actual: ${translatePatientStatus(event.currentStatus)}
+// - Visitó Doctor: ${event.visitedDoctor ? 'Sí' : 'No'}
+// - Sala de Emergencias: ${event.wentToEmergencyRoom ? 'Sí' : 'No'}
+// - Discapacidad Permanente: ${event.permanentDisability ? 'Sí' : 'No'}
+// - Amenaza Vital: ${event.isLifeThreatening ? 'Sí' : 'No'}
+// - Resultó en Muerte: ${event.resultedInDeath ? 'Sí' : 'No'}
+// - Fecha de Muerte: ${event.deathDate ?? 'N/A'}
+// - Síntomas: ${event.symptom?.name}
 
-EVALUACIÓN CLÍNICA DEL MÉDICO:
-Causalidad: ${causality}
-Significancia Clínica: ${clinicalSignificance}
-Resultados de Laboratorio: ${laboratoryResults}
-MedDRA: ${medDRACode}
-Clasificación RET: ${retClassification}
-`.trim();
+// EVALUACIÓN CLÍNICA DEL MÉDICO:
+// Causalidad: ${translateCausality(causality)}
+// Significancia Clínica: ${translateClinicalSignificance(clinicalSignificance)}
+// Resultados de Laboratorio: ${laboratoryResults}
+// MedDRA: ${medDRACode}
+// Clasificación RET: ${retClassification}
+// `.trim();
 
-    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `revision-reporte-${report.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+
+//     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+//     const url = URL.createObjectURL(blob);
+//     const a = document.createElement('a');
+//     a.href = url;
+//     a.download = `revision-reporte-${report.id}.txt`;
+//     document.body.appendChild(a);
+//     a.click();
+//     document.body.removeChild(a);
+//     URL.revokeObjectURL(url);
+//   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -178,7 +182,7 @@ Clasificación RET: ${retClassification}
               <h1 className="text-3xl font-bold">Revisión de Reporte</h1>
             </div>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -188,7 +192,7 @@ Clasificación RET: ${retClassification}
               <Download className="w-4 h-4" />
               Descargar
             </Button>
-          </div>
+          </div> */}
         </div>
 
         <div className="space-y-6">
@@ -248,7 +252,7 @@ Clasificación RET: ${retClassification}
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Sitio de Administración</Label>
-                        <p className="text-gray-900 mt-1">{vaccination.administrationSite}</p>
+                        <p className="text-gray-900 mt-1">{translateAdministrationSite(vaccination.administrationSite)}</p>
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Dosis</Label>
@@ -288,7 +292,7 @@ Clasificación RET: ${retClassification}
                     </div>
                     <div>
                       <Label className="text-sm font-semibold text-gray-700">Estado Actual</Label>
-                      <p className="text-gray-900 mt-1">{event.currentStatus}</p>
+                      <p className="text-gray-900 mt-1">{translatePatientStatus(event.currentStatus)}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-semibold text-gray-700">Visitó Doctor</Label>
@@ -365,11 +369,11 @@ Clasificación RET: ${retClassification}
                       <SelectValue placeholder="Seleccione causalidad" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Definitive">Definitive</SelectItem>
+                      <SelectItem value="Definitive">Definitiva</SelectItem>
                       <SelectItem value="Probable">Probable</SelectItem>
-                      <SelectItem value="Possible">Possible</SelectItem>
-                      <SelectItem value="Improbable">Improbable</SelectItem>
-                      <SelectItem value="NotEvaluable">NotEvaluable</SelectItem>
+                      <SelectItem value="Possible">Posible</SelectItem>
+                      <SelectItem value="Improbable">Improbable / No relacionada</SelectItem>
+                      <SelectItem value="NotEvaluable">No evaluable</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -381,10 +385,10 @@ Clasificación RET: ${retClassification}
                       <SelectValue placeholder="Seleccione significancia clínica" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ClinicallySignificantAndUnexpected">ClinicallySignificantAndUnexpected</SelectItem>
-                      <SelectItem value="ExpectedEvent">ExpectedEvent</SelectItem>
-                      <SelectItem value="SeriousOrLifeThreatening">SeriousOrLifeThreatening</SelectItem>
-                      <SelectItem value="MinorEvent">MinorEvent</SelectItem>
+                      <SelectItem value="ClinicallySignificantAndUnexpected">Clínicamente significativo e inesperado</SelectItem>
+                      <SelectItem value="ExpectedEvent">Evento esperado</SelectItem>
+                      <SelectItem value="SeriousOrLifeThreatening">Evento serio o potencialmente mortal</SelectItem>
+                      <SelectItem value="MinorEvent">Evento menor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

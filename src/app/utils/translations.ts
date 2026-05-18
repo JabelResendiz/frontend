@@ -14,9 +14,8 @@ export const enumTranslations = {
 
   // Severidad
   severity: {
-    Mild: "Leve",
-    Moderate: "Moderado",
-    Severe: "Severo"
+    Serious:"Serio",
+    NonSerious: "No Serio"
   },
   
   // Estado del reporte

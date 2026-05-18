@@ -23,6 +23,7 @@ export interface AdverseEvent {
 export interface FormData {
   // Reportante info
   reporterFullName: string;
+  reporterDateOfBirth:string;
   reporterGender: string;
   reporterProvince: string;
   reporterMunicipality: string;
@@ -34,6 +35,7 @@ export interface FormData {
 
   // Patient (VaccinatedSubject) info
   patientFullName: string;
+  patientDateOfBirth:string;
   patientIdentityNumber: string;
   patientGender: string;
   patientProvince: string;

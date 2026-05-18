@@ -877,10 +877,10 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           vaccineId: v.vaccineId,
           // batchNumber: v.vaccineBatchNumber || "",
           site: siteMap[v.administrationSite as keyof typeof siteMap] || "leftarm",
-          doseNumber: parseInt(v.doseNumber || "1"),
+          doseNumber: v.doseNumber || "",
           administrationDate: v.vaccinationDate ? new Date(v.vaccinationDate).toISOString() : "",
-          lotId: v.vaccinationLotId,
-          vaccinationCenterId: v.vaccinationCenterId
+          lotId: v.vaccinationLotId || "",
+          vaccinationCenterId: v.vaccinationCenterId || ""
           // vaccinationCenter: v.vaccinationSite || "string"
         })),
         adverseEvents: formData.adverseEvents.map(event => ({
