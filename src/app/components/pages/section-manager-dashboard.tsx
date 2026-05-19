@@ -259,6 +259,19 @@ export function SectionManagerDashboard() {
   ];
   const severityTotalSum = severityTotals.reduce((s, it) => s + it.value, 0);
 
+  function CustomPieTooltip({ active, payload, total }: any) {
+    if (!active || !payload || payload.length === 0) return null;
+    const data = payload[0].payload;
+    const value = data.value ?? 0;
+    const percent = total ? ((value / total) * 100).toFixed(1) : '0.0';
+    return (
+      <div className="bg-white p-2 rounded shadow border text-sm">
+        <div className="font-medium text-slate-700">{data.label}</div>
+        <div className="text-slate-500">{value} · {percent}%</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -747,40 +760,10 @@ export function SectionManagerDashboard() {
                   )}
                 </CardContent>
               </Card>
-            </div>
+              </div>
 
-            <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
-              <CardHeader>
-                <CardTitle>Totales por gravedad</CardTitle>
-                <p className="text-sm text-slate-500">Cada tipo de gravedad retornado por el endpoint.</p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {severityTotals.map((item, idx) => {
-                    const percent = severityTotalSum ? Math.round((item.value / severityTotalSum) * 100) : 0;
-                    return (
-                      <div key={item.label} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-white border border-slate-100 shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <span className="inline-block w-3 h-3 rounded-full" style={{ background: severityColors[idx % severityColors.length] }} />
-                          <div>
-                            <div className="text-sm text-slate-700">{item.label}</div>
-                            <div className="text-xs text-slate-400">{percent}% del total</div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-semibold text-slate-900">{item.value}</div>
-                          <div className="w-36 h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                            <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: severityColors[idx % severityColors.length] }} />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid gap-4 xl:grid-cols-2">
+              
+              <div className="grid gap-4 xl:grid-cols-2">
               <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
                 <CardHeader>
                   <CardTitle>Top Vacunas</CardTitle>
@@ -862,8 +845,8 @@ export function SectionManagerDashboard() {
                   <CardTitle>Distribución por Gravedad</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                    <div className="h-80">
+                  <div className="grid gap-6 grid-cols-1 xl:grid-cols-[1.2fr_0.8fr]">
+                    <div className="h-80 flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -873,29 +856,20 @@ export function SectionManagerDashboard() {
                             cx="50%"
                             cy="50%"
                             outerRadius={100}
-                            label={(entry) => `${entry.severity}: ${entry.totalReports}`}
+                            label={({ name, percent }: any) => `${name} · ${Math.round((percent ?? 0) * 100)}%`}
+                            labelLine={false}
                           >
                             {(characterization?.severityDistribution ?? []).map((item, index) => (
                               <Cell key={item.severity} fill={severityColors[index % severityColors.length]} />
                             ))}
                           </Pie>
                           <Tooltip formatter={(value: any) => [`${value}`, 'Reportes']} />
-                          <Legend />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="grid gap-3">
-                        {severityTotals.map((item, idx) => (
-                          <div key={item.label} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="inline-block w-3 h-3 rounded-full" style={{ background: severityColors[idx % severityColors.length] }} />
-                              <span className="text-sm text-slate-700">{item.label}</span>
-                            </div>
-                            <div className="text-sm font-semibold text-slate-900">{item.value}</div>
-                          </div>
-                        ))}
-                      </div>
+                    {/* right column intentionally left for legend or other content on wide screens */}
+                    <div className="hidden xl:flex items-center justify-center text-sm text-slate-500">
+                      <div>No hay lista; los totales globales se muestran en el panel independiente arriba.</div>
                     </div>
                   </div>
                 </CardContent>
@@ -920,6 +894,40 @@ export function SectionManagerDashboard() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Nuevo panel separado: Pie chart con los cinco totales por gravedad */}
+              <div className="my-4">
+                <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
+                  <CardHeader>
+                    <CardTitle>Totales por Gravedad (Global)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={severityTotals}
+                            dataKey="value"
+                            nameKey="label"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={100}
+                            label={({ value, percent }: any) => `${value} · ${Math.round((percent ?? 0) * 100)}%`}
+                            labelLine={false}
+                          >
+                            {severityTotals.map((item, index) => (
+                              <Cell key={item.label} fill={severityColors[index % severityColors.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={(props) => <CustomPieTooltip {...props} total={severityTotalSum} />} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
             </div>
           </TabsContent>
         </Tabs>

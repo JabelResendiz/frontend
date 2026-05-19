@@ -56,10 +56,10 @@ export function HomePage({ onNavigate }: HomePageProps) {
                       size="lg"
                       variant="outline"
                       className="bg-white/10 hover:bg-white/20 text-white border-white/30 font-semibold px-8 py-6 text-lg backdrop-blur-sm"
-                      onClick={() => onNavigate("doctor-dashboard")}
+                      onClick={() => onNavigate("assigned-reports")}
                     >
                       <BarChart3 className="w-5 h-5 mr-2" />
-                      Ver Mi Panel
+                      Ver Reportes Asignados
                     </Button>
                   ) : user?.role === 'Admin' ? (
                     <Button

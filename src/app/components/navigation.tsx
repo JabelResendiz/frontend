@@ -17,9 +17,9 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
   const navItems = [
     { id: "home", label: "Inicio", icon: Shield },
     ...(user?.role === 'MedicalReviewer' ? [
-      { id: "report", label: "Reportar Evento", icon: FileText },
+      //{ id: "report", label: "Reportar Evento", icon: FileText },
       { id: "assigned-reports", label: "Reportes Asignados", icon: BarChart3 },
-      { id: "doctor-dashboard", label: "Mi Panel", icon: BarChart3 },
+      //{ id: "doctor-dashboard", label: "Mi Panel", icon: BarChart3 },
     ] : []),
     // ...(user?.role === 'paciente' ? [
     //   { id: "report", label: "Reportar Evento", icon: FileText },
