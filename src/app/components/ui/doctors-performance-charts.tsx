@@ -5,7 +5,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
+  LabelList,
   ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
@@ -21,10 +21,10 @@ export function DoctorsPerformanceCharts({ data, isLoading = false }: DoctorsPer
   if (isLoading) {
     return (
       <div className="space-y-6">
-        {[...Array(4)].map((_, i) => (
+        {[...Array(3)].map((_, i) => (
           <Card key={i} className="border-0 shadow-lg">
             <CardHeader>
-              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-6 w-44" />
             </CardHeader>
             <CardContent>
               <Skeleton className="h-80 w-full" />
@@ -45,190 +45,146 @@ export function DoctorsPerformanceCharts({ data, isLoading = false }: DoctorsPer
     );
   }
 
-  // Sort data by completed reports (descending)
-  const byCompletedReports = [...data].sort(
-    (a, b) => b.completedReports - a.completedReports
-  );
-
-  // Sort data by assigned reports (descending)
-  const byAssignedReports = [...data].sort(
-    (a, b) => b.assignedReports - a.assignedReports
-  );
-
-  // Sort data by completion rate (descending)
-  const byCompletionRate = [...data].sort(
-    (a, b) => b.completionRate - a.completionRate
-  );
-
-  // Sort data by average review time (ascending - faster is better)
+  const byCompletionRate = [...data].sort((a, b) => b.completionRate - a.completionRate);
+  const byCompletedReports = [...data].sort((a, b) => b.completedReports - a.completedReports);
   const byReviewTime = [...data]
     .filter((d) => d.averageReviewTimeHours > 0)
     .sort((a, b) => a.averageReviewTimeHours - b.averageReviewTimeHours);
 
+  const chartHeightForData = (count: number) => Math.max(320, count * 52 + 80);
+  const sharedMargin = { top: 20, right: 24, left: 20, bottom: 20 };
+  const tooltipStyle = {
+    backgroundColor: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
+    boxShadow: "0 12px 24px rgba(15, 23, 42, 0.08)",
+  };
+  const labelStyle = { fill: "#0f172a", fontSize: 12, fontWeight: 600 };
+
   return (
     <div className="space-y-8">
-      {/* Chart 1: Reportes Completados */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg" style={{ color: "#0A4B8F" }}>
-            ✅ Médicos por Reportes Completados
-          </CardTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            Ranking de médicos ordenados por cantidad de reportes completados
-          </p>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={byCompletedReports}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="doctorName"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
-              />
-              <Legend />
-              <Bar dataKey="completedReports" fill="#10B981" name="Completados" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="pendingReports" fill="#F59E0B" name="Pendientes" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="expiredReports" fill="#EF4444" name="Expirados" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Chart 2: Reportes Asignados */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg" style={{ color: "#0A4B8F" }}>
-            📊 Médicos por Reportes Asignados
-          </CardTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            Ranking de médicos por carga total de trabajo (reportes asignados)
-          </p>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={byAssignedReports}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="doctorName"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
-              />
-              <Legend />
-              <Bar dataKey="assignedReports" fill="#3B82F6" name="Asignados" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Chart 3: Tasa de Completación */}
       <Card className="border-0 shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg" style={{ color: "#0A4B8F" }}>
             📈 Tasa de Completación por Médico
           </CardTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            Porcentaje de reportes completados respecto a los asignados (mayor es mejor)
+          <p className="text-sm text-slate-600 mt-2">
+            Los médicos mejor calificados por porcentaje de reportes completados.
           </p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={byCompletionRate}>
-              <CartesianGrid strokeDasharray="3 3" />
+          <ResponsiveContainer width="100%" height={chartHeightForData(byCompletionRate.length)}>
+            <BarChart
+              layout="vertical"
+              data={byCompletionRate}
+              margin={sharedMargin}
+              barSize={30}
+            >
+              <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
               <XAxis
+                type="number"
+                domain={[0, 100]}
+                tick={{ fill: "#334155", fontSize: 13 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
                 dataKey="doctorName"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                tick={{ fontSize: 12 }}
+                type="category"
+                width={180}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#334155", fontSize: 13 }}
               />
-              <YAxis domain={[0, 100]} label={{ value: "(%)", angle: -90, position: "insideLeft" }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                }}
-                formatter={(value: any) => `${value}%`}
-              />
-              <Legend />
-              <Bar
-                dataKey="completionRate"
-                fill="#8B5CF6"
-                name="Tasa Completación (%)"
-                radius={[8, 8, 0, 0]}
-              />
+              <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [`${value}%`, "Tasa de completación"]} />
+              <Bar dataKey="completionRate" fill="#8B5CF6" radius={[12, 12, 12, 12]}>
+                <LabelList dataKey="completionRate" position="right" formatter={(value: number) => `${value}%`} style={labelStyle} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Chart 4: Tiempo Promedio de Revisión */}
-      {byReviewTime.length > 0 && (
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg" style={{ color: "#0A4B8F" }}>
-              ⚡ Velocidad de Revisión (Médicos Activos)
+              ✅ Reportes Completados
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-2">
-              Tiempo promedio de revisión en horas (menor es mejor) - Solo médicos con reportes completados
+            <p className="text-sm text-slate-600 mt-2">
+              Médicos ordenados por cantidad de reportes completados.
             </p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={byReviewTime}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
+            <ResponsiveContainer width="100%" height={chartHeightForData(byCompletedReports.length)}>
+              <BarChart
+                layout="vertical"
+                data={byCompletedReports}
+                margin={sharedMargin}
+                barSize={30}
+              >
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                <XAxis type="number" tick={{ fill: "#334155", fontSize: 13 }} axisLine={false} tickLine={false} />
+                <YAxis
                   dataKey="doctorName"
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                  tick={{ fontSize: 12 }}
+                  type="category"
+                  width={180}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#334155", fontSize: 13 }}
                 />
-                <YAxis label={{ value: "(horas)", angle: -90, position: "insideLeft" }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                  }}
-                  formatter={(value: any) => `${value.toFixed(2)} horas`}
-                />
-                <Legend />
-                <Bar
-                  dataKey="averageReviewTimeHours"
-                  fill="#EF4444"
-                  name="Tiempo Promedio (horas)"
-                  radius={[8, 8, 0, 0]}
-                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [value, "Reportes completados"]} />
+                <Bar dataKey="completedReports" fill="#10B981" radius={[12, 12, 12, 12]}>
+                  <LabelList dataKey="completedReports" position="right" style={labelStyle} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      )}
 
-      {/* Summary Statistics Table */}
-      <Card className="border-0 shadow-lg bg-blue-50">
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-lg" style={{ color: "#0A4B8F" }}>
+              ⚡ Velocidad de Revisión
+            </CardTitle>
+            <p className="text-sm text-slate-600 mt-2">
+              Médicos con menor tiempo promedio de revisión en horas.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={chartHeightForData(byReviewTime.length)}>
+              <BarChart
+                layout="vertical"
+                data={byReviewTime}
+                margin={sharedMargin}
+                barSize={30}
+              >
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                <XAxis type="number" tick={{ fill: "#334155", fontSize: 13 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  dataKey="doctorName"
+                  type="category"
+                  width={180}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#334155", fontSize: 13 }}
+                />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value: any) => [`${value.toFixed(2)} h`, "Horas promedio"]} />
+                <Bar dataKey="averageReviewTimeHours" fill="#EF4444" radius={[12, 12, 12, 12]}>
+                  <LabelList
+                    dataKey="averageReviewTimeHours"
+                    position="right"
+                    formatter={(value: number) => `${value.toFixed(1)}h`}
+                    style={labelStyle}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-0 shadow-lg bg-slate-50">
         <CardHeader>
           <CardTitle className="text-lg" style={{ color: "#0A4B8F" }}>
             📋 Resumen General de Médicos
@@ -238,45 +194,25 @@ export function DoctorsPerformanceCharts({ data, isLoading = false }: DoctorsPer
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b-2 border-blue-200">
-                  <th className="text-left py-3 px-4 font-semibold text-blue-900">Médico</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-900">Asignados</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-900">Completados</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-900">Pendientes</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-900">Tasa %</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-900">Tiempo Prom.</th>
+                <tr className="border-b-2 border-slate-200">
+                  <th className="text-left py-3 px-4 font-semibold text-slate-900">Médico</th>
+                  <th className="text-center py-3 px-4 font-semibold text-slate-900">Asignados</th>
+                  <th className="text-center py-3 px-4 font-semibold text-slate-900">Completados</th>
+                  <th className="text-center py-3 px-4 font-semibold text-slate-900">Pendientes</th>
+                  <th className="text-center py-3 px-4 font-semibold text-slate-900">Tasa %</th>
+                  <th className="text-center py-3 px-4 font-semibold text-slate-900">Tiempo Prom.</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((doctor) => (
-                  <tr key={doctor.doctorId} className="border-b border-blue-100 hover:bg-blue-100 transition">
-                    <td className="py-3 px-4 font-medium text-blue-900">{doctor.doctorName}</td>
-                    <td className="text-center py-3 px-4 text-blue-800">{doctor.assignedReports}</td>
-                    <td className="text-center py-3 px-4 text-green-600 font-semibold">
-                      {doctor.completedReports}
-                    </td>
-                    <td className="text-center py-3 px-4 text-yellow-600 font-semibold">
-                      {doctor.pendingReports}
-                    </td>
-                    <td className="text-center py-3 px-4">
-                      <span
-                        className="inline-block px-3 py-1 rounded-full text-white font-semibold"
-                        style={{
-                          backgroundColor:
-                            doctor.completionRate >= 50
-                              ? "#10B981"
-                              : doctor.completionRate >= 25
-                              ? "#F59E0B"
-                              : "#EF4444",
-                        }}
-                      >
-                        {doctor.completionRate}%
-                      </span>
-                    </td>
-                    <td className="text-center py-3 px-4 text-red-600">
-                      {doctor.averageReviewTimeHours > 0
-                        ? `${doctor.averageReviewTimeHours.toFixed(1)}h`
-                        : "-"}
+                  <tr key={doctor.doctorId} className="border-b border-slate-200 hover:bg-slate-100 transition">
+                    <td className="py-3 px-4 font-medium text-slate-900">{doctor.doctorName}</td>
+                    <td className="text-center py-3 px-4 text-slate-700">{doctor.assignedReports}</td>
+                    <td className="text-center py-3 px-4 text-emerald-600 font-semibold">{doctor.completedReports}</td>
+                    <td className="text-center py-3 px-4 text-amber-600 font-semibold">{doctor.pendingReports}</td>
+                    <td className="text-center py-3 px-4 text-violet-700 font-semibold">{doctor.completionRate}%</td>
+                    <td className="text-center py-3 px-4 text-rose-600">
+                      {doctor.averageReviewTimeHours > 0 ? `${doctor.averageReviewTimeHours.toFixed(1)}h` : "-"}
                     </td>
                   </tr>
                 ))}
