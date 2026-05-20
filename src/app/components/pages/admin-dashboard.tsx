@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import {
   BarChart,
   Bar,
@@ -58,6 +59,53 @@ type MonthlyTrendItem = {
   totalReports: number;
 };
 
+type PerformanceMunicipality = {
+  municipalityName: string;
+  activeDoctors: number;
+  avgReportsPerDoctor: number;
+  avgReviewTimeHours: number;
+  avgAssignmentHours: number;
+};
+
+type PerformanceProvince = {
+  provinceName: string;
+  activeDoctors: number;
+  avgReportsPerDoctor: number;
+  avgReviewTimeHours: number;
+  avgAssignmentHours: number;
+  municipalities: PerformanceMunicipality[];
+};
+
+type AdminPerformanceData = {
+  activeDoctors: number;
+  avgReportsPerDoctor: number;
+  avgReviewTimeHours: number;
+  avgAssignmentHours: number;
+  activeMedicalReviewers: PerformanceProvince[];
+};
+
+type VaccineLot = {
+  lotNumber: string;
+  totalReports: number;
+};
+
+type VaccineItem = {
+  vaccineName: string;
+  totalReports: number;
+  lots: VaccineLot[];
+};
+
+type SymptomDistributionItem = {
+  symptomName: string;
+  count: number;
+  percentage: number;
+};
+
+type AdminVaccineData = {
+  vaccines: VaccineItem[];
+  symptomDistribution: SymptomDistributionItem[];
+};
+
 type AdminReportData = {
   totalReports: number;
   submitted: number;
@@ -95,9 +143,17 @@ const resolveProvinceKey = (value: string) => {
 };
 
 export const AdminDashboard = () => {
+  const [activeTab, setActiveTab] = useState<'report' | 'performance' | 'vaccines'>('report');
   const [reportData, setReportData] = useState<AdminReportData | null>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [performanceData, setPerformanceData] = useState<AdminPerformanceData | null>(null);
+  const [isLoadingPerformance, setIsLoadingPerformance] = useState(false);
+  const [performanceError, setPerformanceError] = useState<string | null>(null);
+  const [selectedPerformanceProvinceName, setSelectedPerformanceProvinceName] = useState<string>('');
+  const [vaccineData, setVaccineData] = useState<AdminVaccineData | null>(null);
+  const [isLoadingVaccines, setIsLoadingVaccines] = useState(false);
+  const [vaccinesError, setVaccinesError] = useState<string | null>(null);
   const [hoveredProvince, setHoveredProvince] = useState<ProvinceReport | null>(null);
 
   const mapContainer = useRef<HTMLDivElement | null>(null);
@@ -207,6 +263,46 @@ export const AdminDashboard = () => {
     totalReports: item.totalReports,
   })) ?? [];
 
+  const performanceSummaryCards = useMemo(
+    () => [
+      { label: 'Médicos activos', value: performanceData?.activeDoctors ?? 0, color: '#0A4B8F' },
+      { label: 'Promedio reportes/médico', value: performanceData?.avgReportsPerDoctor ?? 0, color: '#10B981' },
+      { label: 'Tiempo revisión (hrs)', value: performanceData?.avgReviewTimeHours ?? 0, color: '#3B82F6' },
+      { label: 'Tiempo asignación (hrs)', value: performanceData?.avgAssignmentHours ?? 0, color: '#F59E0B' },
+    ],
+    [performanceData],
+  );
+
+  const performanceProvinces = performanceData?.activeMedicalReviewers ?? [];
+  const performanceDoctorsByProvince = performanceProvinces.map((province) => ({
+    provinceName: province.provinceName,
+    activeDoctors: province.activeDoctors,
+  }));
+  const performanceReportsByProvince = performanceProvinces.map((province) => ({
+    provinceName: province.provinceName,
+    avgReportsPerDoctor: province.avgReportsPerDoctor,
+  }));
+  const performanceReviewTimeByProvince = performanceProvinces.map((province) => ({
+    provinceName: province.provinceName,
+    avgReviewTimeHours: province.avgReviewTimeHours,
+  }));
+
+  const selectedPerformanceProvince = useMemo(
+    () =>
+      performanceProvinces.find((province) => province.provinceName === selectedPerformanceProvinceName) ??
+      performanceProvinces[0] ??
+      null,
+    [performanceProvinces, selectedPerformanceProvinceName],
+  );
+
+  useEffect(() => {
+    if (!selectedPerformanceProvinceName && performanceProvinces.length > 0) {
+      setSelectedPerformanceProvinceName(performanceProvinces[0].provinceName);
+    }
+  }, [performanceProvinces, selectedPerformanceProvinceName]);
+
+  const municipalityComparativeData = selectedPerformanceProvince?.municipalities ?? [];
+
   const statusData = useMemo(
     () => [
       { name: 'Enviados', value: reportData?.submitted ?? 0 },
@@ -218,16 +314,34 @@ export const AdminDashboard = () => {
     [reportData],
   );
 
-  const vaccineData = useMemo(
-    () => [
-      { name: 'Soberana 02', count: Math.floor((reportData?.totalReports ?? 0) * 0.25) },
-      { name: 'Abdala', count: Math.floor((reportData?.totalReports ?? 0) * 0.2) },
-      { name: 'Soberana Plus', count: Math.floor((reportData?.totalReports ?? 0) * 0.18) },
-      { name: 'Mambisa', count: Math.floor((reportData?.totalReports ?? 0) * 0.15) },
-      { name: 'Otra', count: Math.floor((reportData?.totalReports ?? 0) * 0.22) },
-    ],
-    [reportData],
+  const vaccineTotals = vaccineData?.vaccines ?? [];
+  const symptomChartData = vaccineData?.symptomDistribution ?? [];
+  const [selectedVaccineName, setSelectedVaccineName] = useState('General');
+
+  const vaccineNames = useMemo(
+    () => ['General', ...vaccineTotals.map((item) => item.vaccineName)],
+    [vaccineTotals],
   );
+
+  const selectedVaccine = useMemo(
+    () => (selectedVaccineName === 'General' ? null : vaccineTotals.find((item) => item.vaccineName === selectedVaccineName)),
+    [selectedVaccineName, vaccineTotals],
+  );
+
+  const aggregatedLots = useMemo(() => {
+    if (selectedVaccineName !== 'General') return selectedVaccine?.lots ?? [];
+    const lotsMap = new Map<string, number>();
+    vaccineTotals.forEach((vaccine) => {
+      vaccine.lots.forEach((lot) => {
+        lotsMap.set(lot.lotNumber, (lotsMap.get(lot.lotNumber) ?? 0) + lot.totalReports);
+      });
+    });
+    return Array.from(lotsMap.entries())
+      .map(([lotNumber, totalReports]) => ({ lotNumber, totalReports }))
+      .sort((a, b) => b.totalReports - a.totalReports);
+  }, [selectedVaccineName, selectedVaccine, vaccineTotals]);
+
+  const hasLotData = aggregatedLots.length > 0;
 
   useEffect(() => {
     let mounted = true;
@@ -248,12 +362,70 @@ export const AdminDashboard = () => {
       }
     };
 
-    loadDashboardReport();
+    if (activeTab === 'report') {
+      loadDashboardReport();
+    }
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeTab]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPerformanceData = async () => {
+      setIsLoadingPerformance(true);
+      try {
+        const response = await api.get('/AdminDashboard/performance');
+        if (!mounted) return;
+        setPerformanceData(response.data?.result ?? response.data);
+        setPerformanceError(null);
+      } catch (error: any) {
+        if (!mounted) return;
+        setPerformanceError(error?.message ?? 'Error cargando datos de rendimiento');
+      } finally {
+        if (!mounted) return;
+        setIsLoadingPerformance(false);
+      }
+    };
+
+    if (activeTab === 'performance') {
+      loadPerformanceData();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadVaccineData = async () => {
+      setIsLoadingVaccines(true);
+      try {
+        const response = await api.get('/AdminDashboard/vaccines');
+        if (!mounted) return;
+        setVaccineData(response.data?.result ?? response.data);
+        setVaccinesError(null);
+      } catch (error: any) {
+        if (!mounted) return;
+        setVaccinesError(error?.message ?? 'Error cargando datos de vacunas');
+      } finally {
+        if (!mounted) return;
+        setIsLoadingVaccines(false);
+      }
+    };
+
+    if (activeTab === 'vaccines') {
+      loadVaccineData();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab]);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -261,22 +433,28 @@ export const AdminDashboard = () => {
     const existingMap = mapInstance.current;
     if (!existingMap) {
       const map = new maplibregl.Map({
-        container: mapContainer.current,
-        style: 'https://demotiles.maplibre.org/style.json',
-        center: [-79.4, 21.3],
-        zoom: 5.2,
-        minZoom: 5.2,
-        maxZoom: 5.2,
-        maxBounds: [[-84.5, 19], [-74.5, 25]],
-        dragPan: false,
-        doubleClickZoom: false,
-        scrollZoom: false,
-        boxZoom: false,
-        touchZoomRotate: false,
-        dragRotate: false,
-        keyboard: false,
-        attributionControl: false,
-      });
+  container: mapContainer.current,
+  style: 'https://demotiles.maplibre.org/style.json',
+
+  attributionControl: false,
+
+  // Limita navegación alrededor de Cuba
+  maxBounds: [
+    [-86, 18],
+    [-73, 25.5]
+  ]
+});
+
+// Ajuste inicial automático
+map.fitBounds(
+  [
+    [-84.5, 19],
+    [-74.5, 25]
+  ],
+  {
+    padding: 20
+  }
+);
 
       mapInstance.current = map;
 
@@ -451,7 +629,7 @@ export const AdminDashboard = () => {
           </Alert>
         )}
 
-        <Tabs defaultValue="report" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 gap-2 mb-6">
             <TabsTrigger value="report">Reporte</TabsTrigger>
             <TabsTrigger value="performance">Rendimiento</TabsTrigger>
@@ -627,30 +805,6 @@ export const AdminDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="performance" className="space-y-8">
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-2xl font-bold" style={{ color: '#0A4B8F' }}>
-                  Rendimiento
-                </h2>
-                <p className="text-gray-600 text-sm mt-1">Vista de rendimiento con indicadores y tendencias mensuales.</p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {summaryCards.map((card) => (
-                  <Card key={card.label} className="border-0 shadow-lg bg-slate-50">
-                    <CardContent className="pt-6">
-                      <div className="text-sm text-slate-600">{card.label}</div>
-                      <div className="text-3xl font-bold" style={{ color: card.color }}>
-                        {card.value}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
 
               <div className="grid gap-6 lg:grid-cols-2">
                 <Card className="border-0 shadow-md">
@@ -692,32 +846,347 @@ export const AdminDashboard = () => {
             </div>
           </TabsContent>
 
+          <TabsContent value="performance" className="space-y-8">
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold" style={{ color: '#0A4B8F' }}>
+                  Rendimiento
+                </h2>
+                <p className="text-gray-600 text-sm mt-1">Métricas de rendimiento basadas en el endpoint /api/AdminDashboard/performance.</p>
+              </div>
+
+              {performanceError && (
+                <Alert className="mb-4 border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700">{performanceError}</AlertDescription>
+                </Alert>
+              )}
+
+              {isLoadingPerformance ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">Cargando datos de rendimiento...</div>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {performanceSummaryCards.map((card) => (
+                      <Card key={card.label} className="border-0 shadow-lg bg-slate-50">
+                        <CardContent className="pt-6">
+                          <div className="text-sm text-slate-600">{card.label}</div>
+                          <div className="text-3xl font-bold" style={{ color: card.color }}>
+                            {card.value}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-3">
+                    <Card className="border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>Médicos activos</CardTitle>
+                        <CardDescription>Activos por provincia</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={320}>
+                          <BarChart data={performanceDoctorsByProvince} margin={{ top: 20, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="provinceName" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="activeDoctors" fill="#0A4B8F" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>Promedio de reportes/médico</CardTitle>
+                        <CardDescription>Por provincia</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={320}>
+                          <BarChart data={performanceReportsByProvince} margin={{ top: 20, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="provinceName" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="avgReportsPerDoctor" fill="#10B981" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>Tiempo de revisión</CardTitle>
+                        <CardDescription>Horas promedio por provincia</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={320}>
+                          <BarChart data={performanceReviewTimeByProvince} margin={{ top: 20, right: 24, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="provinceName" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="avgReviewTimeHours" fill="#F59E0B" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card className="border-0 shadow-md">
+                    <CardHeader>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <CardTitle>Revisores médicos activos</CardTitle>
+                          <CardDescription>Comparativo por provincia y municipio para reportes/médico, revisión y asignación.</CardDescription>
+                        </div>
+                        <div className="w-full max-w-xs">
+                          <Select value={selectedPerformanceProvinceName} onValueChange={setSelectedPerformanceProvinceName}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Seleccionar provincia" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {performanceProvinces.map((province) => (
+                                <SelectItem key={province.provinceName} value={province.provinceName}>
+                                  {province.provinceName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedPerformanceProvince ? (
+                        <div className="space-y-6">
+                          <div className="grid gap-4 xl:grid-cols-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="text-sm font-medium text-slate-700">Provincia seleccionada</div>
+                              <div className="mt-2 text-2xl font-semibold text-slate-900">
+                                {selectedPerformanceProvince.provinceName}
+                              </div>
+                              <div className="mt-3 text-sm text-slate-600">Médicos activos: {selectedPerformanceProvince.activeDoctors}</div>
+                              <div className="mt-2 text-sm text-slate-600">Reporte/médico: {selectedPerformanceProvince.avgReportsPerDoctor}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="text-sm font-medium text-slate-700">Tiempo de revisión</div>
+                              <div className="mt-2 text-3xl font-semibold text-slate-900">{selectedPerformanceProvince.avgReviewTimeHours}h</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="text-sm font-medium text-slate-700">Tiempo de asignación</div>
+                              <div className="mt-2 text-3xl font-semibold text-slate-900">{selectedPerformanceProvince.avgAssignmentHours}h</div>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-6 xl:grid-cols-3">
+                            <Card className="border-0 shadow-sm">
+                              <CardHeader>
+                                <CardTitle>Reportes/médico</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                {municipalityComparativeData.length ? (
+                                  <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={municipalityComparativeData} margin={{ top: 20, right: 24, left: 0, bottom: 40 }}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="municipalityName" tick={{ fontSize: 12 }} angle={-20} textAnchor="end" interval={0} height={60} />
+                                      <YAxis />
+                                      <Tooltip />
+                                      <Bar dataKey="avgReportsPerDoctor" fill="#0A4B8F" />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                ) : (
+                                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">No hay datos municipales disponibles.</div>
+                                )}
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border-0 shadow-sm">
+                              <CardHeader>
+                                <CardTitle>Revisión (hrs)</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                {municipalityComparativeData.length ? (
+                                  <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={municipalityComparativeData} margin={{ top: 20, right: 24, left: 0, bottom: 40 }}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="municipalityName" tick={{ fontSize: 12 }} angle={-20} textAnchor="end" interval={0} height={60} />
+                                      <YAxis />
+                                      <Tooltip />
+                                      <Bar dataKey="avgReviewTimeHours" fill="#F59E0B" />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                ) : (
+                                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">No hay datos municipales disponibles.</div>
+                                )}
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border-0 shadow-sm">
+                              <CardHeader>
+                                <CardTitle>Asignación (hrs)</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                {municipalityComparativeData.length ? (
+                                  <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={municipalityComparativeData} margin={{ top: 20, right: 24, left: 0, bottom: 40 }}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="municipalityName" tick={{ fontSize: 12 }} angle={-20} textAnchor="end" interval={0} height={60} />
+                                      <YAxis />
+                                      <Tooltip />
+                                      <Bar dataKey="avgAssignmentHours" fill="#10B981" />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                ) : (
+                                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">No hay datos municipales disponibles.</div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+                          Selecciona una provincia para ver el comparativo municipal.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
           <TabsContent value="vaccines" className="space-y-8">
             <div className="space-y-4">
               <div>
                 <h2 className="text-2xl font-bold" style={{ color: '#0A4B8F' }}>
                   Vacunas
                 </h2>
-                <p className="text-gray-600 text-sm mt-1">Distribución de reportes según el tipo de vacuna.</p>
+                <p className="text-gray-600 text-sm mt-1">Análisis de vacunas y síntomas basado en el endpoint /api/AdminDashboard/vaccines.</p>
               </div>
 
-              <Card className="border-0 shadow-md">
-                <CardHeader>
-                  <CardTitle>Vacunas reportadas</CardTitle>
-                  <CardDescription>Estimación de eventos por vacuna</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={360}>
-                    <BarChart data={vaccineData} layout="vertical" margin={{ left: 120, right: 24 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="name" type="category" width={140} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#0A4B8F" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              {vaccinesError && (
+                <Alert className="mb-4 border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700">{vaccinesError}</AlertDescription>
+                </Alert>
+              )}
+
+              {isLoadingVaccines ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">Cargando datos de vacunas...</div>
+              ) : (
+                <>
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <Card className="border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>Total de reportes por vacuna</CardTitle>
+                        <CardDescription>Comparativa de vacunas con más eventos</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={360}>
+                          <BarChart data={vaccineTotals} margin={{ top: 20, right: 24, left: 0, bottom: 30 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="vaccineName" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip formatter={(value: number) => [`${value}`, 'Reportes']} />
+                            <Bar dataKey="totalReports" fill="#0A4B8F" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>Distribución de síntomas</CardTitle>
+                        <CardDescription>Principales eventos reportados</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={360}>
+                          <PieChart>
+                            <Pie data={symptomChartData} dataKey="count" nameKey="symptomName" innerRadius={60} outerRadius={110} paddingAngle={3}>
+                              {symptomChartData.map((entry, index) => (
+                                <Cell key={`symptom-${entry.symptomName}`} fill={severityColors[index % severityColors.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => [`${value}`, 'Casos']} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="mt-4 grid gap-2">
+                          {symptomChartData.map((entry, index) => (
+                            <div key={entry.symptomName} className="flex items-center gap-2 text-sm text-slate-700">
+                              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: severityColors[index % severityColors.length] }} />
+                              <span>{entry.symptomName}</span>
+                              <span className="ml-auto text-slate-500">{entry.percentage}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">Lotes</h3>
+                      <p className="text-sm text-slate-500">Selecciona una vacuna para ver sus lotes o el resumen general.</p>
+                    </div>
+                    <div className="w-full max-w-xs">
+                      <Select value={selectedVaccineName} onValueChange={setSelectedVaccineName}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Seleccionar vacuna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vaccineNames.map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Card className="border-0 shadow-md">
+                      <CardHeader>
+                        <CardTitle>{selectedVaccineName === 'General' ? 'Lotes generales' : selectedVaccineName}</CardTitle>
+                        <CardDescription>
+                          {selectedVaccineName === 'General'
+                            ? 'Resumen de lotes acumulado para todas las vacunas.'
+                            : `Total de reportes: ${selectedVaccine?.totalReports ?? 0}`}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {hasLotData ? (
+                          <div className="space-y-3">
+                            {aggregatedLots.map((lot) => {
+                              const maxReports = Math.max(...aggregatedLots.map((item) => item.totalReports), 1);
+                              return (
+                                <div key={lot.lotNumber} className="rounded-xl bg-slate-50 p-3">
+                                  <div className="flex items-center justify-between gap-3 text-sm font-medium text-slate-900">
+                                    <span>{lot.lotNumber}</span>
+                                    <span>{lot.totalReports} reportes</span>
+                                  </div>
+                                  <div className="mt-2 h-2 rounded-full bg-slate-200">
+                                    <div
+                                      className="h-2 rounded-full bg-blue-600"
+                                      style={{ width: `${Math.min(100, Math.round((lot.totalReports / maxReports) * 100))}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+                            No hay datos de lotes disponibles para la selección actual.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </>
+              )}
             </div>
           </TabsContent>
         </Tabs>
