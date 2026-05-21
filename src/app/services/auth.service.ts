@@ -13,10 +13,11 @@ interface AuthResponse {
 const getTokenFromResponse = (data: AuthResponse) => data.token || data.accessToken || '';
 
 export const authService = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, token?: string) => {
     const res = await authApi.post<AuthResponse>('/Authentication/login', {
       email,
       password,
+      ...(token ? { token } : {}),
     });
 
     return res.data;

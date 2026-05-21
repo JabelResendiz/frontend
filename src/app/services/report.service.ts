@@ -250,11 +250,14 @@ export const reportService = {
     return res.data;
   },
 
-  getReportByNotificationNumber: async (notificationNumber: string): Promise<any> => {
+  getReportByNotificationNumber: async (notificationNumber: string, token?: string): Promise<any> => {
     const res = await api.get('/Report/get-report', {
-      params: { notificationNumber }
+      params: {
+        NotificationNumber: notificationNumber,
+        ...(token ? { Token: token } : {}),
+      }
     });
-    return res.data;
+    return res.data.data ?? res.data;
   },
 
   createMedicalReviewAssignment: async (assignment: MedicalReviewAssignment): Promise<any> => {

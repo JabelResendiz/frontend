@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -15,19 +16,38 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const captchaRef = useRef<ReCAPTCHA | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!captchaValue) {
+      setError('Por favor completa el captcha antes de iniciar sesión.');
+      return;
+    }
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, captchaValue);
       onNavigate('home');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
+    } catch (err: any) {
+      const responseData = err?.response?.data;
+      const isInvalidCredentials =
+        responseData?.type === 'ValidationError' &&
+        responseData?.message?.includes('invalid credentials');
+
+      const errorMessage = isInvalidCredentials
+        ? 'Correo electrónico o contraseña incorrectos.'
+        : err instanceof Error
+        ? err.message
+        : 'Error al iniciar sesión';
+
+      setError(errorMessage);
+      setCaptchaValue(null);
+      (captchaRef.current as any)?.reset();
     } finally {
       setLoading(false);
     }
@@ -76,13 +96,27 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
               />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-            </Button>
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg bg-slate-50">
+                <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
+                <div className="flex justify-center">
+                  <ReCAPTCHA
+                    ref={captchaRef}
+                    sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
+                    onChange={(value: string | null) => setCaptchaValue(value)}
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || !captchaValue}
+                title={!captchaValue ? 'Completa el captcha antes de iniciar sesión' : undefined}
+              >
+                {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

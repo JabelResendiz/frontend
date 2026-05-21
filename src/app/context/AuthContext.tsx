@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/auth.service';
 import { setAccessToken, clearAccessToken } from '../services/token-manager';
 import { registerLogoutHandler } from '../services/api';
@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, token?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -101,15 +101,15 @@ export const AuthProvider = ({ children }: any) => {
     restoreSession();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const data = await authService.login(email, password);
-    const token = data.token || data.accessToken;
+  const login = async (email: string, password: string, token?: string) => {
+    const data = await authService.login(email, password, token);
+    const authToken = data.token || data.accessToken;
 
-    if (!token) {
+    if (!authToken) {
       throw new Error('No se recibió access token del backend');
     }
 
-    setAccessToken(token);
+    setAccessToken(authToken);
 
     const loggedUser = data.id && data.userName && data.userRole
       ? {
@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }: any) => {
           email,
           role: data.userRole as User['role'],
         }
-      : getUserFromToken(token);
+      : getUserFromToken(authToken);
 
     if (!loggedUser) {
       throw new Error('No se pudo obtener información del usuario desde el token');

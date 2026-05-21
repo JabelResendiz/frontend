@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -7,7 +8,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Search, CheckCircle2, AlertCircle, Syringe, Calendar, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/app/services/api";
+import { reportService } from "@/app/services/report.service";
 import { ReportStatusTimeline, ReportStatus } from "@/app/components/ui/report-status-timeline";
 
 interface ReportData {
@@ -39,15 +40,15 @@ interface ReportData {
   }>;
 }
 
-interface ReportLookupProps {
-  onNavigate?: (page: string, reportId?: string) => void;
-}
+interface ReportLookupProps {}
 
-export function ReportLookup({ onNavigate }: ReportLookupProps) {
+export function ReportLookup(_: ReportLookupProps) {
   const [notificationNumber, setNotificationNumber] = useState("");
+  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [foundReport, setFoundReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const captchaRef = useRef<ReCAPTCHA | null>(null);
 
   // Mapear string del backend al enum ReportStatus
   const mapStatusStringToEnum = (statusString: string): ReportStatus => {
@@ -108,17 +109,20 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
       return;
     }
 
+    if (!captchaValue) {
+      toast.error("Por favor completa el captcha antes de buscar el reporte");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const response = await api.get("/Report/get-report", {
-        params: {
-          notificationNumber: notificationNumber.trim()
-        }
-      });
+      const reportPayload = await reportService.getReportByNotificationNumber(
+        notificationNumber.trim(),
+        captchaValue
+      );
 
-      const reportPayload = response.data?.data ?? response.data;
       if (reportPayload) {
         setFoundReport(reportPayload);
         toast.success("Reporte encontrado exitosamente");
@@ -127,12 +131,36 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
         setFoundReport(null);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || "Error al buscar el reporte";
+      const responseData = err;
+
+      console.log("El valor del erro es :" + err);
+
+      const isReportNotFound = 
+        responseData?.message?.includes("Report not found");
+      
+      console.log(responseData.type, responseData?.message);
+
+      let errorMessage: string;
+      
+      if (isReportNotFound) {
+        errorMessage = "No se encontró un reporte con el número de notificación especificado. Por favor verifique el número e intente nuevamente.";
+      } else {
+        errorMessage = 
+          err.response?.data?.message ||
+          err.message ||
+          "Error al buscar el reporte";
+      }
+      
+      console.log(errorMessage);
+
       setError(errorMessage);
       toast.error(errorMessage);
       setFoundReport(null);
     } finally {
       setLoading(false);
+      // Resetear captcha después de completar la búsqueda
+      setCaptchaValue(null);
+      (captchaRef.current as any)?.reset();
     }
   };
 
@@ -199,8 +227,9 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
 
         <CardContent className="p-6">
           {!foundReport ? (
-            // Search Form
-            <div className="space-y-4">
+            <>
+              {/* Search Form */}
+              <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="notification-number">Número de Notificación</Label>
                 <p className="text-xs text-gray-500">Formato: AEFI-YYYYMMDD-XXXXXXXXXX</p>
@@ -209,9 +238,12 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                     id="notification-number"
                     placeholder="Ej: AEFI-20260428-LM28OQ1P"
                     value={notificationNumber}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setNotificationNumber(e.target.value)
-                    }
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      setNotificationNumber(e.target.value);
+                      // Resetear captcha cuando cambia el número
+                      setCaptchaValue(null);
+                      (captchaRef.current as any)?.reset();
+                    }}
                     onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
                       e.key === "Enter" && handleSearch()
                     }
@@ -220,11 +252,23 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                   />
                   <Button
                     onClick={handleSearch}
-                    disabled={loading}
+                    disabled={loading || !captchaValue}
                     className="bg-blue-600 hover:bg-blue-700"
+                    title={!captchaValue ? "Completa el captcha antes de buscar el reporte" : undefined}
                   >
                     {loading ? "Buscando..." : <Search className="w-4 h-4" />}
                   </Button>
+                </div>
+
+                <div className="mt-4 p-4 border rounded-lg bg-slate-50">
+                  <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
+                  <div className="flex justify-center">
+                    <ReCAPTCHA
+                      ref={captchaRef}
+                      sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
+                      onChange={(value: string | null) => setCaptchaValue(value)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -243,9 +287,11 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                 </AlertDescription>
               </Alert>
             </div>
+            </>
           ) : (
-            // Report Details
-            <div className="space-y-6">
+            <>
+              {/* Report Details */}
+              <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Notificación: {notificationNumber}</h3>
                 <Button
@@ -471,6 +517,7 @@ export function ReportLookup({ onNavigate }: ReportLookupProps) {
                 </AlertDescription>
               </Alert>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

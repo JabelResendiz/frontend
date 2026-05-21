@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
@@ -32,9 +33,11 @@ interface ReportData {
 
 export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
   const [notificationNumber, setNotificationNumber] = useState("");
+  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [error, setError] = useState("");
+  const captchaRef = React.useRef<ReCAPTCHA | null>(null);
 
   // Función para mapear string del backend al enum ReportStatus
   const mapStatusStringToEnum = (statusString: string): ReportStatus => {
@@ -94,16 +97,20 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
       return;
     }
 
+    if (!captchaValue) {
+      toast.error("Por favor completa el captcha antes de buscar el reporte");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setReportData(null);
 
     try {
       // Real API call
-      const response = await reportService.getReportByNotificationNumber(notificationNumber.trim());
+      const backendData = await reportService.getReportByNotificationNumber(notificationNumber.trim(), captchaValue);
 
-      // Procesar la respuesta del backend como la que describes
-      const backendData = response.data;
+      // Procesar la respuesta del backend
       const currentStatus = mapStatusStringToEnum(backendData.status);
       const statusHistory = generateStatusHistory(currentStatus, backendData.reportDate);
 
@@ -119,14 +126,29 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
       setReportData(processedReportData);
       toast.success("Reporte encontrado");
     } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Error al buscar el reporte";
+      const responseData = err.response?.data;
+      const isReportNotFound = 
+        responseData?.type === "ValidationError" && 
+        responseData?.message?.includes("Report not found");
+      
+      let errorMessage: string;
+      
+      if (isReportNotFound) {
+        errorMessage = "No se encontró un reporte con el número de notificación especificado. Por favor verifique el número e intente nuevamente.";
+      } else {
+        errorMessage = 
+          err.response?.data?.message ||
+          err.message ||
+          "Error al buscar el reporte";
+      }
+      
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
       setLoading(false);
+      // Resetear captcha después de completar la búsqueda
+      setCaptchaValue(null);
+      (captchaRef.current as any)?.reset();
     }
   };
 
@@ -173,19 +195,36 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
               <Input
                 placeholder="Ej: AEFI-20260429-J6RH68EL"
                 value={notificationNumber}
-                onChange={(e) => setNotificationNumber(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setNotificationNumber(e.target.value.toUpperCase());
+                  // Resetear captcha cuando cambia el número
+                  setCaptchaValue(null);
+                  (captchaRef.current as any)?.reset();
+                }}
                 onKeyPress={handleKeyPress}
                 disabled={loading}
                 className="flex-1"
               />
               <Button
                 onClick={handleSearch}
-                disabled={loading}
+                disabled={loading || !captchaValue}
                 style={{ backgroundColor: "#0A4B8F" }}
                 className="text-white"
+                title={!captchaValue ? "Completa el captcha antes de buscar el reporte" : undefined}
               >
                 {loading ? "Buscando..." : "Buscar"}
               </Button>
+            </div>
+
+            <div className="mt-4 p-4 border rounded-lg bg-slate-50">
+              <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
+              <div className="flex justify-center">
+                <ReCAPTCHA
+                  ref={captchaRef}
+                  sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
+                  onChange={(value: string | null) => setCaptchaValue(value)}
+                />
+              </div>
             </div>
 
             {error && (
