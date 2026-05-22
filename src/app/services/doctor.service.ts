@@ -55,11 +55,22 @@ export const doctorService = {
     return res.data;
   },
 
-  getMedicalReviewersByCurrentUserMunicipality: async (pageNumber: number = 1, pageSize: number = 3): Promise<PaginatedResponse<MedicalReviewer>> => {
+  getMedicalReviewersByCurrentUserMunicipality: async (
+    pageNumber: number = 1,
+    pageSize: number = 10,
+    search: string = '',
+    speciality: string = '',
+    sortBy: string = '',
+    order: string = ''
+  ): Promise<PaginatedResponse<MedicalReviewer>> => {
     const res = await api.get('/MedicalReviewer/by-current-user-municipality', {
       params: {
         pageNumber,
         pageSize,
+        search: search || undefined,
+        speciality: speciality || undefined,
+        sortBy: sortBy || undefined,
+        order: order || undefined,
       },
     });
     return res.data;

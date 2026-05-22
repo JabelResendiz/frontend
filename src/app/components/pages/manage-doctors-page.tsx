@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
-import { Plus, Users, ChevronDown, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { Plus, Users, ChevronDown, Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { doctorService, type DoctorRegistrationData, type MedicalReviewer } from "@/app/services/doctor.service";
 import { getMunicipalityNameById, getProvinceNameById } from "../../data/municipalities";
@@ -48,9 +48,15 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [pageSize] = useState(3);
+  const [pageSize] = useState(10);
   const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
   const [previousPageUrl, setPreviousPageUrl] = useState<string | null>(null);
+
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [specialityFilter, setSpecialityFilter] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [order, setOrder] = useState("desc");
   
   const [formData, setFormData] = useState({
     userName: "",
@@ -63,12 +69,19 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     specialty: "",
   });
 
-  // Load medical reviewers on mount and when page changes
+  // Load medical reviewers on mount and when filters/pagination changes
   useEffect(() => {
     const fetchMedicalReviewers = async () => {
       try {
         setIsLoadingReviewers(true);
-        const response = await doctorService.getMedicalReviewersByCurrentUserMunicipality(currentPage, pageSize);
+        const response = await doctorService.getMedicalReviewersByCurrentUserMunicipality(
+          currentPage,
+          pageSize,
+          searchTerm,
+          specialityFilter,
+          sortBy,
+          order
+        );
         setMedicalReviewers(response.items);
         setTotalCount(response.totalCount);
         setNextPageUrl(response.nextPageUrl || null);
@@ -83,7 +96,7 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     };
 
     fetchMedicalReviewers();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, searchTerm, specialityFilter, sortBy, order]);
 
   const SPECIALTY_OPTIONS = [
     "Medicina General",
@@ -299,7 +312,14 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
         setHasValidationErrors(false);
 
         // Recargar la lista de médicos revisores
-        const refreshed = await doctorService.getMedicalReviewersByCurrentUserMunicipality(currentPage, pageSize);
+        const refreshed = await doctorService.getMedicalReviewersByCurrentUserMunicipality(
+          currentPage,
+          pageSize,
+          searchTerm,
+          specialityFilter,
+          sortBy,
+          order
+        );
         setMedicalReviewers(refreshed.items);
         setTotalCount(refreshed.totalCount);
 
@@ -331,6 +351,22 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
     setShowForm(false);
   };
 
+  const handleSearch = () => {
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = () => {
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSpecialityFilter("");
+    setSortBy("createdAt");
+    setOrder("desc");
+    setCurrentPage(1);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -357,6 +393,100 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
             )}
           </div>
         </div>
+
+        {/* Search and Filter Section */}
+        {!showForm && (
+          <Card className="border-0 shadow-md mb-6">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por nombre de usuario..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  className="text-white font-semibold"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={handleSearch}
+                  disabled={isLoadingReviewers}
+                >
+                  Buscar
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto_auto] gap-3 items-end">
+                <div>
+                  <Label htmlFor="speciality-filter" className="text-sm font-medium text-gray-700">
+                    Filtrar por especialidad
+                  </Label>
+                  <Select value={specialityFilter} onValueChange={setSpecialityFilter}>
+                    <SelectTrigger id="speciality-filter">
+                      <SelectValue placeholder="Selecciona especialidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SPECIALTY_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="sort-by" className="text-sm font-medium text-gray-700">
+                    Ordenar por
+                  </Label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger id="sort-by">
+                      <SelectValue placeholder="Selecciona campo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="createdAt">Fecha de Registro</SelectItem>
+                      <SelectItem value="fullName">Nombre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="order" className="text-sm font-medium text-gray-700">
+                    Orden
+                  </Label>
+                  <Select value={order} onValueChange={setOrder}>
+                    <SelectTrigger id="order">
+                      <SelectValue placeholder="Selecciona orden" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Ascendente</SelectItem>
+                      <SelectItem value="desc">Descendente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  className="text-white font-semibold"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={handleFilterChange}
+                  disabled={isLoadingReviewers}
+                >
+                  Aplicar
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  disabled={isLoadingReviewers}
+                >
+                  Limpiar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Form */}
         {showForm && (
@@ -634,24 +764,27 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
 
               {/* Pagination Controls */}
               {totalCount > pageSize && (
-                <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
                   <div className="text-sm text-gray-600">
-                    Mostrando página <span className="font-semibold">{currentPage}</span> de <span className="font-semibold">{Math.ceil(totalCount / pageSize)}</span>
+                    Página <span className="font-semibold">{currentPage}</span> de <span className="font-semibold">{Math.ceil(totalCount / pageSize)}</span>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       disabled={!previousPageUrl}
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() => previousPageUrl && setCurrentPage(Math.max(1, currentPage - 1))}
                     >
-                      Anterior
+                      ← Anterior
                     </Button>
                     <Button
-                      variant="outline"
+                      className="text-white font-semibold"
+                      style={{ 
+                        backgroundColor: nextPageUrl ? "#0A4B8F" : "#93A4B5",
+                      }}
                       disabled={!nextPageUrl}
-                      onClick={() => setCurrentPage(currentPage + 1)}
+                      onClick={() => nextPageUrl && setCurrentPage(currentPage + 1)}
                     >
-                      Siguiente
+                      Siguiente →
                     </Button>
                   </div>
                 </div>
