@@ -33,11 +33,13 @@ export interface Doctor {
 export interface MedicalReviewer {
   id: string;
   fullName: string;
-  email: string;
-  provinceId: number;
-  municipalityId: number;
   institution: string;
   phoneNumber: string;
+  totalAssignments:number;
+  pendingAssignments:number;
+  completedAssignments:number;
+  expiredAssignments:number;
+  averageTimeReview:number;
 }
 
 export interface PaginatedResponse<T> {
@@ -54,6 +56,14 @@ export const doctorService = {
     const res = await api.post('/MedicalReviewer/register', data);
     return res.data;
   },
+
+
+  getAllMedicalReviewer: async (
+  ): Promise<PaginatedResponse<MedicalReviewer>> => {
+  const res = await api.get('/MedicalReviewer/summary', {
+      });
+      return res.data;
+    },
 
   getMedicalReviewersByCurrentUserMunicipality: async (
     pageNumber: number = 1,

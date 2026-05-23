@@ -62,6 +62,7 @@ export interface AssignedReport {
   reportDate: string;
   status?: string;
   globalSeverityLevel?: string;
+  lastDoctorName?: string | null;
   vaccinatedSubject: VaccinatedSubject;
   reporter: Reporter;
   vaccinations: Vaccination[];
@@ -201,29 +202,21 @@ export interface ReviewMetrics {
 
 export const reportService = {
   getAssignedReports: async (
-    pageNumber: number = 1, 
-    pageSize: number = 10,
-    severity? : string,
-    vaccineName? : string,
-    vaccinationCenterId? : string,
-    from? : string,
-    to? : string,
-    sortBy? : string,
-    order? : "asc" | "desc"
-
+    params: {
+      pageNumber?: number;
+      pageSize?: number;
+      severity?: string;
+      reportStatus?: string;
+      vaccineName?: string;
+      vaccinationCenterId?: string;
+      from?: string;
+      to?: string;
+      sortBy?: string;
+      order?: "asc" | "desc";
+    } = {}
   ): Promise<AssignedReportsResponse> => {
     const res = await api.get('/Report/sectionResponsible/assigned', {
-      params: {
-        pageNumber,
-        pageSize,
-        severity,
-        vaccineName,
-        vaccinationCenterId,
-        from,
-        to,
-        sortBy,
-        order
-      },
+      params,
     });
 
     return res.data.data ?? res.data;

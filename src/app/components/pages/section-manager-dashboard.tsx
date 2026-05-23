@@ -25,6 +25,7 @@ import {
   type DoctorPerformance,
   type MunicipalCharacterization,
   type MunicipalCharacterizationPeriod,
+  type MunicipalPerformanceSummary,
 } from "@/app/services/municipal-dashboard.service";
 import { MunicipalOverviewCards } from "@/app/components/ui/municipal-overview-cards";
 import { Button } from "@/app/components/ui/button";
@@ -35,6 +36,7 @@ export function SectionManagerDashboard() {
   // Data States
   const [overview, setOverview] = useState<MunicipalOverview | null>(null);
   const [doctorsPerformance, setDoctorsPerformance] = useState<DoctorPerformance[]>([]);
+  const [performanceSummary, setPerformanceSummary] = useState<MunicipalPerformanceSummary | null>(null);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
   const [isLoadingPerformance, setIsLoadingPerformance] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,20 +110,6 @@ export function SectionManagerDashboard() {
     return Math.max(10, Math.ceil(suggestedMax / 5) * 5);
   }, [workloadDataByType]);
 
-  // 3) Tiempos de revisión: valores directos en horas. El eje X se limitará a 0-48 para mostrar escala en 48h.
-  const reviewTimeData = useMemo(
-    () => doctorEvaluatorDataSource.map((doctor: any) => ({ doctorName: doctor.doctorName, averageReviewTimeHours: doctor.averageReviewTimeHours ?? 0 })),
-    [doctorEvaluatorDataSource],
-  );
-
-  // 4) Eliminada la tasa de expiración por petición del usuario (no se crea `expirationRateData`).
-
-  // 5) Casos graves atendidos: provisto por backend en `numeroDeCasosGravesCompletados`.
-  const criticalReportsData = useMemo(
-    () => doctorEvaluatorDataSource.map((doctor: any) => ({ doctorName: doctor.doctorName, criticalReports: doctor.numeroDeCasosGravesCompletados ?? 0 })),
-    [doctorEvaluatorDataSource],
-  );
-
   // Load Overview Data on mount
   useEffect(() => {
     const loadOverview = async () => {
@@ -147,8 +135,9 @@ export function SectionManagerDashboard() {
     const loadPerformance = async () => {
       try {
         setIsLoadingPerformance(true);
-        const data = await municipalDashboardService.getDoctorsPerformance();
-        setDoctorsPerformance(data);
+        const data = await municipalDashboardService.getPerformanceSummary();
+        setPerformanceSummary(data);
+        setDoctorsPerformance(data.doctorPerformances ?? []);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Error al cargar desempeño de médicos";
         console.error("Error loading doctors performance:", err);
@@ -214,28 +203,6 @@ export function SectionManagerDashboard() {
     loadCharacterization();
   }, []);
 
-  const topFastestReviewers = useMemo(
-    () => [...doctorsPerformance]
-      .filter((d) => d.averageReviewTimeHours > 0)
-      .sort((a, b) => a.averageReviewTimeHours - b.averageReviewTimeHours)
-      .slice(0, 3),
-    [doctorsPerformance],
-  );
-
-  const topCompletedDoctors = useMemo(
-    () => [...doctorsPerformance]
-      .sort((a, b) => b.completedReports - a.completedReports)
-      .slice(0, 3),
-    [doctorsPerformance],
-  );
-
-  const topCompletionRateDoctors = useMemo(
-    () => [...doctorsPerformance]
-      .sort((a, b) => b.completionRate - a.completionRate)
-      .slice(0, 3),
-    [doctorsPerformance],
-  );
-
   const topicVaccinesData = useMemo(
     () => (characterization?.topVaccines ?? []).slice().sort((a, b) => b.totalReports - a.totalReports),
     [characterization],
@@ -248,7 +215,7 @@ export function SectionManagerDashboard() {
 
   const reportsTimelineData = characterization?.reportsTimeline ?? [];
 
-  const severityColors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
+  const severityColors = ['#DC2626', '#EA580C', '#16A34A', '#2563EB', '#7C3AED'];
 
   const severityTotals = [
     { label: 'Fallecimientos', value: characterization?.totalDeaths ?? 0 },
@@ -261,16 +228,72 @@ export function SectionManagerDashboard() {
 
   function CustomPieTooltip({ active, payload, total }: any) {
     if (!active || !payload || payload.length === 0) return null;
-    const data = payload[0].payload;
-    const value = data.value ?? 0;
+    const point = payload[0];
+    const data = point.payload || {};
+    const value = (point.value ?? data.totalReports ?? data.value ?? 0) as number;
     const percent = total ? ((value / total) * 100).toFixed(1) : '0.0';
+    const labelName = point.name ?? data.label ?? data.vaccineName ?? data.symptomName ?? data.severity ?? data.name ?? 'Elemento';
     return (
-      <div className="bg-white p-2 rounded shadow border text-sm">
-        <div className="font-medium text-slate-700">{data.label}</div>
-        <div className="text-slate-500">{value} · {percent}%</div>
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-3 rounded-lg shadow-lg border border-slate-700 text-sm">
+        <div className="font-semibold text-white">{labelName}</div>
+        <div className="text-slate-300 mt-1">{value} reportes</div>
+        <div className="text-emerald-400 font-medium">{percent}% del total</div>
       </div>
     );
   }
+
+  function CustomTimeTooltip({ active, payload, label }: any) {
+    if (!active || !payload || payload.length === 0) return null;
+    const value = payload[0]?.value ?? 0;
+    return (
+      <div className="bg-slate-900 text-white rounded-lg p-3 shadow-lg border border-slate-700 text-sm">
+        <div className="font-semibold">Hora</div>
+        <div className="mt-1 text-slate-200">{label}</div>
+        <div className="mt-2">Total de reportes: <span className="font-semibold">{value}</span></div>
+      </div>
+    );
+  }
+
+  function CustomStateDistributionTooltip({ active, payload, label }: any) {
+    if (!active || !payload || payload.length === 0) return null;
+    const point = payload[0];
+    const row = point.payload || {};
+    const total = (row.completed ?? 0) + (row.pending ?? 0) + (row.expired ?? 0) + (row.cancelled ?? 0);
+    const percent = total > 0 ? ((point.value / total) * 100).toFixed(1) : '0.0';
+    return (
+      <div className="bg-slate-900 text-white rounded-lg p-3 shadow-lg border border-slate-700 text-sm">
+        <div className="font-semibold">{row.doctorName ?? label}</div>
+        <div className="text-slate-200 mt-1">{point.name}</div>
+        <div className="mt-2">Reportes: <span className="font-semibold">{point.value}</span></div>
+        <div className="text-emerald-400 font-medium">Porcentaje: {percent}%</div>
+      </div>
+    );
+  }
+
+
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="font-bold text-xs"
+      >
+        {`${value}`}
+      </text>
+    );
+  };
+
+  const topicVaccinesTotal = useMemo(() => (topicVaccinesData ?? []).reduce((s: number, it: any) => s + (it.totalReports ?? 0), 0), [topicVaccinesData]);
+  const topSymptomsTotal = useMemo(() => (topSymptomsData ?? []).reduce((s: number, it: any) => s + (it.totalReports ?? 0), 0), [topSymptomsData]);
+  const severityDistributionTotal = useMemo(() => (characterization?.severityDistribution ?? []).reduce((s: number, it: any) => s + (it.totalReports ?? 0), 0), [characterization?.severityDistribution]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-8">
@@ -295,9 +318,9 @@ export function SectionManagerDashboard() {
 
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-3 gap-2 mb-6">
-            <TabsTrigger value="overview">Resumen General</TabsTrigger>
-            <TabsTrigger value="performance">Desempeño Médicos</TabsTrigger>
-            <TabsTrigger value="characterization">Caracterización</TabsTrigger>
+            <TabsTrigger className="truncate" value="overview">Resumen General</TabsTrigger>
+            <TabsTrigger className="truncate" value="performance">Desempeño Médicos</TabsTrigger>
+            <TabsTrigger className="truncate" value="characterization">Caracterización</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
@@ -399,82 +422,127 @@ export function SectionManagerDashboard() {
               )}
 
               <div className="grid gap-4 lg:grid-cols-3">
-                <Card className="border-0 shadow-lg bg-slate-50">
+                <Card className="border-0 shadow-2xl bg-gradient-to-br from-blue-50 to-slate-50 ring-1 ring-slate-200">
                   <CardHeader>
-                    <CardTitle>Más rápidos</CardTitle>
+                    <CardTitle className="text-sm text-slate-700">Tiempo promedio de revisión</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    {topFastestReviewers.length > 0 ? (
-                      topFastestReviewers.map((doctor) => (
-                        <p key={doctor.doctorId} className="text-sm text-slate-700">
-                          {doctor.doctorName} · {doctor.averageReviewTimeHours.toFixed(1)}h
-                        </p>
-                      ))
-                    ) : (
-                      <p className="text-sm text-slate-500">Sin datos de velocidad.</p>
-                    )}
+                  <CardContent>
+                    <p className="text-3xl font-bold text-blue-800">
+                      {performanceSummary?.averageReviewTimeHours.toFixed(1) ?? 0}h
+                    </p>
+                    <p className="text-sm text-slate-500 mt-2">Horas promedio</p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 shadow-lg bg-slate-50">
+                <Card className="border-0 shadow-2xl bg-gradient-to-br from-amber-50 to-slate-50 ring-1 ring-slate-200">
                   <CardHeader>
-                    <CardTitle>Completados</CardTitle>
+                    <CardTitle className="text-sm text-slate-700">Tiempo promedio de asignación</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    {topCompletedDoctors.map((doctor) => (
-                      <p key={doctor.doctorId} className="text-sm text-slate-700">
-                        {doctor.doctorName} · {doctor.completedReports} completados
-                      </p>
-                    ))}
+                  <CardContent>
+                    <p className="text-3xl font-bold text-amber-700">
+                      {performanceSummary?.averageAssignmentTimeHours.toFixed(1) ?? 0}h
+                    </p>
+                    <p className="text-sm text-slate-500 mt-2">Horas promedio</p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 shadow-lg bg-slate-50">
+                <Card className="border-0 shadow-2xl bg-gradient-to-br from-emerald-50 to-slate-50 ring-1 ring-slate-200">
                   <CardHeader>
-                    <CardTitle>Mejor tasa</CardTitle>
+                    <CardTitle className="text-sm text-slate-700">Asignación por reporte</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    {topCompletionRateDoctors.map((doctor) => (
-                      <p key={doctor.doctorId} className="text-sm text-slate-700">
-                        {doctor.doctorName} · {doctor.completionRate}%
-                      </p>
-                    ))}
+                  <CardContent>
+                    <p className="text-3xl font-bold text-emerald-700">
+                      {performanceSummary?.averageAssignmentByReport ?? 0}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-2">Reportes por asignación</p>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-2">
-                <Card className="border-0 shadow-lg">
-                  <CardHeader>
-                    <CardTitle>1. Distribución porcentual de estados por médico</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-96">
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                <CardHeader className="bg-gradient-to-r from-blue-900 to-blue-800 text-white rounded-t-lg">
+                  <CardTitle>Distribución de reportes por tiempo de completación</CardTitle>
+                  <p className="text-sm text-slate-200 mt-2">Eje horizontal: rango de tiempo desde que se reporta hasta que se completa. Eje vertical: número de reportes.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <div className="h-80 min-w-[420px]">
                       <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={stateDistributionData} margin={{ left: 140, right: 16, top: 16, bottom: 16 }} stackOffset="expand">
-                        <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                        <XAxis type="number" domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} tick={{ fill: "#334155", fontSize: 13 }} />
-                        <YAxis
-                          type="category"
-                          dataKey="doctorName"
-                          width={140}
+                        <BarChart
+                          data={performanceSummary?.timeHours ?? []}
+                          margin={{ left: 24, right: 24, top: 16, bottom: 40 }}
+                          barCategoryGap="20%"
+                        >
+                          <CartesianGrid strokeDasharray="4 4" vertical={false} />
+                          <XAxis
+                            type="category"
+                            dataKey="hour"
+                            tick={{ fill: "#334155", fontSize: 13 }}
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: "#334155", fontSize: 13 }}
+                            label={{ value: "Tiempo (horas)", position: "insideBottom", offset: -10, fill: "#64748B", style: { fontSize: 12 } }}
                           />
-                          <Tooltip formatter={(value: any) => `${Math.round(value * 100)}%`} />
-                          <Legend />
-                          <Bar dataKey="completed" stackId="a" fill="#10B981" name="Completados" />
-                          <Bar dataKey="pending" stackId="a" fill="#F59E0B" name="Pendientes" />
-                          <Bar dataKey="expired" stackId="a" fill="#EF4444" name="Expirados" />
-                          <Bar dataKey="cancelled" stackId="a" fill="#64748B" name="Cancelados" />
+                          <YAxis
+                            type="number"
+                            tick={{ fill: "#334155", fontSize: 13 }}
+                            axisLine={false}
+                            tickLine={false}
+                            label={{ value: "Número de reportes", angle: -90, position: "insideLeft", offset: 0, fill: "#64748B", style: { textAnchor: "middle", fontSize: 12 } }}
+                          />
+                          <Tooltip content={(props) => <CustomTimeTooltip {...props} />} />
+                          <Bar dataKey="totalReport" fill="#3B82F6" radius={[12, 12, 0, 0]}>
+                            <LabelList
+                              dataKey="totalReport"
+                              position="top"
+                              formatter={(value: number) => `${value}`}
+                              style={{ fill: "#0f172a", fontSize: 12, fontWeight: 600 }}
+                            />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                  <CardHeader className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-t-lg">
+                    <CardTitle>1. Distribución porcentual de estados por médico</CardTitle>
+                    <p className="text-sm text-slate-200 mt-2">Cada barra muestra el porcentaje relativo al total de reportes de ese médico.</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <div className="h-96 min-w-[420px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart layout="vertical" data={stateDistributionData} margin={{ left: 140, right: 16, top: 16, bottom: 16 }} stackOffset="expand">
+                            <CartesianGrid strokeDasharray="4 4" vertical={false} />
+                            <XAxis type="number" domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} tick={{ fill: "#334155", fontSize: 13 }} />
+                            <YAxis
+                              type="category"
+                              dataKey="doctorName"
+                              width={140}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fill: "#334155", fontSize: 13 }}
+                            />
+                            <Tooltip content={(props) => <CustomStateDistributionTooltip {...props} />} />
+                            <Legend />
+                            <Bar dataKey="completed" stackId="a" fill="#10B981" name="Completados" />
+                            <Bar dataKey="pending" stackId="a" fill="#F59E0B" name="Pendientes" />
+                            <Bar dataKey="expired" stackId="a" fill="#EF4444" name="Expirados" />
+                            <Bar dataKey="cancelled" stackId="a" fill="#64748B" name="Cancelados" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-lg">
-                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle>2. Carga activa de trabajo por médico</CardTitle>
+                <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-gradient-to-r from-emerald-900 to-blue-900 text-white rounded-t-lg p-4 sm:p-5">
+                    <div>
+                      <CardTitle className="text-base">2. Carga activa de trabajo por médico</CardTitle>
+                      <p className="text-sm text-slate-200 mt-1">Reporte por tipo según filtro seleccionado</p>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setWorkloadFilterType('completed')}
@@ -519,132 +587,58 @@ export function SectionManagerDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-96">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={workloadDataByType}
-                          margin={{ left: 16, right: 24, top: 20, bottom: 80 }}
-                          barCategoryGap="24%"
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            type="category"
-                            dataKey="doctorName"
-                            interval={0}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                            tick={{ fill: "#334155", fontSize: 12 }}
-                          />
-                          <YAxis
-                            type="number"
-                            domain={[0, workloadAxisMax]}
-                            tick={{ fill: "#334155", fontSize: 13 }}
-                          />
-                          <Tooltip formatter={(value: any) => {
-                            const labels: Record<string, string> = {
-                              'completed': 'Completados',
-                              'pending': 'Pendientes',
-                              'expired': 'Expirados',
-                              'cancelled': 'Cancelados'
-                            };
-                            return [`${value}`, labels[workloadFilterType]];
-                          }} />
-                          <Bar
-                            dataKey="value"
-                            fill={workloadFilterType === 'completed' ? '#10B981' : workloadFilterType === 'pending' ? '#F59E0B' : workloadFilterType === 'expired' ? '#EF4444' : '#64748B'}
-                            radius={[12, 12, 0, 0]}
+                    <div className="overflow-x-auto">
+                      <div className="h-96 min-w-[420px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={workloadDataByType}
+                            margin={{ left: 16, right: 24, top: 20, bottom: 80 }}
+                            barCategoryGap="24%"
                           >
-                            <LabelList
-                              dataKey="value"
-                              position="top"
-                              formatter={(value: number) => `${value}`}
-                              style={{ fill: "#0f172a", fontSize: 12, fontWeight: 600 }}
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="category"
+                              dataKey="doctorName"
+                              interval={0}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                              tick={{ fill: "#334155", fontSize: 12 }}
                             />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                            <YAxis
+                              type="number"
+                              domain={[0, workloadAxisMax]}
+                              tick={{ fill: "#334155", fontSize: 13 }}
+                            />
+                            <Tooltip formatter={(value: any) => {
+                              const labels: Record<string, string> = {
+                                'completed': 'Completados',
+                                'pending': 'Pendientes',
+                                'expired': 'Expirados',
+                                'cancelled': 'Cancelados'
+                              };
+                              return [`${value}`, labels[workloadFilterType]];
+                            }} />
+                            <Bar
+                              dataKey="value"
+                              fill={workloadFilterType === 'completed' ? '#10B981' : workloadFilterType === 'pending' ? '#F59E0B' : workloadFilterType === 'expired' ? '#EF4444' : '#64748B'}
+                              radius={[12, 12, 0, 0]}
+                            >
+                              <LabelList
+                                dataKey="value"
+                                position="top"
+                                formatter={(value: number) => `${value}`}
+                                style={{ fill: "#0f172a", fontSize: 12, fontWeight: 600 }}
+                              />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle>3. Tiempo promedio de evaluación clínica</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-96">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        layout="vertical"
-                        data={reviewTimeData}
-                        margin={{ left: 180, right: 24, top: 20, bottom: 20 }}
-                        barCategoryGap="24%"
-                      >
-                        <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                        <XAxis type="number" domain={[0, 48]} tick={{ fill: "#334155", fontSize: 13 }} axisLine={false} tickLine={false} />
-                        <YAxis
-                          type="category"
-                          dataKey="doctorName"
-                          width={180}
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fill: "#334155", fontSize: 13 }}
-                        />
-                        <Tooltip formatter={(value: any) => `${Math.round(value)}h`} />
-                        <Bar dataKey="averageReviewTimeHours" fill="#8B5CF6" radius={[12, 12, 12, 12]}>
-                          <LabelList
-                            dataKey="averageReviewTimeHours"
-                            position="right"
-                            formatter={(value: number) => `${Math.round(value)}h`}
-                            style={{ fill: "#0f172a", fontSize: 12, fontWeight: 600 }}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-
-
-              <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle>4. Cantidad de reportes graves atendidos por médico</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-96">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        layout="vertical"
-                        data={criticalReportsData}
-                        margin={{ left: 180, right: 24, top: 20, bottom: 20 }}
-                        barCategoryGap="22%"
-                      >
-                        <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                        <XAxis type="number" tick={{ fill: "#334155", fontSize: 13 }} axisLine={false} tickLine={false} />
-                        <YAxis
-                          type="category"
-                          dataKey="doctorName"
-                          width={180}
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fill: "#334155", fontSize: 13 }}
-                        />
-                        <Tooltip formatter={(value: any) => [value, "Reportes graves"]} />
-                        <Bar dataKey="criticalReports" fill="#F43F5E" radius={[12, 12, 12, 12]}>
-                          <LabelList
-                            dataKey="criticalReports"
-                            position="right"
-                            style={{ fill: "#0f172a", fontSize: 12, fontWeight: 600 }}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
@@ -764,89 +758,125 @@ export function SectionManagerDashboard() {
 
               
               <div className="grid gap-4 xl:grid-cols-2">
-              <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
-                <CardHeader>
-                  <CardTitle>Top Vacunas</CardTitle>
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                <CardHeader className="bg-gradient-to-r from-blue-900 to-blue-800 text-white rounded-t-lg">
+                  <CardTitle className="text-lg">Top Vacunas</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={topicVaccinesData}
-                        margin={{ top: 20, right: 24, left: 24, bottom: 70 }}
-                      >
-                        <defs>
-                          <linearGradient id="vaccineGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2563EB" stopOpacity={0.95} />
-                            <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.6} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                        <XAxis
-                          dataKey="vaccineName"
-                          type="category"
-                          tick={{ fill: '#0F172A', fontSize: 13 }}
-                          interval={0}
-                          angle={-35}
-                          textAnchor="end"
-                          height={70}
-                        />
-                        <YAxis type="number" domain={[0, 'dataMax']} tick={{ fill: '#0F172A', fontSize: 13 }} />
-                        <Tooltip wrapperStyle={{ borderRadius: 16, borderColor: '#E2E8F0' }} />
-                        <Bar dataKey="totalReports" fill="url(#vaccineGradient)" radius={[16, 16, 0, 0]} barSize={44}>
-                          <LabelList dataKey="totalReports" position="top" style={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
-                <CardHeader>
-                  <CardTitle>Top Síntomas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={topSymptomsData}
-                        margin={{ top: 20, right: 24, left: 24, bottom: 70 }}
-                      >
-                        <defs>
-                          <linearGradient id="symptomGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#EC4899" stopOpacity={0.95} />
-                            <stop offset="100%" stopColor="#F97316" stopOpacity={0.6} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                        <XAxis
-                          dataKey="symptomName"
-                          type="category"
-                          tick={{ fill: '#0F172A', fontSize: 13 }}
-                          interval={0}
-                          angle={-35}
-                          textAnchor="end"
-                          height={70}
-                        />
-                        <YAxis type="number" domain={[0, 'dataMax']} tick={{ fill: '#0F172A', fontSize: 13 }} />
-                        <Tooltip wrapperStyle={{ borderRadius: 16, borderColor: '#E2E8F0' }} />
-                        <Bar dataKey="totalReports" fill="url(#symptomGradient)" radius={[16, 16, 0, 0]} barSize={44}>
-                          <LabelList dataKey="totalReports" position="top" style={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
-                <CardHeader>
-                  <CardTitle>Distribución por Gravedad</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-6 grid-cols-1 xl:grid-cols-[1.2fr_0.8fr]">
+                <CardContent className="pt-6">
+                  <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1fr_1fr]">
                     <div className="h-80 flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={topicVaccinesData}
+                            dataKey="totalReports"
+                            nameKey="vaccineName"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={110}
+                            paddingAngle={0}
+                            labelLine={false}
+                            label={renderLabel}
+                          >
+                            {topicVaccinesData.map((item, index) => (
+                              <Cell key={item.vaccineName} fill={severityColors[index % severityColors.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={(props) => <CustomPieTooltip {...props} total={topicVaccinesTotal} />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-col justify-center space-y-2">
+                      <div className="text-sm font-semibold text-slate-700 mb-2">Ranking de Vacunas</div>
+                      <div className="space-y-2 overflow-y-auto max-h-80">
+                        {topicVaccinesData.map((item, index) => {
+                          const total = topicVaccinesData.reduce((s: number, it: any) => s + (it.totalReports ?? 0), 0);
+                          const percent = total > 0 ? ((item.totalReports / total) * 100).toFixed(1) : '0.0';
+                          return (
+                            <div key={item.vaccineName} className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: severityColors[index % severityColors.length] }} />
+                                  <span className="text-sm font-medium text-slate-800">{index + 1}. {item.vaccineName}</span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-semibold text-slate-900">{item.totalReports}</div>
+                                  <div className="text-xs text-slate-600">{percent}%</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                <CardHeader className="bg-gradient-to-r from-pink-900 to-pink-800 text-white rounded-t-lg">
+                  <CardTitle className="text-lg">Top Síntomas</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1fr_1fr]">
+                    <div className="h-80 flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={topSymptomsData}
+                            dataKey="totalReports"
+                            nameKey="symptomName"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={110}
+                            paddingAngle={0}
+                            labelLine={false}
+                            label={renderLabel}
+                          >
+                            {topSymptomsData.map((item, index) => (
+                              <Cell key={item.symptomName} fill={severityColors[index % severityColors.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={(props) => <CustomPieTooltip {...props} total={topSymptomsTotal} />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-col justify-center space-y-2">
+                      <div className="text-sm font-semibold text-slate-700 mb-2">Ranking de Síntomas</div>
+                      <div className="space-y-2 overflow-y-auto max-h-80">
+                        {topSymptomsData.map((item, index) => {
+                          const total = topSymptomsData.reduce((s: number, it: any) => s + (it.totalReports ?? 0), 0);
+                          const percent = total > 0 ? ((item.totalReports / total) * 100).toFixed(1) : '0.0';
+                          return (
+                            <div key={item.symptomName} className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: severityColors[index % severityColors.length] }} />
+                                  <span className="text-sm font-medium text-slate-800">{index + 1}. {item.symptomName}</span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-semibold text-slate-900">{item.totalReports}</div>
+                                  <div className="text-xs text-slate-600">{percent}%</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                <CardHeader className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-t-lg">
+                  <CardTitle className="text-lg">Distribución por Severidad</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1fr_1fr]">
+                    <div className="h-96 flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -855,54 +885,76 @@ export function SectionManagerDashboard() {
                             nameKey="severity"
                             cx="50%"
                             cy="50%"
-                            outerRadius={100}
-                            label={({ name, percent }: any) => `${name} · ${Math.round((percent ?? 0) * 100)}%`}
+                            innerRadius={30}
+                            outerRadius={120}
+                            paddingAngle={0}
                             labelLine={false}
+                            label={renderLabel}
                           >
                             {(characterization?.severityDistribution ?? []).map((item, index) => (
                               <Cell key={item.severity} fill={severityColors[index % severityColors.length]} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value: any) => [`${value}`, 'Reportes']} />
+                          <Tooltip content={(props) => <CustomPieTooltip {...props} total={severityDistributionTotal} />} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    {/* right column intentionally left for legend or other content on wide screens */}
-                    <div className="hidden xl:flex items-center justify-center text-sm text-slate-500">
-                      <div>No hay lista; los totales globales se muestran en el panel independiente arriba.</div>
+                    <div className="flex flex-col justify-center space-y-3">
+                      <div className="text-sm font-semibold text-slate-700 mb-2">Resumen por Severidad</div>
+                      {(characterization?.severityDistribution ?? []).map((item, index) => {
+                        const total = (characterization?.severityDistribution ?? []).reduce((s: number, it: any) => s + (it.totalReports ?? 0), 0);
+                        const percent = total > 0 ? ((item.totalReports / total) * 100).toFixed(1) : '0.0';
+                        return (
+                          <div key={item.severity} className="flex items-center justify-between p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition">
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: severityColors[index % severityColors.length] }} />
+                              <span className="text-sm font-medium text-slate-800">{item.severity}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-semibold text-slate-900">{item.totalReports}</div>
+                              <div className="text-xs text-slate-600">{percent}%</div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
-                <CardHeader>
-                  <CardTitle>Línea de reportes</CardTitle>
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                <CardHeader className="bg-gradient-to-r from-violet-900 to-violet-800 text-white rounded-t-lg">
+                  <CardTitle className="text-lg">Línea de Tiempo de Reportes</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-80">
+                <CardContent className="pt-6">
+                  <div className="h-96">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={reportsTimelineData} margin={{ top: 16, right: 32, left: 24, bottom: 24 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fill: '#334155', fontSize: 12 }} />
-                        <YAxis tick={{ fill: '#334155', fontSize: 12 }} />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="totalReports" stroke="#0A4B8F" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="#E2E8F0" />
+                        <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 12 }} />
+                        <YAxis tick={{ fill: '#64748B', fontSize: 12 }} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '8px', color: '#E2E8F0' }}
+                          labelStyle={{ color: '#E2E8F0' }}
+                          formatter={(value: any, name: string) => [`${value}`, name === 'totalReports' ? 'Total de Reportes' : name]}
+                          labelFormatter={(label: string) => `Mes: ${label}`}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <Line type="monotone" dataKey="totalReports" name="Total de Reportes" stroke="#0A4B8F" strokeWidth={3} dot={{ r: 5, fill: '#0A4B8F' }} activeDot={{ r: 7, fill: '#0369A1' }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Nuevo panel separado: Pie chart con los cinco totales por gravedad */}
-              <div className="my-4">
-                <Card className="border-0 shadow-2xl bg-white/95 ring-1 ring-slate-200">
-                  <CardHeader>
-                    <CardTitle>Totales por Gravedad (Global)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
+              {/* Panel: Totales por Gravedad */}
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-white to-slate-50 ring-1 ring-slate-200">
+                <CardHeader className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white rounded-t-lg">
+                  <CardTitle className="text-lg">Totales de Casos por Tipo de Severidad</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1fr_1fr]">
+                    <div className="h-80 flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -911,22 +963,49 @@ export function SectionManagerDashboard() {
                             nameKey="label"
                             cx="50%"
                             cy="50%"
-                            outerRadius={100}
-                            label={({ value, percent }: any) => `${value} · ${Math.round((percent ?? 0) * 100)}%`}
+                            innerRadius={20}
+                            outerRadius={110}
+                            paddingAngle={0}
                             labelLine={false}
+                            label={renderLabel}
                           >
                             {severityTotals.map((item, index) => (
                               <Cell key={item.label} fill={severityColors[index % severityColors.length]} />
                             ))}
                           </Pie>
                           <Tooltip content={(props) => <CustomPieTooltip {...props} total={severityTotalSum} />} />
-                          <Legend />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    <div className="flex flex-col justify-start space-y-2">
+                      <div className="text-sm font-semibold text-slate-700 mb-3">Detalle de Casos</div>
+                      <div className="space-y-2 overflow-y-auto max-h-80">
+                        {severityTotals.map((item, index) => {
+                          const percent = severityTotalSum > 0 ? ((item.value / severityTotalSum) * 100).toFixed(1) : '0.0';
+                          return (
+                            <div key={item.label} className="p-3 rounded-lg bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-200 hover:shadow-md transition">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: severityColors[index % severityColors.length] }} />
+                                  <span className="text-sm font-semibold text-slate-800">{item.label}</span>
+                                </div>
+                                <div className="text-right flex-shrink-0 ml-2">
+                                  <div className="text-base font-bold text-slate-900">{item.value}</div>
+                                  <div className="text-xs text-slate-600 font-medium">{percent}%</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                        <div className="text-xs text-blue-600 font-semibold uppercase">Total General</div>
+                        <div className="text-2xl font-bold text-blue-900 mt-1">{severityTotalSum}</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
             </div>
           </TabsContent>

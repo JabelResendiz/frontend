@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/app/components/ui/select";
-import { translateSeverity, translatePatientStatus } from "@/app/utils/translations";
+import { translateSeverity, translatePatientStatus, translateReportStatus } from "@/app/utils/translations";
 
 interface ManageReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
@@ -52,6 +52,7 @@ export function ManageReportsPage({ onNavigate }: ManageReportsPageProps) {
   
   
 const [severityFilter, setSeverityFilter] = useState<string>("all");
+const [statusFilter, setStatusFilter] = useState<string>("all");
 const [vaccineFilter, setVaccineFilter] = useState<string>("all");
 const [vaccinationCenterIdFilter, setVaccinationCenterIdFilter] = useState<string>("");
 
@@ -70,17 +71,18 @@ const [orderFilter, setOrderFilter] = useState<"asc" | "desc">("desc");
     try {
       setIsLoading(true);
       setError(null);
-      const response = await reportService.getAssignedReports(
+      const response = await reportService.getAssignedReports({
         pageNumber,
-        PAGE_SIZE,
-        severityFilter === 'all' ? '' : severityFilter,
-        vaccineFilter === 'all' ? '' : vaccineFilter,
-        vaccinationCenterIdFilter,
-        fromFilter,
-        toFilter,
-        sortByFilter,
-        orderFilter
-      );
+        pageSize: PAGE_SIZE,
+        severity: severityFilter === 'all' ? undefined : severityFilter,
+        reportStatus: statusFilter === 'all' ? undefined : statusFilter,
+        vaccineName: vaccineFilter === 'all' ? undefined : vaccineFilter,
+        vaccinationCenterId: vaccinationCenterIdFilter || undefined,
+        from: fromFilter || undefined,
+        to: toFilter || undefined,
+        sortBy: sortByFilter,
+        order: orderFilter,
+      });
       setReports(response.items);
       setTotalCount(response.totalCount);
       setExpandedReports(new Set()); // Reset expandidos al cambiar página
@@ -98,12 +100,13 @@ const [orderFilter, setOrderFilter] = useState<"asc" | "desc">("desc");
     loadReports();
   }, [pageNumber,
     severityFilter,
+    statusFilter,
     vaccineFilter,
-  vaccinationCenterIdFilter,
-fromFilter,
-toFilter,
-sortByFilter,
-orderFilter]);
+    vaccinationCenterIdFilter,
+    fromFilter,
+    toFilter,
+    sortByFilter,
+    orderFilter]);
 
 
   useEffect(() => {
@@ -125,6 +128,49 @@ orderFilter]);
 
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const getReportCardColor = (report: AssignedReport): string => {
+    const severity = getSeverityLevel(report);
+    if (severity === 'critical') {
+      return 'border-l-4 border-l-red-500 bg-red-50';
+    }
+    if (severity === 'warning') {
+      return 'border-l-4 border-l-yellow-500 bg-yellow-50';
+    }
+    return 'border border-gray-200 bg-white';
+  };
+
+  const getStatusBadgeStyle = (_status?: string) => {
+    return { bg: '#F3F4F6', text: '#374151' };
+  };
+
+  const getStatusCriticalityLabel = (_status?: string): { label: string; className: string } | null => {
+    return null;
+  };
+
+  const getStatusFilterMessage = () => {
+    switch (statusFilter) {
+      case 'Submitted':
+        return 'Reportes enviados pendientes de asignación o revisión.';
+      case 'Reopened':
+        return 'Reportes reabiertos: reportados nuevamente y con asignación vencida.';
+      case 'UnderReview':
+        return 'Reportes en revisión: actualmente en proceso de evaluación médica.';
+      case 'Approved':
+        return 'Reportes aprobados: ya han pasado la revisión y están cerrados.';
+      case 'Rejected':
+        return 'Reportes rechazados: evaluados y considerados no procedentes.';
+      case 'Closed':
+        return 'Reportes cerrados: su ciclo se ha completado y no requieren más acciones.';
+      default:
+        return 'Todos los reportes asignados a su municipio según los filtros seleccionados.';
+    }
+  };
+
+  const isReportAssignable = (status?: string) => {
+    const normalizedStatus = status?.toLowerCase();
+    return normalizedStatus === 'submitted' || normalizedStatus === 'reopened';
+  };
 
   const toggleExpandReport = (index: number) => {
     const newExpanded = new Set(expandedReports);
@@ -191,8 +237,10 @@ orderFilter]);
 
     // Load medical reviewers from current user's municipality
     try {
-      const response = await doctorService.getMedicalReviewersByCurrentUserMunicipality(1, 100);
-      setMedicalReviewers(response.items || []);
+      const response = await doctorService.getAllMedicalReviewer();
+
+
+      setMedicalReviewers(response|| []);
     } catch (error) {
       console.error("Error loading medical reviewers:", error);
       toast.error("Error al cargar médicos revisores");
@@ -252,9 +300,15 @@ orderFilter]);
           <h1 className="text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
             Reportes Asignados
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-3">
             Total: {totalCount} | Página {pageNumber} de {totalPages}
           </p>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 shadow-sm">
+            <p className="font-medium text-slate-900">Reportes de alertas asignados a su municipio.</p>
+            <p className="mt-1">
+              Para asignarlo a un médico, seleccione el reporte y use el botón <span className="font-semibold">Asignar</span>.
+            </p>
+          </div>
         </div>
 
         {/* Error Message */}
@@ -268,6 +322,12 @@ orderFilter]);
 
         <Card className="mb-6">
           <CardContent className="pt-6">
+            <div className="mb-5">
+              <p className="text-lg font-semibold text-slate-900">Filtros</p>
+              <p className="text-sm text-slate-600 mt-1">
+                Use estos filtros para ver reportes por gravedad, vacuna o estado.
+              </p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <div>
                 <label htmlFor="severity-filter" className="block text-sm font-medium text-gray-700 mb-2">
@@ -312,6 +372,32 @@ orderFilter]);
                         {vaccine.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                  Estado del reporte
+                </label>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    setPageNumber(1);
+                    setStatusFilter(value);
+                  }}
+                >
+                  <SelectTrigger id="status-filter" className="w-full">
+                    <SelectValue placeholder="Todos los estados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="Submitted">Enviado</SelectItem>
+                    <SelectItem value="Reopened">Reabierto</SelectItem>
+                    <SelectItem value="UnderReview">En revisión</SelectItem>
+                    <SelectItem value="Approved">Aprobado</SelectItem>
+                    <SelectItem value="Rejected">Rechazado</SelectItem>
+                    <SelectItem value="Closed">Cerrado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -407,6 +493,11 @@ orderFilter]);
               </div>
             </div>
 
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 mt-4">
+              <p className="font-medium text-slate-900">Mensaje de estado</p>
+              <p className="mt-1">{getStatusFilterMessage()}</p>
+            </div>
+
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-gray-600">
                 Página {pageNumber} de {totalPages} · {totalCount} reportes totales
@@ -415,8 +506,9 @@ orderFilter]);
                 variant="outline"
                 onClick={() => {
                   setPageNumber(1);
-                  setSeverityFilter("");
-                  setVaccineFilter("");
+                  setSeverityFilter("all");
+                  setStatusFilter("all");
+                  setVaccineFilter("all");
                   setVaccinationCenterIdFilter("");
                   setFromFilter("");
                   setToFilter("");
@@ -424,7 +516,7 @@ orderFilter]);
                   setOrderFilter("desc");
                 }}
                 disabled={
-                  !severityFilter && !vaccineFilter && !vaccinationCenterIdFilter && !fromFilter && !toFilter && sortByFilter === "reportDate" && orderFilter === "desc"
+                  severityFilter === "all" && statusFilter === "all" && vaccineFilter === "all" && !vaccinationCenterIdFilter && !fromFilter && !toFilter && sortByFilter === "reportDate" && orderFilter === "desc"
                 }
               >
                 Limpiar filtros
@@ -455,8 +547,13 @@ orderFilter]);
                 const isExpanded = expandedReports.has(index);
 
                 return (
-                  <Card key={index} className={`border-0 shadow-md hover:shadow-lg transition-all ${getSeverityColor(severity)}`}>
-                    <CardContent className="p-4">
+                  <Card key={index} className={`border-0 shadow-md hover:shadow-lg transition-all ${getReportCardColor(report)}`}>
+                    <CardContent className="p-4 relative">
+                      {getStatusCriticalityLabel(report.status) && (
+                        <div className={`absolute top-4 right-4 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${getStatusCriticalityLabel(report.status)?.className}`}>
+                          {getStatusCriticalityLabel(report.status)?.label}
+                        </div>
+                      )}
                       {/* Compact View */}
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 cursor-pointer" onClick={() => toggleExpandReport(index)}>
@@ -473,28 +570,33 @@ orderFilter]);
                             <p className="text-sm text-gray-600">
                               {new Date(report.reportDate).toLocaleDateString('es-ES')} · {report.vaccinations[0]?.vaccineName || 'Sin vacuna'}
                             </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Último médico: {report.lastDoctorName ?? '-'}
+                            </p>
                           </div>
 
                           {/* Status Badge */}
                           <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                             style={{
-                              backgroundColor: severity === 'critical' ? '#fee2e2' : severity === 'warning' ? '#fef3c7' : '#ecfdf5',
-                              color: severity === 'critical' ? '#dc2626' : severity === 'warning' ? '#d97706' : '#059669',
+                              backgroundColor: getStatusBadgeStyle(report.status).bg,
+                              color: getStatusBadgeStyle(report.status).text,
                             }}>
-                            {severity === 'critical' ? 'CRÍTICO' : severity === 'warning' ? 'ADVERTENCIA' : 'Normal'}
+                            {report.status ? translateReportStatus(report.status) : 'Sin estado'}
                           </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                          <Button
-                            onClick={() => handleAssignReport(index)}
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <UserPlus className="w-4 h-4 mr-1" />
-                            Asignar
-                          </Button>
+                          {isReportAssignable(report.status) && (
+                            <Button
+                              onClick={() => handleAssignReport(index)}
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              Asignar
+                            </Button>
+                          )}
 
                           {/* Expand Icon */}
                           <ChevronDown
@@ -511,6 +613,11 @@ orderFilter]);
                           <div>
                             <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Sujeto Vacunado</p>
                             <p className="text-sm text-gray-900 font-medium">{report.vaccinatedSubject.fullName}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Último Médico Asignado</p>
+                            <p className="text-sm text-gray-900 font-medium">{report.lastDoctorName ?? '-'}</p>
                           </div>
 
                           {/* Vacunas */}

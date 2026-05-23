@@ -24,6 +24,19 @@ export interface DoctorPerformance {
   numeroDeCasosGravesCompletados?: number;
 }
 
+export interface TimeHourItem {
+  hour: string;
+  totalReport: number;
+}
+
+export interface MunicipalPerformanceSummary {
+  averageReviewTimeHours: number;
+  averageAssignmentTimeHours: number;
+  averageAssignmentByReport: number;
+  timeHours: TimeHourItem[];
+  doctorPerformances: DoctorPerformance[];
+}
+
 export type MunicipalCharacterizationPeriod = '7d' | '1m' | '3m' | '6m' | '1y' | 'all' | 'custom';
 
 export interface TopVaccineStat {
@@ -74,6 +87,14 @@ export const municipalDashboardService = {
    */
   async getDoctorsPerformance(): Promise<DoctorPerformance[]> {
     const response = await api.get<DoctorPerformance[]>('/MunicipalDashboard/doctors-performance');
+    return response.data;
+  },
+
+  /**
+   * Nuevo: obtiene el resumen de rendimiento con tiempos y lista de médicos
+   */
+  async getPerformanceSummary(): Promise<MunicipalPerformanceSummary> {
+    const response = await api.get<MunicipalPerformanceSummary>('/MunicipalDashboard/doctors-performance');
     return response.data;
   },
 

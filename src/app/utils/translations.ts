@@ -22,9 +22,11 @@ export const enumTranslations = {
   reportStatus: {
     UnderReview: "En Revisión",
     Submitted: "Enviado",
+    Reopened: "Reabierto",
+    Completed: "Completado",
     Approved: "Aprobado", 
     Rejected: "Rechazado",
-    Completed: "Finalizado"
+    Closed: "Cerrado"
   },
 
   // estado de la asignación
@@ -130,8 +132,17 @@ export const translateRole = (role: string) =>
   
 
 
-export const translateReportStatus = (status: string) => 
-  translateEnum(status, 'reportStatus', status);
+export const translateReportStatus = (status: string) => {
+  const normalizedKey = Object.keys(enumTranslations.reportStatus).find(
+    (key) => key.toLowerCase() === status.toLowerCase()
+  );
+
+  if (normalizedKey) {
+    return enumTranslations.reportStatus[normalizedKey as keyof typeof enumTranslations['reportStatus']];
+  }
+
+  return translateEnum(status, 'reportStatus', status);
+};
 
 export const translateGender = (gender: string) => 
   translateEnum(gender, 'gender', gender);

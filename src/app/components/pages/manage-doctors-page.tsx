@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Users, ChevronDown, Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { doctorService, type DoctorRegistrationData, type MedicalReviewer } from "@/app/services/doctor.service";
-import { getMunicipalityNameById, getProvinceNameById } from "../../data/municipalities";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 
 
 
@@ -169,30 +169,42 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   };
 
   
-  const validateAge = (identityNumber: string): boolean => {
-    if (!validateIdentityNumber(identityNumber)) return false;
-    const yy = identityNumber.substring(0, 2);
-    const mm = identityNumber.substring(2, 4);
-    const dd = identityNumber.substring(4, 6);
-    const year = parseInt(yy, 10);
-    const month = parseInt(mm, 10);
-    const day = parseInt(dd, 10);
+  const assignmentChartColors = ["#10B981", "#F59E0B", "#EF4444"];
 
+  const getAssignmentDistribution = (reviewer: MedicalReviewer) => {
+    const completed = reviewer.completedAssignments ?? 0;
+    const pending = reviewer.pendingAssignments ?? 0;
+    const expired = reviewer.expiredAssignments ?? 0;
 
-    const currentYearTwoDigits = new Date().getFullYear() % 100;
-
-    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
-    
-    // console.log(fullYear);
-    // console.log(fullYear + 18 > currentYearTwoDigits)
-
-    if(fullYear + 18 > new Date().getFullYear()) return false;
-    
-
-    return true;
-     
+    return [
+      { name: "Completadas", value: completed, fill: assignmentChartColors[0] },
+      { name: "Pendientes", value: pending, fill: assignmentChartColors[1] },
+      { name: "Expiradas", value: expired, fill: assignmentChartColors[2] },
+    ];
   };
 
+  const getAssignmentTotal = (reviewer: MedicalReviewer) => {
+    return (
+      (reviewer.completedAssignments ?? 0) +
+      (reviewer.pendingAssignments ?? 0) +
+      (reviewer.expiredAssignments ?? 0)
+    );
+  };
+
+  function CustomAssignmentPieTooltip({ active, payload, total }: any) {
+    if (!active || !payload || payload.length === 0) return null;
+    const point = payload[0];
+    const value = point?.value ?? 0;
+    const name = point?.name ?? point?.payload?.name ?? 'Elemento';
+    const percent = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+    return (
+      <div className="bg-slate-900 text-white rounded-lg p-3 shadow-lg border border-slate-700 text-sm">
+        <div className="font-semibold">{name}</div>
+        <div className="text-slate-200 mt-1">{value} reportes</div>
+        <div className="text-emerald-400 font-medium mt-1">{percent}% del total</div>
+      </div>
+    );
+  }
 
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors };
@@ -448,6 +460,10 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                     <SelectContent>
                       <SelectItem value="createdAt">Fecha de Registro</SelectItem>
                       <SelectItem value="fullName">Nombre</SelectItem>
+                      <SelectItem value="totalassignments">Total Asignaciones</SelectItem>
+                      <SelectItem value="averagetimereview">Tiempo promedio de Revisión</SelectItem>
+                      <SelectItem value="expiredassignments">Asignaciones Expiradas</SelectItem>
+                      <SelectItem value="completedassignments">Asignaciones Completadas</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -728,30 +744,56 @@ export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
                         {/* Expanded View */}
                         {isExpanded && (
                           <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Nombre Completo</p>
-                                <p className="text-sm text-gray-900">{reviewer.fullName}</p>
+                            <div className="grid gap-4 lg:grid-cols-[220px_1fr] items-center">
+                              <div className="h-40 w-full rounded-lg bg-slate-50 border border-slate-200 p-3">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <PieChart>
+                                    <Pie
+                                      data={getAssignmentDistribution(reviewer)}
+                                      dataKey="value"
+                                      nameKey="name"
+                                      innerRadius={30}
+                                      outerRadius={60}
+                                      paddingAngle={2}
+                                    >
+                                      {getAssignmentDistribution(reviewer).map((item) => (
+                                        <Cell key={item.name} fill={item.fill} />
+                                      ))}
+                                    </Pie>
+                                    <RechartsTooltip content={(props) => <CustomAssignmentPieTooltip {...props} total={getAssignmentTotal(reviewer)} />} />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                                <div className="mt-2 text-center text-xs text-slate-500">Distribución de asignaciones</div>
                               </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
-                                <p className="text-sm text-gray-900">{reviewer.email}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Teléfono</p>
-                                <p className="text-sm text-gray-900">{reviewer.phoneNumber}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Institución</p>
-                                <p className="text-sm text-gray-900">{reviewer.institution}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Provincia</p>
-                                <p className="text-sm text-gray-900">{getProvinceNameById(reviewer.provinceId)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Municipio</p>
-                                <p className="text-sm text-gray-900">{getMunicipalityNameById(reviewer.provinceId,reviewer.municipalityId)}</p>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                {(() => {
+                                  const total = getAssignmentTotal(reviewer);
+                                  const completed = reviewer.completedAssignments ?? 0;
+                                  const pending = reviewer.pendingAssignments ?? 0;
+                                  const expired = reviewer.expiredAssignments ?? 0;
+                                  const avg = reviewer.averageTimeReview ?? 0;
+                                  const tiles = [
+                                    { title: 'Nombre', value: reviewer.fullName || '-' },
+                                    { title: 'Teléfono', value: reviewer.phoneNumber || '-' },
+                                    { title: 'Institución', value: reviewer.institution || '-' },
+                                    { title: 'Total', value: total, isTotal: true },
+                                    { title: 'Completadas', value: `${completed}${total>0 ? ` (${((completed/total)*100).toFixed(1)}%)` : ' (0.0%)'}` },
+                                    { title: 'Pendientes', value: `${pending}${total>0 ? ` (${((pending/total)*100).toFixed(1)}%)` : ' (0.0%)'}` },
+                                    { title: 'Expiradas', value: `${expired}${total>0 ? ` (${((expired/total)*100).toFixed(1)}%)` : ' (0.0%)'}` },
+                                    { title: 'Tiempo Promedio', value: `${avg} horas` },
+                                  ];
+
+                                  return tiles.map((t) => (
+                                    <div
+                                      key={t.title}
+                                      className={`rounded-xl border p-3 text-sm ${t.isTotal && t.value === 0 ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
+                                    >
+                                      <div className="font-semibold text-slate-800">{t.title}</div>
+                                      <div className="text-slate-600 mt-1">{t.value}</div>
+                                    </div>
+                                  ));
+                                })()}
                               </div>
                             </div>
                           </div>
