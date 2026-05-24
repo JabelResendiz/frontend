@@ -3,6 +3,8 @@ import { api } from './api';
 export interface VaccinatedSubject {
   fullName: string;
   age:number;
+  gender:string;
+  ispregnant:boolean;
 }
 
 export interface Reporter {

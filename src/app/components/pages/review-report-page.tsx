@@ -6,16 +6,15 @@ import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { Alert, AlertDescription } from '@/app/components/ui/alert';
-import { AlertCircle, ChevronLeft, Download } from 'lucide-react';
+import { ChevronLeft, Mail, Phone, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { reportService, AssignedReport } from '@/app/services/report.service';
-import { 
-  translateCausality,
-  translateClinicalSignificance, 
+import {
   translatePatientStatus,
-  translateAdministrationSite, 
-  translateIntensity} from '@/app/utils/translations';
+  translateAdministrationSite,
+  translateIntensity,
+} from '@/app/utils/translations';
+import { translateGender } from '@/app/utils/translations';
 
 interface ReviewReportPageProps {
   reportId?: string;
@@ -166,254 +165,287 @@ console.log(reviewedAt);
 //   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onNavigate('assigned-reports')}
-              className="gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Volver
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Revisión de Reporte</h1>
+    <div className="min-h-screen bg-slate-50 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('assigned-reports')}
+                className="gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Volver
+              </Button>
+              <h1 className="mt-1 text-3xl font-semibold text-slate-900">Revisión de Reporte</h1>
+            </div>
+
+            <p className="mt-2 text-sm text-slate-600 max-w-2xl">
+              Revisa la información clave del evento adverso, revisa la asignación y completa la evaluación clínica con claridad.
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 text-indigo-700 px-3 py-1 text-sm">
+                <strong className="font-medium">Fecha reporte:</strong>
+                <span>{new Date(report.reportDate).toLocaleString('es-ES')}</span>
+              </span>
+
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 text-sm">
+                <strong className="font-medium">Fecha asignación:</strong>
+                <span>{report.assignedDate ? new Date(report.assignedDate).toLocaleString('es-ES') : 'N/A'}</span>
+              </span>
+
+
             </div>
           </div>
-          {/* <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Descargar
-            </Button>
-          </div> */}
+          
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="bg-blue-50 border-b">
-              <CardTitle className="text-xl">📋 Información del Reporte</CardTitle>
-              <CardDescription>Solo datos entregados por el backend</CardDescription>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="border-slate-200 shadow-sm border-l-4 border-indigo-400">
+            <CardHeader className="border-b border-slate-200 bg-white/80">
+              <CardTitle className="text-lg font-semibold text-slate-900">Sujeto Vacunado</CardTitle>
+              <CardDescription>Información de la persona que recibió la vacuna</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* <div>
-                  <Label className="text-sm font-semibold text-gray-700">ID del Reporte</Label>
-                  <p className="text-gray-900 mt-1">{report.id}</p>
-                </div> */}
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Fecha del Reporte</Label>
-                  <p className="text-gray-900 mt-1">{new Date(report.reportDate).toLocaleString('es-ES')}</p>
+            <CardContent className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-slate-500" />
+                  <div>
+                    <p className="text-sm text-slate-500">Nombre</p>
+                    <p className="mt-1 text-base font-medium text-slate-900">{report.vaccinatedSubject.fullName}</p>
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Fecha de la Asignación</Label>
-                  <p className="text-gray-900 mt-1">{new Date(report.assignedDate).toLocaleString('es-ES')}</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <span className="text-base font-semibold">A</span>
+                  </span>
+                  <div>
+                    <p className="text-sm text-slate-500">Edad</p>
+                    <p className="mt-1 text-slate-900">{report.vaccinatedSubject.age ?? 'N/A'}</p>
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Persona Vacunada</Label>
-                  <p className="text-gray-900 mt-1">{report.vaccinatedSubject.fullName}</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <span className="text-base font-semibold">G</span>
+                  </span>
+                  <div>
+                    <p className="text-sm text-slate-500">Género</p>
+                    <p className="mt-1 text-slate-900">{translateGender(report.vaccinatedSubject.gender) ?? 'N/A'}</p>
+                  </div>
                 </div>
-                 <div>
-                  <Label className="text-sm font-semibold text-gray-700">Edad Persona Vacunada</Label>
-                  <p className="text-gray-900 mt-1">{report.vaccinatedSubject.age}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Reportante</Label>
-                  <p className="text-gray-900 mt-1">{report.reporter.fullName}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Teléfono del Reportante</Label>
-                  <p className="text-gray-900 mt-1">{report.reporter.phoneNumber}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Email del Reportante</Label>
-                  <p className="text-gray-900 mt-1">{report.reporter.email}</p>
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <span className="text-base font-semibold">G</span>
+                  </span>
+                  <div>
+                    <p className="text-sm text-slate-500">Embarazada</p>
+                    <p className="mt-1 text-slate-900">{report.vaccinatedSubject.ispregnant ? 'Sí' : 'No'}</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="bg-green-50 border-b">
-              <CardTitle className="text-xl">💉 Vacunaciones</CardTitle>
-              <CardDescription>Datos de vacunación del backend</CardDescription>
+          <Card className="border-slate-200 shadow-sm border-l-4 border-emerald-400">
+            <CardHeader className="border-b border-slate-200 bg-white/80">
+              <CardTitle className="text-lg font-semibold text-slate-900">Reportante</CardTitle>
+              <CardDescription>Datos de quien reportó el evento adverso</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-slate-500" />
+                  <div>
+                    <p className="text-sm text-slate-500">Nombre</p>
+                    <p className="mt-1 text-base font-medium text-slate-900">{report.reporter.fullName}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <Phone className="w-5 h-5 text-slate-500 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-slate-500">Teléfono</p>
+                    <p className="mt-1 text-slate-900">{report.reporter.phoneNumber || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <Mail className="w-5 h-5 text-slate-500 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-slate-500">Email</p>
+                    <p className="mt-1 text-slate-900">{report.reporter.email || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        
+
+       
+
+        <div className="grid gap-6 lg:grid-cols-2 mt-6">
+          <Card className="border-slate-200 shadow-sm border-l-4 border-yellow-400">
+            <CardHeader className="border-b border-slate-200 bg-yellow-50">
+              <CardTitle className="text-lg font-semibold text-slate-900">Vacunaciones</CardTitle>
+              <CardDescription>Detalles de cada dosis aplicada</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {report.vaccinations && Array.isArray(report.vaccinations) ? (
                 report.vaccinations.map((vaccination, index) => (
-                  <div key={index} className="p-4 bg-white border rounded-lg shadow-sm">
-                    <h4 className="font-semibold text-gray-800 mb-3">Vacunación #{index + 1}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div key={index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Vacunación #{index + 1}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Vacuna</Label>
-                        <p className="text-gray-900 mt-1">{vaccination.vaccineName}</p>
+                        <p className="text-sm text-slate-500">Vacuna</p>
+                        <p className="mt-1 text-slate-900">{vaccination.vaccineName}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Número de Lote</Label>
-                        <p className="text-gray-900 mt-1">{vaccination.lotNumber}</p>
+                        <p className="text-sm text-slate-500">Lote</p>
+                        <p className="mt-1 text-slate-900">{vaccination.lotNumber}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Sitio de Administración</Label>
-                        <p className="text-gray-900 mt-1">{translateAdministrationSite(vaccination.administrationSite)}</p>
+                        <p className="text-sm text-slate-500">Sitio</p>
+                        <p className="mt-1 text-slate-900">{translateAdministrationSite(vaccination.administrationSite)}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Dosis</Label>
-                        <p className="text-gray-900 mt-1">{vaccination.doseNumber}</p>
+                        <p className="text-sm text-slate-500">Dosis</p>
+                        <p className="mt-1 text-slate-900">{vaccination.doseNumber}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Fecha de Administración</Label>
-                        <p className="text-gray-900 mt-1">{new Date(vaccination.administrationDate).toLocaleString('es-ES')}</p>
+                        <p className="text-sm text-slate-500">Fecha</p>
+                        <p className="mt-1 text-slate-900">{new Date(vaccination.administrationDate).toLocaleString('es-ES')}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Centro de Vacunación</Label>
-                        <p className="text-gray-900 mt-1">{vaccination.vaccinationCenterName}</p>
+                        <p className="text-sm text-slate-500">Centro</p>
+                        <p className="mt-1 text-slate-900">{vaccination.vaccinationCenterName}</p>
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-sm">No hay datos de vacunación registrados</p>
+                <p className="text-sm text-slate-500">No hay datos de vacunación registrados</p>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="bg-yellow-50 border-b">
-              <CardTitle className="text-xl">⚠️ Evento(s) Adverso(s)</CardTitle>
-              <CardDescription>Datos del backend</CardDescription>
+          <Card className="border-slate-200 shadow-sm border-l-4 border-red-400">
+            <CardHeader className="border-b border-slate-200 bg-red-50">
+              <CardTitle className="text-lg font-semibold text-slate-900">Evento Adverso</CardTitle>
+              <CardDescription>Detalles clínicos importantes</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
+            <CardContent className="space-y-4">
               {report.adverseEvents && Array.isArray(report.adverseEvents) ? (
                 report.adverseEvents.map((event, index) => (
-                <div key={index} className="p-4 bg-white border rounded-lg shadow-sm">
-                  <h4 className="font-semibold text-gray-800 mb-3">Evento Adverso #{index + 1}</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Fecha de Inicio</Label>
-                      <p className="text-gray-900 mt-1">{new Date(event.startDate).toLocaleString('es-ES')}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Intensidad</Label>
-                      <p className="text-gray-900 mt-1">{translateIntensity(event.intensity)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Estado Actual</Label>
-                      <p className="text-gray-900 mt-1">{translatePatientStatus(event.currentStatus)}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Visitó Doctor</Label>
-                      <p className="text-gray-900 mt-1">{event.visitedDoctor ? 'Sí' : 'No'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Fue a Emergencias</Label>
-                      <p className="text-gray-900 mt-1">{event.wentToEmergencyRoom ? 'Sí' : 'No'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Discapacidad Permanente</Label>
-                      <p className="text-gray-900 mt-1">{event.permanentDisability ? 'Sí' : 'No'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Amenaza Vital</Label>
-                      <p className="text-gray-900 mt-1">{event.isLifeThreatening ? 'Sí' : 'No'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Resultó en Muerte</Label>
-                      <p className="text-gray-900 mt-1">{event.resultedInDeath ? 'Sí' : 'No'}</p>
-                    </div>
-                    {event.deathDate && (
+                  <div key={index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Evento #{index + 1}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Fecha de Muerte</Label>
-                        <p className="text-gray-900 mt-1">{new Date(event.deathDate).toLocaleString('es-ES')}</p>
+                        <p className="text-sm text-slate-500">Fecha de Inicio</p>
+                        <p className="mt-1 text-slate-900">{new Date(event.startDate).toLocaleString('es-ES')}</p>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4">
-                    <Label className="text-sm font-semibold text-gray-700">Síntomas</Label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {event.symptom ? (
-                        <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                          {event.symptom.name}
-                        </span>
-                      ) : event.symptoms && Array.isArray(event.symptoms) ? (
-                        event.symptoms.map((symptom) => (
-                          <span key={symptom.id} className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                            {symptom.name}
+                      <div>
+                        <p className="text-sm text-slate-500">Estado</p>
+                        <p className="mt-1 text-slate-900">{translatePatientStatus(event.currentStatus)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Intensidad</p>
+                        <p className="mt-1 text-slate-900">{translateIntensity(event.intensity)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Visitó Doctor</p>
+                        <p className="mt-1 text-slate-900">{event.visitedDoctor ? 'Sí' : 'No'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Emergencias</p>
+                        <p className="mt-1 text-slate-900">{event.wentToEmergencyRoom ? 'Sí' : 'No'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Amenaza Vital</p>
+                        <p className="mt-1 text-slate-900">{event.isLifeThreatening ? 'Sí' : 'No'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm text-slate-500">Síntomas</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {event.symptom ? (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+                            {event.symptom.name}
                           </span>
-                        ))
-                      ) : (
-                        <p className="text-gray-500 text-sm">No hay síntomas registrados</p>
-                      )}
+                        ) : event.symptoms && Array.isArray(event.symptoms) ? (
+                          event.symptoms.map((symptom) => (
+                            <span key={symptom.id} className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+                              {symptom.name}
+                            </span>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-500">No hay síntomas registrados</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))
               ) : (
-                <p className="text-gray-500 text-sm">No hay eventos adversos registrados</p>
+                <p className="text-sm text-slate-500">No hay eventos adversos registrados</p>
               )}
             </CardContent>
           </Card>
+        </div>
 
-          <Card>
-            <CardHeader className="bg-purple-50 border-b">
-              <CardTitle className="text-xl">🏥 Tu Evaluación Clínica</CardTitle>
-              <CardDescription>Completa los campos para enviar la revisión</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <Alert className="border-purple-200 bg-purple-50">
-                <AlertCircle className="h-4 w-4 text-purple-600" />
-                <AlertDescription className="text-sm text-purple-800">
-                  En el POST se envía el nombre del enum, no su valor numérico.
-                </AlertDescription>
-              </Alert>
+        <Card className="border-slate-200 shadow-sm mt-6 border-l-4 border-indigo-500">
+          <CardHeader className="border-b border-slate-200 bg-indigo-50">
+            <CardTitle className="text-lg font-semibold text-slate-900">Evaluación Clínica</CardTitle>
+            <CardDescription>Completa el análisis médico y envía la revisión</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-6">
+            
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="causality">Causalidad *</Label>
-                  <Select value={causality} onValueChange={setCausality}>
-                    <SelectTrigger className="bg-white mt-2">
-                      <SelectValue placeholder="Seleccione causalidad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Definitive">Definitiva</SelectItem>
-                      <SelectItem value="Probable">Probable</SelectItem>
-                      <SelectItem value="Possible">Posible</SelectItem>
-                      <SelectItem value="Improbable">Improbable / No relacionada</SelectItem>
-                      <SelectItem value="NotEvaluable">No evaluable</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="clinicalSignificance">Significancia Clínica *</Label>
-                  <Select value={clinicalSignificance} onValueChange={setClinicalSignificance}>
-                    <SelectTrigger className="bg-white mt-2">
-                      <SelectValue placeholder="Seleccione significancia clínica" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ClinicallySignificantAndUnexpected">Clínicamente significativo e inesperado</SelectItem>
-                      <SelectItem value="ExpectedEvent">Evento esperado</SelectItem>
-                      <SelectItem value="SeriousOrLifeThreatening">Evento serio o potencialmente mortal</SelectItem>
-                      <SelectItem value="MinorEvent">Evento menor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="causality">Causalidad *</Label>
+                <Select value={causality} onValueChange={setCausality}>
+                  <SelectTrigger className="bg-white mt-2">
+                    <SelectValue placeholder="Seleccione causalidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Definitive">Definitiva</SelectItem>
+                    <SelectItem value="Probable">Probable</SelectItem>
+                    <SelectItem value="Possible">Posible</SelectItem>
+                    <SelectItem value="Improbable">Improbable / No relacionada</SelectItem>
+                    <SelectItem value="NotEvaluable">No evaluable</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* {reportIDB && (
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">ID del Reporte</Label>
-                  <p className="text-gray-900 mt-1">{reportIDB}</p>
-                </div>
-              )} */}
+              <div>
+                <Label htmlFor="clinicalSignificance">Significancia Clínica *</Label>
+                <Select value={clinicalSignificance} onValueChange={setClinicalSignificance}>
+                  <SelectTrigger className="bg-white mt-2">
+                    <SelectValue placeholder="Seleccione significancia clínica" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ClinicallySignificantAndUnexpected">Clínicamente significativo e inesperado</SelectItem>
+                    <SelectItem value="ExpectedEvent">Evento esperado</SelectItem>
+                    <SelectItem value="SeriousOrLifeThreatening">Evento serio o potencialmente mortal</SelectItem>
+                    <SelectItem value="MinorEvent">Evento menor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
+            <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="laboratoryResults">Resultados de Laboratorio</Label>
                 <Textarea
@@ -421,10 +453,9 @@ console.log(reviewedAt);
                   placeholder="Ej: Hemograma normal, función hepática sin alteraciones..."
                   value={laboratoryResults}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setLaboratoryResults(e.target.value)}
-                  className="bg-white min-h-[80px]"
+                  className="bg-white min-h-[120px]"
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="medDRACode">Código MedDRA</Label>
                 <Input
@@ -435,7 +466,6 @@ console.log(reviewedAt);
                   className="bg-white mt-2"
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="retClassification">Clasificación RET</Label>
                 <Input
@@ -446,10 +476,12 @@ console.log(reviewedAt);
                   className="bg-white mt-2"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex gap-4 sticky bottom-0 bg-white p-4 rounded-lg shadow-lg">
+        <div className="sticky bottom-0 z-10 mt-6 rounded-t-3xl border border-slate-200 border-b-0 bg-white/95 p-4 backdrop-blur-sm shadow-lg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <Button
               variant="outline"
               onClick={() => onNavigate('assigned-reports')}
@@ -460,7 +492,7 @@ console.log(reviewedAt);
             </Button>
             <Button
               onClick={handleSubmitReview}
-              className="flex-1 gap-2"
+              className="flex-1 sm:flex-none gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
               disabled={isSubmitting}
             >
               Guardar Evaluación
