@@ -23,6 +23,16 @@ export const authService = {
     return res.data;
   },
 
+  completeRegistration: async (payload: {
+    email: string;
+    token: string;
+    password: string;
+    professionalNumber: string;
+  }) => {
+    const res = await authApi.post('/Authentication/complete-registration', payload);
+    return res.data;
+  },
+
   refreshToken: async () => {
     const res = await authApi.post<AuthResponse>('/Authentication/refresh');
     const token = getTokenFromResponse(res.data);
