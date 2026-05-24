@@ -3,9 +3,10 @@ import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger } from '@/app/components/ui/alert-dialog';
-import { Eye, Download } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { Eye, Download, Loader2 } from 'lucide-react';
 import { reportService, AssignedReport } from '@/app/services/report.service';
+import { catalogService } from '@/app/services/catalog.service';
 
 interface AssignedReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string, payload?: AssignedReport) => void;
@@ -15,14 +16,36 @@ export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) =>
   const { user } = useAuth();
   const [reports, setReports] = useState<AssignedReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [vaccineFilter, setVaccineFilter] = useState<string>('all');
+  const [sortByFilter, setSortByFilter] = useState<string>('reportDate');
+  const [orderFilter, setOrderFilter] = useState<'asc' | 'desc'>('desc');
+  const [vaccines, setVaccines] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     const loadAssignedReports = async () => {
+      const isInitialLoad = !hasFetchedOnce;
+
       try {
-        setLoading(true);
+        if (isInitialLoad) {
+          setLoading(true);
+        } else {
+          setIsFetching(true);
+        }
         setError(null);
-        const response = await reportService.getAssignedReportsForReviewer(1, 10);
+
+        const response = await reportService.getAssignedReportsForReviewer({
+          pageNumber: 1,
+          pageSize: 10,
+          severity: severityFilter === 'all' ? undefined : severityFilter,
+          vaccineName: vaccineFilter === 'all' ? undefined : vaccineFilter,
+          sortBy: sortByFilter,
+          order: orderFilter,
+        });
+
         console.log('API Response:', response);
         setReports(response?.items || []);
       } catch (err) {
@@ -30,14 +53,32 @@ export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) =>
         setError('Error al cargar los reportes asignados');
         setReports([]);
       } finally {
-        setLoading(false);
+        if (isInitialLoad) {
+          setLoading(false);
+          setHasFetchedOnce(true);
+        } else {
+          setIsFetching(false);
+        }
       }
     };
 
     if (user && user.role === 'MedicalReviewer') {
       loadAssignedReports();
     }
-  }, [user]);
+  }, [user, severityFilter, vaccineFilter, sortByFilter, orderFilter]);
+
+  useEffect(() => {
+    const fetchVaccines = async () => {
+      try {
+        const activeVaccines = await catalogService.getActiveVaccines();
+        setVaccines(activeVaccines);
+      } catch (err) {
+        console.error('Error loading vaccines:', err);
+      }
+    };
+
+    fetchVaccines();
+  }, []);
 
   if (!user || user.role !== 'MedicalReviewer') {
     return (
@@ -47,7 +88,7 @@ export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) =>
     );
   }
 
-  if (loading) {
+  if (loading && !hasFetchedOnce) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="text-center py-12">
@@ -57,7 +98,7 @@ export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) =>
     );
   }
 
-  if (error) {
+  if (error && reports.length === 0) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="text-center py-12">
@@ -68,8 +109,11 @@ export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) =>
   }
 
   const getStatusFromReport = (report: AssignedReport): 'pending' | 'in-review' | 'completed' => {
-    // Lógica para determinar el status basado en los datos del reporte
-    // Por ahora, asumimos que todos están pendientes
+    if (!report) {
+      return 'pending';
+    }
+
+    // Lógica para determinar el status basado en los datos del reporte (placeholder)
     return 'pending';
   };
 
@@ -205,6 +249,100 @@ Evento ${idx + 1}:
         <p className="text-gray-600">Revisa y completa los reportes de eventos adversos asignados a ti</p>
       </div>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Filtros de revisión</CardTitle>
+          <CardDescription>Filtra los reportes por vacuna, gravedad, orden y dirección de ordenamiento.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Vacuna</label>
+              <Select value={vaccineFilter} onValueChange={setVaccineFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas las vacunas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las vacunas</SelectItem>
+                  {vaccines.map((vaccine) => (
+                    <SelectItem key={vaccine.id} value={vaccine.name}>{vaccine.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Gravedad</label>
+              <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="serious">Grave</SelectItem>
+                  <SelectItem value="nonserious">Leve</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ordenar por</label>
+              <Select value={sortByFilter} onValueChange={setSortByFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Fecha de reporte" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reportDate">Fecha de reporte</SelectItem>
+                  <SelectItem value="vaccinatedSubject.fullName">Nombre de Sujeto Vacunado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Orden</label>
+              <Select value={orderFilter} onValueChange={(value) => setOrderFilter(value as 'asc' | 'desc')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Descendente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Descendente</SelectItem>
+                  <SelectItem value="asc">Ascendente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {isFetching ? (
+              <div className="inline-flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Actualizando resultados...
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Aplica los filtros para refinar los reportes asignados.</p>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSeverityFilter('all');
+                setVaccineFilter('all');
+                setSortByFilter('reportDate');
+                setOrderFilter('desc');
+              }}
+              disabled={
+                severityFilter === 'all' &&
+                vaccineFilter === 'all' &&
+                sortByFilter === 'reportDate' &&
+                orderFilter === 'desc'
+              }
+            >
+              Limpiar filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {(!reports || reports.length === 0) ? (
         <Card className="text-center py-12">
           <CardContent>
@@ -231,12 +369,12 @@ Evento ${idx + 1}:
                       </div>
                       <CardDescription>
                         <span className="flex flex-wrap gap-4 text-sm block">
-                          <span>Reporte: <strong>{report.id}</strong></span>
                           <span>Vacuna(s): <strong>{vaccineNames}</strong></span>
-                          <span>Fecha: <strong>{new Date(report.reportDate).toLocaleDateString()}</strong></span>
+                          <span>Fecha Reporte: <strong>{new Date(report.reportDate).toLocaleDateString()}</strong></span>
+                          <span>Fecha Asignación: <strong>{new Date(report.assignedDate).toLocaleDateString()}</strong></span>
                           <span>Reportante: <strong>{report.reporter.fullName}</strong></span>
                           <span className={`font-semibold ${getSeverityColor(severity)}`}>
-                            Severidad: {getSeverityLabel(severity)}
+                            Gravedad: {getSeverityLabel(severity)}
                           </span>
                         </span>
                         {report.adverseEvents.length > 0 && (

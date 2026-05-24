@@ -2,6 +2,7 @@ import { api } from './api';
 
 export interface VaccinatedSubject {
   fullName: string;
+  age:number;
 }
 
 export interface Reporter {
@@ -39,7 +40,7 @@ export interface AdverseEvent {
   symptoms?: Symptom[];
   severity?: string;
   severityLevel?: string;
-  intensity?: string;
+  intensity: string;
 }
 
 export interface ClinicalMedicalReviewRequest {
@@ -60,6 +61,7 @@ export interface CreateMedicalReviewRequest {
 export interface AssignedReport {
   id: string;
   reportDate: string;
+  assignedDate:string;
   status?: string;
   globalSeverityLevel?: string;
   lastDoctorName?: string | null;
@@ -222,12 +224,18 @@ export const reportService = {
     return res.data.data ?? res.data;
   },
 
-  getAssignedReportsForReviewer: async (pageNumber: number = 1, pageSize: number = 10): Promise<AssignedReportsResponse> => {
+  getAssignedReportsForReviewer: async (
+    params: {
+      pageNumber?: number;
+      pageSize?: number;
+      severity?: string;
+      vaccineName?: string;
+      sortBy?: string;
+      order?: "asc" | "desc";
+    } = {}
+  ): Promise<AssignedReportsResponse> => {
     const res = await api.get('/Report/get-report-assigment', {
-      params: {
-        pageNumber,
-        pageSize,
-      },
+      params,
     });
 
     return res.data.data ?? res.data;

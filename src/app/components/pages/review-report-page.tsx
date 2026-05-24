@@ -14,7 +14,8 @@ import {
   translateCausality,
   translateClinicalSignificance, 
   translatePatientStatus,
-  translateAdministrationSite } from '@/app/utils/translations';
+  translateAdministrationSite, 
+  translateIntensity} from '@/app/utils/translations';
 
 interface ReviewReportPageProps {
   reportId?: string;
@@ -212,8 +213,16 @@ console.log(reviewedAt);
                   <p className="text-gray-900 mt-1">{new Date(report.reportDate).toLocaleString('es-ES')}</p>
                 </div>
                 <div>
+                  <Label className="text-sm font-semibold text-gray-700">Fecha de la Asignación</Label>
+                  <p className="text-gray-900 mt-1">{new Date(report.assignedDate).toLocaleString('es-ES')}</p>
+                </div>
+                <div>
                   <Label className="text-sm font-semibold text-gray-700">Persona Vacunada</Label>
                   <p className="text-gray-900 mt-1">{report.vaccinatedSubject.fullName}</p>
+                </div>
+                 <div>
+                  <Label className="text-sm font-semibold text-gray-700">Edad Persona Vacunada</Label>
+                  <p className="text-gray-900 mt-1">{report.vaccinatedSubject.age}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-semibold text-gray-700">Reportante</Label>
@@ -289,6 +298,10 @@ console.log(reviewedAt);
                     <div>
                       <Label className="text-sm font-semibold text-gray-700">Fecha de Inicio</Label>
                       <p className="text-gray-900 mt-1">{new Date(event.startDate).toLocaleString('es-ES')}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Intensidad</Label>
+                      <p className="text-gray-900 mt-1">{translateIntensity(event.intensity)}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-semibold text-gray-700">Estado Actual</Label>
