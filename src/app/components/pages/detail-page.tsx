@@ -584,6 +584,12 @@ SEVERIDAD GENERAL: ${detail.globalSeverityLevel}
                   <div className="text-sm text-gray-600 mb-1">Relación</div>
                   <div className="text-sm font-medium">{translateReporterRelationship(detail.reporter.reporterRelationship)}</div>
                 </div>
+                {detail.reporter.gender && (
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Sexo</div>
+                    <div className="text-sm font-medium">{translateGender(detail.reporter.gender)}</div>
+                  </div>
+                )}
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Teléfono</div>
                   <div className="text-sm font-medium">{detail.reporter.phoneNumber}</div>

@@ -212,6 +212,25 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           </div>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="reporterGender">Sexo *</Label>
+            <Select
+              value={formData.reporterGender}
+              onValueChange={(value) => updateFormData("reporterGender", value)}
+              disabled={isPatient}
+            >
+              <SelectTrigger className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}>
+                <SelectValue placeholder="Seleccione sexo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="M">Masculino</SelectItem>
+                <SelectItem value="F">Femenino</SelectItem>
+                <SelectItem value="O">Otro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">

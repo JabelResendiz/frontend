@@ -695,6 +695,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       if (!formData.reporterFullName?.trim()) missing.push("Nombre completo del reportante");
       if (!formData.reporterIdentityNumber?.trim()) missing.push("Número de identidad del reportante");
       if (!formData.reporterDateOfBirth) missing.push("Fecha de nacimiento del reportante");
+      if (!formData.reporterGender) missing.push("Sexo del reportante");
       if (!formData.reporterProvince) missing.push("Provincia del reportante");
       if (!formData.reporterMunicipality) missing.push("Municipio del reportante");
       if (!formData.reporterPhoneNumber?.trim()) missing.push("Teléfono del reportante");
@@ -757,6 +758,13 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
     if (!formData.reporterEmail || !formData.reporterPhoneNumber) {
       toast.error("Datos de contacto requeridos", {
         description: "Para poder darle seguimiento a su reporte, es necesario que proporcione su email y teléfono de contacto."
+      });
+      return;
+    }
+
+    if (!formData.reporterGender) {
+      toast.error("Sexo del reportante requerido", {
+        description: "Debe indicar el sexo del reportante antes de enviar el reporte."
       });
       return;
     }
@@ -848,6 +856,7 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           })(),
           identityNumber: formData.reporterIdentityNumber || "",
           dateOfBirth: formData.reporterDateOfBirth ? new Date(formData.reporterDateOfBirth).toISOString() : "",
+          gender: genderMap[formData.reporterGender as keyof typeof genderMap] || "Unknown",
           provinceId: getProvinceId(formData.reporterProvince),
           municipalityId: getMunicipalityId(formData.reporterProvince, formData.reporterMunicipality),
           phoneNumber: formData.reporterPhoneNumber,

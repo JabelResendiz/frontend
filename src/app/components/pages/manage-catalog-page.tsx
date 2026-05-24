@@ -18,8 +18,6 @@ import { Loader2 } from "lucide-react";
 interface Symptom {
   id: string;
   name: string;
-  standardCode: string;
-  codingSystem: string;
   category: string;
   description?: string;
   isActive: boolean;
@@ -30,15 +28,10 @@ interface Vaccine {
   id: string;
   name: string;
   type: string;
-  code: string;
   approvalDate: string;
   isActive: boolean;
+  targetPathology:string;
 }
-
-// interface Lot {
-//   lotNumber: string;
-//   vaccineId: string;
-// }
 
 
 interface PagedResultSymptoms {
@@ -61,8 +54,6 @@ interface PagedResultVaccines {
 
 interface SymptomFormData {
   name: string;
-  standardCode: string;
-  codingSystem: string;
   description: string;
   category: string;
   isActive: boolean;
@@ -71,9 +62,9 @@ interface SymptomFormData {
 interface VaccineFormData {
   name: string;
   type: string;
-  code: string;
   description: string;
   approvalDate: string;
+  targetPathology:string;
   isActive: boolean;
   manufacturerDto: {
     id: string;
@@ -102,7 +93,7 @@ const vaccineTypes = [
   { id: 'Other', name: 'Otra' },
 ];
 
-const symptomCategories = ['General', 'Neurological', 'Muscular', 'Local', 'Respiratory', 'Gastrointestinal', 'Cardiac', 'Dermatological', 'Other'];
+const symptomCategories = ['General', 'Neurológica', 'Muscular', 'Local', 'Respiratoria', 'Gastrointestinal', 'Cardiaca', 'Dermatológica', 'Otra'];
 
 export const ManageCatalogPage = () => {
   // Estado de síntomas
@@ -135,8 +126,6 @@ export const ManageCatalogPage = () => {
   // Estado de formularios
   const [symptomForm, setSymptomForm] = useState<SymptomFormData>({
     name: '',
-    standardCode: '',
-    codingSystem: '',
     description: '',
     category: 'General',
     isActive: true,
@@ -145,8 +134,8 @@ export const ManageCatalogPage = () => {
   const [vaccineForm, setVaccineForm] = useState<VaccineFormData>({
     name: '',
     type: 'mRNA',
-    code: '',
     description: '',
+    targetPathology:'',
     approvalDate: new Date().toISOString().split('T')[0],
     isActive: true,
     manufacturerDto: {
@@ -217,8 +206,6 @@ export const ManageCatalogPage = () => {
       setSuccessMsg(`✅ Síntoma "${symptomForm.name}" registrado exitosamente`);
       setSymptomForm({
         name: '',
-        standardCode: '',
-        codingSystem: '',
         description: '',
         category: 'General',
         isActive: true,
@@ -266,8 +253,8 @@ export const ManageCatalogPage = () => {
       setVaccineForm({
         name: '',
         type: 'mRNA',
-        code: '',
         description: '',
+        targetPathology:'',
         approvalDate: new Date().toISOString().split('T')[0],
         isActive: true,
         manufacturerDto: {
@@ -594,28 +581,7 @@ export const ManageCatalogPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="sym-code">Código Estándar *</Label>
-                    <Input
-                      id="sym-code"
-                      placeholder="Ej: SYM001"
-                      value={symptomForm.standardCode}
-                      onChange={(e) => setSymptomForm({ ...symptomForm, standardCode: e.target.value })}
-                      required
-                      disabled={loadingSymForm}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="sym-coding-system">Sistema de Codificación *</Label>
-                    <Input
-                      id="sym-coding-system"
-                      placeholder="Ej: 12312312"
-                      value={symptomForm.codingSystem}
-                      onChange={(e) => setSymptomForm({ ...symptomForm, codingSystem: e.target.value })}
-                      required
-                      disabled={loadingSymForm}
-                    />
-                  </div>
+                  
                 </div>
 
                 <div>
@@ -711,7 +677,6 @@ export const ManageCatalogPage = () => {
                         <TableRow>
                           <TableHead>Nombre</TableHead>
                           <TableHead>Categoría</TableHead>
-                          <TableHead>Código</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead>Acciones</TableHead>
                         </TableRow>
@@ -721,7 +686,6 @@ export const ManageCatalogPage = () => {
                           <TableRow key={sym.id}>
                             <TableCell className="font-medium">{sym.name}</TableCell>
                             <TableCell>{sym.category}</TableCell>
-                            <TableCell className="text-sm text-gray-500">{sym.standardCode}</TableCell>
                             <TableCell>
                               <Badge variant={sym.isActive ? 'default' : 'secondary'}>
                                 {sym.isActive ? 'Activo' : 'Inactivo'}
@@ -812,17 +776,6 @@ export const ManageCatalogPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="vac-code">Código *</Label>
-                    <Input
-                      id="vac-code"
-                      placeholder="Ej: TC12323"
-                      value={vaccineForm.code}
-                      onChange={(e) => setVaccineForm({ ...vaccineForm, code: e.target.value })}
-                      required
-                      disabled={loadingVacForm}
-                    />
                   </div>
                   <div>
                     <Label htmlFor="vac-date">Fecha de Aprobación *</Label>
@@ -929,10 +882,23 @@ export const ManageCatalogPage = () => {
                   </div>
                 )}
 
+                
                 <div>
-                  <Label htmlFor="vac-description">Descripción</Label>
+                  <Label htmlFor="vac-description">Patología Objetivo *</Label>
                   <Textarea
                     id="vac-description"
+                    placeholder="Definición de la patología objetivo..."
+                    value={vaccineForm.targetPathology}
+                    onChange={(e) => setVaccineForm({ ...vaccineForm, targetPathology: e.target.value })}
+                    required
+                    disabled={loadingVacForm}
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vac-target">Descripción</Label>
+                  <Textarea
+                    id="vac-target"
                     placeholder="Descripción de la vacuna..."
                     value={vaccineForm.description}
                     onChange={(e) => setVaccineForm({ ...vaccineForm, description: e.target.value })}
@@ -1022,7 +988,6 @@ export const ManageCatalogPage = () => {
                         <TableRow>
                           <TableHead>Nombre</TableHead>
                           <TableHead>Tipo</TableHead>
-                          <TableHead>Código</TableHead>
                           <TableHead>Aprobación</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead>Acciones</TableHead>
@@ -1033,7 +998,6 @@ export const ManageCatalogPage = () => {
                           <TableRow key={vac.id}>
                             <TableCell className="font-medium">{vac.name}</TableCell>
                             <TableCell>{vaccineTypes.find(t => t.id === vac.type)?.name || vac.type}</TableCell>
-                            <TableCell className="text-sm text-gray-500">{vac.code}</TableCell>
                             <TableCell className="text-sm">{new Date(vac.approvalDate).toLocaleDateString()}</TableCell>
                             <TableCell>
                               <Badge variant={vac.isActive ? 'default' : 'secondary'}>
