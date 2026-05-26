@@ -273,9 +273,9 @@ export function VaccineInfoSection({ formData, updateFormData, userRole, dateErr
                   <SelectContent>
                     <SelectItem value="Primera">Primera</SelectItem>
                     <SelectItem value="Segunda">Segunda</SelectItem>
-                    <SelectItem value="Tercer">Tercer</SelectItem>
+                    <SelectItem value="Tercera">Tercera</SelectItem>
                     <SelectItem value="Refuerzo">Refuerzo</SelectItem>
-                    <SelectItem value="Unica">Unica</SelectItem>
+                    <SelectItem value="Única">Única</SelectItem>
                   </SelectContent>
                 </Select>
             </div>
