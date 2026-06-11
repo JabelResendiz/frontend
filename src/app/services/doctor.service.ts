@@ -60,10 +60,20 @@ export const doctorService = {
 
   getAllMedicalReviewer: async (
   ): Promise<PaginatedResponse<MedicalReviewer>> => {
-  const res = await api.get('/MedicalReviewer/summary', {
-      });
-      return res.data;
-    },
+    const res = await api.get('/MedicalReviewer/summary');
+    const data = res.data;
+    if (Array.isArray(data)) {
+      return {
+        items: data,
+        totalCount: data.length,
+        pageNumber: 1,
+        pageSize: data.length,
+        nextPageUrl: null,
+        previousPageUrl: null,
+      };
+    }
+    return data;
+  },
 
   getMedicalReviewersByCurrentUserMunicipality: async (
     pageNumber: number = 1,

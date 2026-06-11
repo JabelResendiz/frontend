@@ -15,7 +15,7 @@ import { PatientHistorySection } from "./report-page/patient-history-section";
 import { PatientMedicalInfoSection } from "./report-page/patient-medical-info-section";
 import { ReporterInfoSection } from "./report-page/reporter-info-section";
 import { SuccessReportDialog } from "@/app/components/ui/success-report-dialog";
-import ReCAPTCHA from "react-google-recaptcha";
+import { FriendlyCaptcha } from "@/app/components/ui/friendly-captcha";
 import { reportService } from "@/app/services/report.service";
 import { getProvinceId, getMunicipalityId } from "@/app/data/municipalities";
 
@@ -93,6 +93,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
   const [backendErrors, setBackendErrors] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionIdRef = useRef<string | null>(null);
+  const isSubmittingRef = useRef(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [notificationNumber, setNotificationNumber] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -730,6 +733,10 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
   };
 
   const handleSubmit = async () => {
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     setBackendErrors([]);
 
     // Validar checkbox de confidencialidad
@@ -820,6 +827,12 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
         description: "Debe seleccionar al menos un síntoma relacionado con el evento adverso."
       });
       return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    if (!submissionIdRef.current) {
+      submissionIdRef.current = crypto.randomUUID();
     }
 
     try {
@@ -916,12 +929,16 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           })(),
           intensity: event.eventIntensity,
           severityLevel: event.eventSeverityLevel,
-          symptomId : event.eventSymptom
+          symptomId: event.eventSymptom || undefined
         })),
         ...(captchaValue && { token: captchaValue })
       };
 
-      const response = await reportService.createPublic(payload);
+      const response = await reportService.createPublic(payload, {
+        headers: {
+          'Idempotency-Key': submissionIdRef.current || undefined,
+        },
+      });
 
       // Extract notification number from response
       const notifNumber = response?.data?.notificationNumber || response?.notificationNumber || "AEFI-" + Date.now();
@@ -930,6 +947,8 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
       setNotificationNumber(notifNumber);
       setSuccessMessage(message);
       setShowSuccessDialog(true);
+
+      submissionIdRef.current = null;
 
       // Reset form
       setFormData(initialFormData);
@@ -949,6 +968,9 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
           description: parsedErrors.join(" \n")
         });
       }
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1050,11 +1072,12 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   <div className="mt-4 p-4 border-t space-y-4">
                     <p className="text-sm text-gray-600 mb-2">Por favor verifica que no eres un robot:</p>
                     <div className="flex justify-center">
-                      <ReCAPTCHA
-                        sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}
-                        onChange={(value) => {
-                          setCaptchaValue(value);
+                      <FriendlyCaptcha
+                        sitekey={import.meta.env.VITE_FRIENDLYCAPTCHA_SITE_KEY || ""}
+                        onChange={(token) => {
+                          setCaptchaValue(token);
                         }}
+                        language="es"
                       />
                     </div>
                   </div>
@@ -1094,11 +1117,19 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
                   }}
                   className="text-white"
                   onClick={handleSubmit}
-                  disabled={!formData.confidentialityAgreed || (!isDoctor && !captchaValue)}
-                  title={!formData.confidentialityAgreed ? "Marca el checkbox de confidencialidad" : (!isDoctor && !captchaValue ? "Completa el captcha primero" : "")}
+                  disabled={!formData.confidentialityAgreed || (!isDoctor && !captchaValue) || isSubmitting}
+                  title={
+                    isSubmitting
+                      ? "Enviando reporte..."
+                      : !formData.confidentialityAgreed
+                      ? "Marca el checkbox de confidencialidad"
+                      : !isDoctor && !captchaValue
+                      ? "Completa el captcha primero"
+                      : ""
+                  }
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Enviar Reporte
+                  {isSubmitting ? "Enviando..." : "Enviar Reporte"}
                 </Button>
               )}
             </div>

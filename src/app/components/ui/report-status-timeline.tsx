@@ -1,5 +1,4 @@
-import React from "react";
-import { CheckCircle2, Clock, AlertCircle, XCircle, Archive } from "lucide-react";
+import { CheckCircle2, AlertCircle, XCircle, Archive } from "lucide-react";
 
 export enum ReportStatus {
   Draft = 0,
@@ -10,15 +9,14 @@ export enum ReportStatus {
   Closed = 5
 }
 
-const statusConfig = {
-  [ReportStatus.Draft]: {
-    label: "Borrador",
-    description: "El usuario está completando el reporte",
-    icon: Clock,
-    color: "text-gray-500",
-    bgColor: "bg-gray-100",
-    borderColor: "border-gray-300"
-  },
+const statusConfig: Record<number, {
+  label: string;
+  description: string;
+  icon: any;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+}> = {
   [ReportStatus.Submitted]: {
     label: "Enviado",
     description: "Reporte enviado por el reportero",
@@ -29,7 +27,7 @@ const statusConfig = {
   },
   [ReportStatus.UnderReview]: {
     label: "En Revisión",
-    description: "En revisión por un médico/revisor",
+    description: "En revisión por especialista",
     icon: AlertCircle,
     color: "text-yellow-600",
     bgColor: "bg-yellow-100",
@@ -74,12 +72,15 @@ export function ReportStatusTimeline({
   currentStatus, 
   statusHistory 
 }: ReportStatusTimelineProps) {
-  const statuses = Object.values(ReportStatus).filter(
-    (val) => typeof val === "number"
-  ) as number[];
+  const statuses = [
+    ReportStatus.Submitted,
+    ReportStatus.UnderReview,
+    ReportStatus.Approved,
+    ReportStatus.Rejected,
+    ReportStatus.Closed
+  ];
 
-  const isCompleted = (status: number) => status <= currentStatus;
-  const isCurrent = (status: number) => status === currentStatus;
+  
 
   return (
     <div className="w-full py-8">
@@ -94,7 +95,7 @@ export function ReportStatusTimeline({
 
         {/* Timeline items */}
         <div className="relative flex justify-between items-start">
-          {statuses.map((status, index) => {
+          {statuses.map((status) => {
             const config = statusConfig[status];
             const Icon = config.icon;
             const completed = status <= currentStatus;
@@ -164,9 +165,6 @@ export function ReportStatusTimeline({
       <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <p className="text-xs font-semibold text-gray-700 mb-3">Estados del Reporte:</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <div className="text-xs text-gray-600">
-            <span className="font-semibold">Draft:</span> El usuario está completando
-          </div>
           <div className="text-xs text-gray-600">
             <span className="font-semibold">Submitted:</span> Enviado por el reportero
           </div>

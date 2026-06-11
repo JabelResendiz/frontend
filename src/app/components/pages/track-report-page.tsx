@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import ReCAPTCHA from "react-google-recaptcha";
+import { FriendlyCaptcha } from "@/app/components/ui/friendly-captcha";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
@@ -37,7 +37,6 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [error, setError] = useState("");
-  const captchaRef = React.useRef<ReCAPTCHA | null>(null);
 
   // Función para mapear string del backend al enum ReportStatus
   const mapStatusStringToEnum = (statusString: string): ReportStatus => {
@@ -111,7 +110,9 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
       const backendData = await reportService.getReportByNotificationNumber(notificationNumber.trim(), captchaValue);
 
       // Procesar la respuesta del backend
-      const currentStatus = mapStatusStringToEnum(backendData.status);
+      // Si el backend retorna 'Draft' lo presentamos como 'UnderReview' al usuario
+      const displayStatusString = backendData.status === 'Draft' ? 'UnderReview' : backendData.status;
+      const currentStatus = mapStatusStringToEnum(displayStatusString);
       const statusHistory = generateStatusHistory(currentStatus, backendData.reportDate);
 
       const processedReportData: ReportData = {
@@ -219,10 +220,10 @@ export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
             <div className="mt-4 p-4 border rounded-lg bg-slate-50">
               <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
               <div className="flex justify-center">
-                <ReCAPTCHA
-                  ref={captchaRef}
-                  sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
-                  onChange={(value: string | null) => setCaptchaValue(value)}
+                <FriendlyCaptcha
+                  sitekey={((import.meta as any).env?.VITE_FRIENDLYCAPTCHA_SITE_KEY as string) || ''}
+                  onChange={(token) => setCaptchaValue(token)}
+                  language="es"
                 />
               </div>
             </div>

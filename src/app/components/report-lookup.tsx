@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import ReCAPTCHA from "react-google-recaptcha";
+import { FriendlyCaptcha, FriendlyCaptchaRef } from "@/app/components/ui/friendly-captcha";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -10,6 +10,7 @@ import { Search, CheckCircle2, AlertCircle, Syringe, Calendar, MapPin } from "lu
 import { toast } from "sonner";
 import { reportService } from "@/app/services/report.service";
 import { ReportStatusTimeline, ReportStatus } from "@/app/components/ui/report-status-timeline";
+import {translateReportStatus } from "@/app/utils/translations";
 
 interface ReportData {
   reportDate: string;
@@ -22,7 +23,7 @@ interface ReportData {
   };
   vaccinations: Array<{
     vaccineName: string;
-    vaccinationCenter: string;
+    vaccinationCenterName: string;
   }>;
   adverseEvents: Array<{
     startDate: string;
@@ -45,10 +46,10 @@ interface ReportLookupProps {}
 export function ReportLookup(_: ReportLookupProps) {
   const [notificationNumber, setNotificationNumber] = useState("");
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
+  const captchaRef = useRef<FriendlyCaptchaRef | null>(null);
   const [foundReport, setFoundReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const captchaRef = useRef<ReCAPTCHA | null>(null);
 
   // Mapear string del backend al enum ReportStatus
   const mapStatusStringToEnum = (statusString: string): ReportStatus => {
@@ -212,6 +213,10 @@ export function ReportLookup(_: ReportLookupProps) {
     }
   };
 
+  // Mostrar Draft como UnderReview en la UI (no exponer 'Draft' al usuario)
+  const displayStatusString = (foundReport && foundReport.status === "Draft") ? "UnderReview" : (foundReport ? foundReport.status : "Submitted");
+  const displayEnumStatus = mapStatusStringToEnum(displayStatusString);
+
   return (
     <div className="w-full">
       <Card className="border-0 shadow-lg">
@@ -263,10 +268,11 @@ export function ReportLookup(_: ReportLookupProps) {
                 <div className="mt-4 p-4 border rounded-lg bg-slate-50">
                   <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
                   <div className="flex justify-center">
-                    <ReCAPTCHA
+                    <FriendlyCaptcha
                       ref={captchaRef}
-                      sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
-                      onChange={(value: string | null) => setCaptchaValue(value)}
+                      sitekey={((import.meta as any).env?.VITE_FRIENDLYCAPTCHA_SITE_KEY as string) || ''}
+                      onChange={(token) => setCaptchaValue(token)}
+                      language="es"
                     />
                   </div>
                 </div>
@@ -315,7 +321,7 @@ export function ReportLookup(_: ReportLookupProps) {
                       <AlertCircle className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-gray-600">Estado del Reporte</p>
-                        <div className="mt-2">{getStatusBadge(foundReport.status)}</div>
+                        <div className="mt-2">{getStatusBadge(translateReportStatus(displayStatusString))}</div>
                       </div>
                     </div>
                   </CardContent>
@@ -349,8 +355,8 @@ export function ReportLookup(_: ReportLookupProps) {
                 </CardHeader>
                 <CardContent>
                   <ReportStatusTimeline
-                    currentStatus={mapStatusStringToEnum(foundReport.status)}
-                    statusHistory={generateStatusHistory(mapStatusStringToEnum(foundReport.status), foundReport)}
+                    currentStatus={displayEnumStatus}
+                    statusHistory={generateStatusHistory(displayEnumStatus, foundReport)}
                   />
                 </CardContent>
               </Card>
@@ -386,7 +392,7 @@ export function ReportLookup(_: ReportLookupProps) {
                         <div key={index} className="border-l-4 border-blue-400 pl-4 py-2">
                           <p className="font-medium">{vaccination.vaccineName}</p>
                           <p className="text-sm text-gray-600">
-                            Centro: {vaccination.vaccinationCenter || "No especificado"}
+                            Centro: {vaccination.vaccinationCenterName || "No especificado"}
                           </p>
                         </div>
                       ))}

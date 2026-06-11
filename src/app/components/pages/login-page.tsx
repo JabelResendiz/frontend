@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import ReCAPTCHA from 'react-google-recaptcha';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { FriendlyCaptcha, FriendlyCaptchaRef } from '@/app/components/ui/friendly-captcha';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -19,9 +19,9 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const captchaRef = useRef<ReCAPTCHA | null>(null);
+  const captchaRef = useRef<FriendlyCaptchaRef | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (!captchaValue) {
@@ -47,7 +47,7 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
 
       setError(errorMessage);
       setCaptchaValue(null);
-      (captchaRef.current as any)?.reset();
+      captchaRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
                 type="email"
                 placeholder="tu@email.com"
                 value={email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -91,7 +91,7 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -100,10 +100,11 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
               <div className="p-4 border rounded-lg bg-slate-50">
                 <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
                 <div className="flex justify-center">
-                  <ReCAPTCHA
+                  <FriendlyCaptcha
                     ref={captchaRef}
-                    sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
+                    sitekey={((import.meta as any).env?.VITE_FRIENDLYCAPTCHA_SITE_KEY as string) || ''}
                     onChange={(value: string | null) => setCaptchaValue(value)}
+                    language="es"
                   />
                 </div>
               </div>

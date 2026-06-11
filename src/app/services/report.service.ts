@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { AxiosRequestConfig } from 'axios';
 
 export interface VaccinatedSubject {
   fullName: string;
@@ -66,6 +67,7 @@ export interface AssignedReport {
   assignedDate:string;
   status?: string;
   globalSeverityLevel?: string;
+  notificationNumber: string;
   lastDoctorName?: string | null;
   vaccinatedSubject: VaccinatedSubject;
   reporter: Reporter;
@@ -76,6 +78,27 @@ export interface AssignedReport {
 
 export interface AssignedReportsResponse {
   items: AssignedReport[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  nextPageUrl: string | null;
+  previousPageUrl: string | null;
+}
+
+export interface DuplicateReportItem {
+  id: string;
+  aefiReportOriginalId: string;
+  aefiReportCopyId: string;
+  subjectName: string;
+  originalReportDate: string;
+  copyReportDate: string;
+  enumReportDuplicate: string;
+  originalReportStatus: string;
+  medicalReviewerName: string | null;
+}
+
+export interface DuplicatePendingResponse {
+  items: DuplicateReportItem[];
   totalCount: number;
   pageNumber: number;
   pageSize: number;
@@ -204,6 +227,45 @@ export interface ReviewMetrics {
   slowestDoctor: { name: string; time: number };
 }
 
+export interface AefiReportDetail {
+  id: string;
+  reportDate: string;
+  status: string;
+  globalSeverityLevel: string;
+  vaccinatedSubject: {
+    fullName: string;
+    age: number;
+    gender: string;
+    isPregnant: boolean;
+  };
+  vaccinations: Array<{
+    vaccineName: string;
+    vaccinationCenterName: string;
+  }>;
+  adverseEvents: Array<{
+    startDate: string;
+    finishDate: string;
+    visitedDoctor: boolean;
+    wentToEmergencyRoom: boolean;
+    permanentDisability: boolean;
+    wasHospitalized: boolean;
+    noComplications: boolean;
+    anomaly: boolean;
+    resultedInDeath: boolean;
+    currentStatus: string;
+    severityLevel: string;
+    intensity: string;
+  }>;
+  lastDoctorName: string | null;
+  rejectionReason: string | null;
+}
+
+export interface DuplicateDetailResponse {
+  enumReportDuplicate: string;
+  aefiReportOriginal: AefiReportDetail;
+  aefiReportCopy: AefiReportDetail;
+}
+
 export const reportService = {
   getAssignedReports: async (
     params: {
@@ -243,8 +305,21 @@ export const reportService = {
     return res.data.data ?? res.data;
   },
 
-  createPublic: async (report: CreatePublicReportRequest): Promise<any> => {
-    const res = await api.post('/Report/createPublic', report);
+  getPendingDuplicateReports: async (
+    params: {
+      pageNumber?: number;
+      pageSize?: number;
+    } = {}
+  ): Promise<DuplicatePendingResponse> => {
+    const res = await api.get('/ReportDuplicate/pending', {
+      params,
+    });
+
+    return res.data.data ?? res.data;
+  },
+
+  createPublic: async (report: CreatePublicReportRequest, config?: AxiosRequestConfig): Promise<any> => {
+    const res = await api.post('/Report/createPublic', report, config);
     return res.data;
   },
 
@@ -265,6 +340,21 @@ export const reportService = {
 
   createMedicalReviewAssignment: async (assignment: MedicalReviewAssignment): Promise<any> => {
     const res = await api.post('/MedicalReviewAssignment/create', assignment);
+    return res.data;
+  },
+
+  reassignMedicalReviewAssignment: async (assignment: MedicalReviewAssignment): Promise<any> => {
+    const res = await api.post('/MedicalReviewAssignment/reassigned', assignment);
+    return res.data;
+  },
+
+  getDuplicateDetails: async (id: string): Promise<DuplicateDetailResponse> => {
+    const res = await api.get(`/ReportDuplicate/${id}`);
+    return res.data.data ?? res.data;
+  },
+
+  resolveDuplicate: async (id: string, verdict: 'SeparateAsNew' | 'ConfirmedDuplicate'): Promise<any> => {
+    const res = await api.post(`/ReportDuplicate/${id}/resolve`, { Verdict: verdict });
     return res.data;
   },
 
