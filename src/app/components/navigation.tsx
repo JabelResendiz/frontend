@@ -1,18 +1,20 @@
 import { Shield, FileText, BarChart3, Info, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/app/components/ui/button";
 import { useAuth } from "@/app/context/AuthContext";
 import logo from "@/assets/images/logo.webp";
 import { translateRole } from "../utils/translations";
 
 interface NavigationProps {
-  currentPage: string;
-  onNavigate: (page: string, reportId?: string, action?: string) => void;
+  onNavigate?: (page: string, reportId?: string, action?: string) => void; // optional compatibility wrapper
 }
 
-export function Navigation({ currentPage, onNavigate }: NavigationProps) {
+export function Navigation({ onNavigate }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const navItems = [
     { id: "home", label: "Inicio", icon: Shield },
@@ -41,6 +43,73 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     { id: "information", label: "Información", icon: Info },
   ];
 
+  const pagePathMap: Record<string, string> = {
+    "activate-account": "/activate-account",
+    login: "/login",
+    information: "/information",
+    report: "/report",
+    "track-report": "/track-report",
+    consultation: "/consultation",
+    detail: "/detail",
+    dashboard: "/dashboard",
+    "doctor-dashboard": "/doctor-dashboard",
+    "assigned-reports": "/assigned-reports",
+    "review-report": "/review-report",
+    "admin-dashboard": "/admin-dashboard",
+    "manage-catalog": "/manage-catalog",
+    "manage-section-responsible": "/manage-section-responsible",
+    "manage-doctors": "/manage-doctors",
+    "manage-reports": "/manage-reports",
+    "section-manager-dashboard": "/section-manager-dashboard",
+    "edit-report": "/edit-report",
+    home: "/",
+  };
+
+  const getPageFromPath = (path: string) => {
+    switch (path.replace(/\/+$/, "")) {
+      case "/activate-account":
+        return "activate-account";
+      case "/login":
+        return "login";
+      case "/information":
+        return "information";
+      case "/report":
+        return "report";
+      case "/track-report":
+        return "track-report";
+      case "/consultation":
+        return "consultation";
+      case "/detail":
+        return "detail";
+      case "/dashboard":
+        return "dashboard";
+      case "/doctor-dashboard":
+        return "doctor-dashboard";
+      case "/assigned-reports":
+        return "assigned-reports";
+      case "/review-report":
+        return "review-report";
+      case "/admin-dashboard":
+        return "admin-dashboard";
+      case "/manage-catalog":
+        return "manage-catalog";
+      case "/manage-section-responsible":
+        return "manage-section-responsible";
+      case "/manage-doctors":
+        return "manage-doctors";
+      case "/manage-reports":
+        return "manage-reports";
+      case "/section-manager-dashboard":
+        return "section-manager-dashboard";
+      case "/edit-report":
+        return "edit-report";
+      default:
+        return "home";
+    }
+  };
+
+  const currentPage = getPageFromPath(location.pathname);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -48,7 +117,12 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
       // Ignorar errores de logout, la navegación y limpieza local deben continuar.
     }
 
-    onNavigate('login');
+    // prefer react-router navigation; fall back to onNavigate prop for compatibility
+    if (onNavigate) {
+      onNavigate('login');
+    } else {
+      navigate('/login');
+    }
   };
 
   return (
@@ -106,7 +180,11 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                   style={isActive ? { backgroundColor: "#0A4B8F" } : {}}
-                  onClick={() => onNavigate(item.id)}
+                  onClick={() => {
+                    const path = pagePathMap[item.id] || '/';
+                    navigate(path);
+                    if (onNavigate) onNavigate(item.id);
+                  }}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="text-sm">{item.label}</span>
@@ -204,10 +282,12 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
               </>
             )}
             {!user && (
-              <div className="border-t border-gray-200 py-2">
+                <div className="border-t border-gray-200 py-2">
                 <button
                   onClick={() => {
-                    onNavigate('login');
+                    const path = pagePathMap['login'] || '/login';
+                    navigate(path);
+                    if (onNavigate) onNavigate('login');
                     setMobileMenuOpen(false);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-white"

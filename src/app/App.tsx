@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/app/context/AuthContext";
 import { ReportProvider } from "@/app/context/ReportContext";
 import { Navigation } from "@/app/components/navigation";
+import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Footer } from "@/app/components/footer";
 import { HomePage } from "@/app/components/pages/home-page";
 import { ReportPage } from "@/app/components/pages/report-page";
@@ -26,20 +28,9 @@ import { TrackReportPage } from "@/app/components/pages/track-report-page";
 import { Toaster } from "@/app/components/ui/sonner";
 
 function AppContent() {
-  const [currentPage, setCurrentPage] = useState("home");
-  const [selectedReportId, setSelectedReportId] = useState<string | undefined>();
-  const [selectedReport, setSelectedReport] = useState<AssignedReport | undefined>();
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [contextAction, setContextAction] = useState<string | undefined>();
   const { isAuthenticated, user, isLoading } = useAuth();
-
-  // 🔄 Mantener la página actual al recargar si ya hay sesión activa.
-  useEffect(() => {
-    const publicPages = ["home", "report", "information", "login", "activate-account"];
-    if (!isLoading && !isAuthenticated && !publicPages.includes(currentPage)) {
-      setCurrentPage("login");
-    }
-  }, [currentPage, isAuthenticated, isLoading]);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const pagePathMap: Record<string, string> = {
     "activate-account": "/activate-account",
@@ -63,79 +54,15 @@ function AppContent() {
     home: "/",
   };
 
-  const getPageFromPath = (path: string) => {
-    switch (path.replace(/\/+$/, "")) {
-      case "/activate-account":
-        return "activate-account";
-      case "/login":
-        return "login";
-      case "/information":
-        return "information";
-      case "/report":
-        return "report";
-      case "/track-report":
-        return "track-report";
-      case "/consultation":
-        return "consultation";
-      case "/detail":
-        return "detail";
-      case "/dashboard":
-        return "dashboard";
-      case "/doctor-dashboard":
-        return "doctor-dashboard";
-      case "/assigned-reports":
-        return "assigned-reports";
-      case "/review-report":
-        return "review-report";
-      case "/admin-dashboard":
-        return "admin-dashboard";
-      case "/manage-catalog":
-        return "manage-catalog";
-      case "/manage-section-responsible":
-        return "manage-section-responsible";
-      case "/manage-doctors":
-        return "manage-doctors";
-      case "/manage-reports":
-        return "manage-reports";
-      case "/section-manager-dashboard":
-        return "section-manager-dashboard";
-      case "/edit-report":
-        return "edit-report";
-      default:
-        return "home";
-    }
-  };
-
-  useEffect(() => {
-    const pathPage = getPageFromPath(window.location.pathname);
-    setCurrentPage(pathPage);
-
-    const handlePopState = () => {
-      setCurrentPage(getPageFromPath(window.location.pathname));
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
   const handleNavigate = (page: string, reportId?: string, action?: string, payload?: AssignedReport) => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setCurrentPage(page);
-      if (reportId) {
-        setSelectedReportId(reportId);
-      }
-      if (payload) {
-        setSelectedReport(payload);
-      }
-      if (action) {
-        setContextAction(action);
-      }
-      window.history.pushState({}, '', pagePathMap[page] || '/');
-      setIsTransitioning(false);
-      // Scroll to top when navigating
-      window.scrollTo(0, 0);
-    }, 300);
+    const path = pagePathMap[page] || "/";
+    const state: any = {};
+    if (reportId) state.reportId = reportId;
+    if (payload) state.report = payload;
+    if (action) state.action = action;
+    // use react-router navigation instead of manual history manipulation
+    navigate(path, { state });
+    window.scrollTo(0, 0);
   };
 
   if (isLoading) {
@@ -146,36 +73,63 @@ function AppContent() {
     );
   }
 
-  // Redirigir a login si intenta acceder a páginas protegidas sin estar autenticado
-  // Nota: "report" NO está incluido aquí porque cualquiera puede crear un reporte sin autenticarse
-  if (!isAuthenticated && (currentPage === "detail" || currentPage === "dashboard" || currentPage === "doctor-dashboard" || currentPage === "admin-dashboard" || currentPage === "edit-report" || currentPage === "consultation" || currentPage === "manage-doctors" ||currentPage === "manage-reports" || currentPage === "section-manager-dashboard" || currentPage === "assigned-reports" || currentPage === "review-report" || currentPage === "manage-catalog" || currentPage === "manage-section-responsible")) {
-    return <LoginPage onNavigate={handleNavigate} />;
-  }
+  const locationState = (location.state || {}) as any;
+  const selectedReportId = locationState.reportId as string | undefined;
+  const selectedReport = locationState.report as AssignedReport | undefined;
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
-      
-      <main className={`flex-1 page-transition ${isTransitioning ? 'slide-out' : 'slide-in'}`}>
-        {currentPage === "login" && <LoginPage onNavigate={handleNavigate} contextAction={contextAction} />}
-        {currentPage === "home" && <HomePage onNavigate={handleNavigate} />}
-        {currentPage === "report" && <ReportPage onNavigate={handleNavigate} />}
-        {currentPage === "track-report" && <TrackReportPage onNavigate={handleNavigate} />}
-        {currentPage === "consultation" && isAuthenticated && <ConsultationPage onNavigate={handleNavigate} />}
-        {currentPage === "detail" && isAuthenticated && <DetailPage reportId={selectedReportId} onNavigate={handleNavigate} />}
-        {currentPage === "dashboard" && isAuthenticated && <DashboardPage />}
-        {currentPage === "doctor-dashboard" && isAuthenticated && user?.role === 'MedicalReviewer' && <DoctorDashboard onNavigate={handleNavigate} />}
-        {currentPage === "assigned-reports" && isAuthenticated && user?.role === 'MedicalReviewer' && <AssignedReportsPage onNavigate={handleNavigate} />}
-        {currentPage === "review-report" && isAuthenticated && user?.role === 'MedicalReviewer' && <ReviewReportPage reportId={selectedReportId} report={selectedReport} onNavigate={handleNavigate} />}
-        {currentPage === "activate-account" && <ActivateAccountPage onNavigate={handleNavigate} />}
-        {currentPage === "admin-dashboard" && isAuthenticated && user?.role === 'Admin' && <AdminDashboard />}
-        {currentPage === "manage-catalog" && isAuthenticated && user?.role === 'Admin' && <ManageCatalogPage />}
-        {currentPage === "manage-section-responsible" && isAuthenticated && user?.role === 'Admin' && <ManageSectionResponsiblePage onNavigate={handleNavigate} />}
-        {currentPage === "manage-doctors" && isAuthenticated && user?.role === 'SectionResponsible' && <ManageDoctorsPage onNavigate={handleNavigate} />}
-        {currentPage === "manage-reports" && isAuthenticated && user?.role === 'SectionResponsible' && <ManageReportsPage onNavigate={handleNavigate}/>}
-        {currentPage === "section-manager-dashboard" && isAuthenticated && user?.role === 'SectionResponsible' && <SectionManagerDashboard />}
-        {currentPage === "edit-report" && isAuthenticated && <EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} />}
-        {currentPage === "information" && <InformationPage />}
+      <Navigation onNavigate={handleNavigate} />
+      <main className={`flex-1`}>
+        <Routes>
+          <Route path="/" element={<HomePage onNavigate={handleNavigate} />} />
+          <Route path="/home" element={<HomePage onNavigate={handleNavigate} />} />
+          <Route path="/login" element={<LoginPage onNavigate={handleNavigate} />} />
+          <Route path="/report" element={<ReportPage onNavigate={handleNavigate} />} />
+          <Route path="/track-report" element={<TrackReportPage onNavigate={handleNavigate} />} />
+          <Route path="/information" element={<InformationPage />} />
+          <Route path="/activate-account" element={<ActivateAccountPage onNavigate={handleNavigate} />} />
+
+          <Route
+            path="/consultation"
+            element={<ProtectedRoute><ConsultationPage onNavigate={handleNavigate} /></ProtectedRoute>}
+          />
+
+          <Route
+            path="/detail"
+            element={<ProtectedRoute><DetailPage reportId={selectedReportId} onNavigate={handleNavigate} /></ProtectedRoute>}
+          />
+
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+
+          <Route
+            path="/doctor-dashboard"
+            element={<ProtectedRoute roles={["MedicalReviewer"]}><DoctorDashboard onNavigate={handleNavigate} /></ProtectedRoute>}
+          />
+
+          <Route
+            path="/assigned-reports"
+            element={<ProtectedRoute roles={["MedicalReviewer"]}><AssignedReportsPage onNavigate={handleNavigate} /></ProtectedRoute>}
+          />
+
+          <Route
+            path="/review-report"
+            element={<ProtectedRoute roles={["MedicalReviewer"]}><ReviewReportPage reportId={selectedReportId} report={selectedReport} onNavigate={handleNavigate} /></ProtectedRoute>}
+          />
+
+          <Route path="/admin-dashboard" element={<ProtectedRoute roles={["Admin"]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/manage-catalog" element={<ProtectedRoute roles={["Admin"]}><ManageCatalogPage /></ProtectedRoute>} />
+          <Route path="/manage-section-responsible" element={<ProtectedRoute roles={["Admin"]}><ManageSectionResponsiblePage onNavigate={handleNavigate} /></ProtectedRoute>} />
+
+          <Route path="/manage-doctors" element={<ProtectedRoute roles={["SectionResponsible"]}><ManageDoctorsPage onNavigate={handleNavigate} /></ProtectedRoute>} />
+          <Route path="/manage-reports" element={<ProtectedRoute roles={["SectionResponsible"]}><ManageReportsPage onNavigate={handleNavigate} /></ProtectedRoute>} />
+          <Route path="/section-manager-dashboard" element={<ProtectedRoute roles={["SectionResponsible"]}><SectionManagerDashboard /></ProtectedRoute>} />
+
+          <Route path="/edit-report" element={<ProtectedRoute><EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} /></ProtectedRoute>} />
+
+          {/* fallback to home for unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       <Footer />
@@ -186,10 +140,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ReportProvider>
-        <AppContent />
-      </ReportProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <ReportProvider>
+          <AppContent />
+        </ReportProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
