@@ -261,7 +261,14 @@ export function ReportLookup(_: ReportLookupProps) {
                     className="bg-blue-600 hover:bg-blue-700"
                     title={!captchaValue ? "Completa el captcha antes de buscar el reporte" : undefined}
                   >
-                    {loading ? "Buscando..." : <Search className="w-4 h-4" />}
+                    {loading ? (
+                      "Buscando..."
+                    ) : (
+                      <span className="inline-flex items-center gap-2">
+                        <Search className="w-4 h-4" />
+                        Buscar
+                      </span>
+                    )}
                   </Button>
                 </div>
 
