@@ -1,0 +1,816 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { Plus, Users, Search, AlertTriangle, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import {
+  PROVINCES,
+  getMunicipalitiesByProvince,
+  getProvinceId,
+  getMunicipalityId,
+  getProvinceNameById,
+  getMunicipalityNameById,
+} from "@/app/data/municipalities";
+import { api } from "@/app/services/api";
+
+interface SectionResponsible {
+  id: string;
+  userName: string;
+  email: string;
+  phoneNumber: string;
+  provinceName: string;
+  municipalityName: string;
+}
+
+interface ManageSectionResponsiblePageProps {
+  onNavigate: (page: string, reportId?: string, action?: string) => void;
+}
+
+
+
+export function ManageSectionResponsiblePage(_: ManageSectionResponsiblePageProps) {
+  const [sectionResponsibles, setSectionResponsibles] = useState<SectionResponsible[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("");
+  const [municipalityFilter, setMunicipalityFilter] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize] = useState(10);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
+
+  const[totalCount,setTotalCount] = useState(0);
+  const[nextPageUrl,setNextPageUrl] = useState<string | null>(null);
+  const[previousPageUrl,setPreviousPageUrl] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState({
+    userName: "",
+    email: "",
+    password: "",
+    phoneNumber: "",
+    province: "",
+    municipality: "",
+  });
+
+
+
+const loadSectionResponsibles = async (url?: string, provinceNameOverride?: string | null) => {
+  setIsLoadingData(true);
+
+  try {
+    let provinceName = provinceNameOverride !== undefined ? provinceNameOverride || undefined : provinceFilter || undefined;
+    let municipalityName = municipalityFilter;
+    let params: any = {
+      pageNumber,
+      pageSize,
+      search: searchTerm || undefined,
+      provinceName,
+    };
+
+    // 👉 Si viene next/prev, extrae los params de la URL para mantener paginación
+    if (url) {
+      const queryString = url.split("?")[1] || "";
+      const urlParams = new URLSearchParams(queryString);
+
+      provinceName = provinceNameOverride !== undefined
+        ? provinceNameOverride || undefined
+        : urlParams.get("provinceName") || undefined;
+
+      const municipalityIdFromUrl = urlParams.get("municipalityId");
+      if (municipalityIdFromUrl && provinceName) {
+        municipalityName = getMunicipalityNameById(
+          getProvinceId(provinceName),
+          Number(municipalityIdFromUrl)
+        );
+      }
+
+      params = {
+        pageNumber: Number(urlParams.get("pageNumber")) || 1,
+        pageSize: Number(urlParams.get("pageSize")) || 10,
+        search: searchTerm || undefined,
+        provinceName,
+      };
+
+      if (provinceName && municipalityName) {
+        params.municipalityId = getMunicipalityId(provinceName, municipalityName);
+      }
+
+      if (urlParams.get("provinceName") && provinceNameOverride === undefined) {
+        setProvinceFilter(urlParams.get("provinceName")!);
+      }
+      if (municipalityName && provinceNameOverride === undefined) {
+        setMunicipalityFilter(municipalityName);
+      }
+      if (!municipalityName && provinceNameOverride === null) {
+        setMunicipalityFilter("");
+      }
+    } else {
+      if (provinceName && municipalityName) {
+        params.municipalityId = getMunicipalityId(provinceName, municipalityName);
+      }
+    }
+
+    const response = await api.get("/SectionResponsible/GetAll", {
+      params,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = response.data;
+
+    if (data?.items) {
+      setSectionResponsibles(
+        data.items.map((item: any) => ({
+          id: item.id?.toString() || crypto.randomUUID(),
+          userName: item.userName || "",
+          email: item.email || "",
+          phoneNumber: item.phoneNumber || "",
+          provinceName: getProvinceNameById(item.provinceId) || "",
+          municipalityName:
+            getMunicipalityNameById(item.provinceId, item.municipalityId) || "",
+        }))
+      );
+
+      setTotalCount(data.totalCount);
+      setNextPageUrl(data.nextPageUrl);
+      setPreviousPageUrl(data.previousPageUrl);
+      setPageNumber(data.pageNumber);
+    } else {
+      setSectionResponsibles([]);
+    }
+  } catch (error) {
+    toast.error("Error al cargar jefes de sección");
+    console.error(error);
+  } finally {
+    setIsLoadingData(false);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Cargar datos cuando monta el componente o cuando cambia la búsqueda
+  useEffect(() => {
+    loadSectionResponsibles();
+  }, [pageNumber, searchTerm]);
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
+
+  const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
+
+  const validateUserName = (userName: string): boolean => {
+    const trimmed = userName.trim();
+    // Debe empezar con letra y no tener espacios
+    return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(trimmed) && !/\s/.test(trimmed);
+  };
+
+  const validateField = (field: string, value: string) => {
+    const errors = { ...fieldErrors };
+    switch (field) {
+      case 'userName':
+        if (value && !validateUserName(value)) {
+          errors.userName = "Debe empezar con una letra y no contener espacios.";
+        } else {
+          delete errors.userName;
+        }
+        break;
+      case 'email':
+        if (value && !validateEmail(value)) {
+          errors.email = "Formato de email inválido.";
+        } else {
+          delete errors.email;
+        }
+        break;
+      case 'password':
+        if (value && !validatePassword(value)) {
+          errors.password = "Debe tener al menos 8 caracteres, mayúscula, minúscula, número y carácter especial.";
+        } else {
+          delete errors.password;
+        }
+        break;
+      case 'phoneNumber':
+        if (value && !validatePhoneNumber(value)) {
+          errors.phoneNumber = "Solo se permiten dígitos sin espacios.";
+        } else {
+          delete errors.phoneNumber;
+        }
+        break;
+    }
+    setFieldErrors(errors);
+    setHasValidationErrors(Object.keys(errors).length > 0);
+  };
+
+  const validatePassword = (password: string): boolean => {
+    // At least one uppercase, one lowercase, one digit, one special character, and 8+ characters
+    // Allow any non-space character for special characters
+    const hasLowercase = /[a-z]/.test(password);
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasDigit = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    const isLongEnough = password.length >= 8;
+    
+    return hasLowercase && hasUppercase && hasDigit && hasSpecialChar && isLongEnough;
+  };
+
+  const handleAddSectionResponsible = async () => {
+    // Clear previous errors
+    setFieldErrors({});
+
+    if (
+      !formData.userName ||
+      !formData.email ||
+      !formData.password ||
+      !formData.phoneNumber ||
+      !formData.province ||
+      !formData.municipality
+    ) {
+      toast.error("Por favor completa todos los campos requeridos");
+      return;
+    }
+
+    // Validate all fields
+    const errors: Record<string, string> = {};
+    if (!validateUserName(formData.userName)) errors.userName = "Debe empezar con una letra y no contener espacios.";
+    if (!validateEmail(formData.email)) errors.email = "Email inválido.";
+    if (!validatePassword(formData.password)) errors.password = "La contraseña debe contener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.";
+    if (!validatePhoneNumber(formData.phoneNumber)) errors.phoneNumber = "Teléfono inválido. Solo se permiten dígitos sin espacios.";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setHasValidationErrors(true);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const provinceId = getProvinceId(formData.province);
+      const municipalityId = getMunicipalityId(formData.province, formData.municipality);
+
+      const payload = {
+        userName: formData.userName,
+        email: formData.email,
+        password: formData.password,
+        phoneNumber: formData.phoneNumber,
+        provinceId,
+        municipalityId,
+      };
+
+      const response = await api.post("/SectionResponsible/register", payload);
+
+      if (response.data.success) {
+        toast.success("Jefe de sección agregado exitosamente");
+        setFormData({
+          userName: "",
+          email: "",
+          password: "",
+          phoneNumber: "",
+          province: "",
+          municipality: "",
+        });
+        setFieldErrors({});
+        setHasValidationErrors(false);
+        setShowForm(false);
+        // Recargar datos
+        setPageNumber(1);
+        loadSectionResponsibles();
+      } else {
+        toast.error(response.data.message || "Error al agregar jefe de sección");
+      }
+    } catch (error: any) {
+      const errorMessage = error.backendData?.message || error.message || "Error desconocido";
+      toast.error(errorMessage);
+      console.error("Error adding section responsible:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      userName: "",
+      email: "",
+      password: "",
+      phoneNumber: "",
+      province: "",
+      municipality: "",
+    });
+    setFieldErrors({});
+    setHasValidationErrors(false);
+    setShowForm(false);
+    setEditingId(null);
+  };
+
+  const handleSearch = () => {
+    if (pageNumber === 1) {
+      loadSectionResponsibles();
+    } else {
+      setPageNumber(1);
+    }
+  };
+
+  const handleFilterByProvince = () => {
+    if (pageNumber === 1) {
+      loadSectionResponsibles();
+    } else {
+      setPageNumber(1);
+    }
+  };
+
+  const clearProvinceFilter = () => {
+    setProvinceFilter("");
+    setMunicipalityFilter("");
+    if (pageNumber === 1) {
+      loadSectionResponsibles(undefined, null);
+    } else {
+      setPageNumber(1);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
+                Gestionar Jefes de Sección
+              </h1>
+              <p className="text-gray-600">
+                Administra los jefes de sección del sistema
+              </p>
+            </div>
+            {!showForm && (
+              <Button
+                className="text-white font-semibold px-6 py-3"
+                style={{ backgroundColor: "#0A4B8F" }}
+                onClick={() => setShowForm(true)}
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Agregar Jefe de Sección
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Search Section */}
+        {!showForm && (
+          <Card className="border-0 shadow-md mb-6">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por nombre de usuario..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  className="text-white font-semibold"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={handleSearch}
+                  disabled={isLoadingData}
+                >
+                  Buscar
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
+                <div>
+                  <Label htmlFor="province-filter" className="text-sm font-medium text-gray-700">
+                    Filtrar por provincia
+                  </Label>
+                  <Select
+                    value={provinceFilter}
+                    onValueChange={(value) => {
+                      setProvinceFilter(value);
+                      setMunicipalityFilter("");
+                    }}
+                  >
+                    <SelectTrigger id="province-filter">
+                      <SelectValue placeholder="Selecciona provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVINCES.map((province) => (
+                        <SelectItem key={province} value={province}>
+                          {province}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="municipality-filter" className="text-sm font-medium text-gray-700">
+                    Filtrar por municipio
+                  </Label>
+                  <Select
+                    value={municipalityFilter}
+                    onValueChange={(value) => setMunicipalityFilter(value)}
+                    disabled={!provinceFilter}
+                  >
+                    <SelectTrigger id="municipality-filter" disabled={!provinceFilter}>
+                      <SelectValue
+                        placeholder={
+                          provinceFilter
+                            ? "Selecciona municipio"
+                            : "Selecciona provincia primero"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {provinceFilter &&
+                        getMunicipalitiesByProvince(provinceFilter).map((municipality) => (
+                          <SelectItem key={municipality} value={municipality}>
+                            {municipality}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="text-white font-semibold"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={handleFilterByProvince}
+                  disabled={!provinceFilter || isLoadingData}
+                >
+                  Filtrar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearProvinceFilter}
+                  disabled={!provinceFilter || isLoadingData}
+                >
+                  Limpiar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Form */}
+        {showForm && (
+          <Card className="border-0 shadow-lg mb-8">
+            {hasValidationErrors && (
+              <div className="bg-red-50 border border-red-200 rounded-t-lg p-4 mb-0">
+                <div className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                  <p className="text-red-800 font-medium">Hay errores en el formulario</p>
+                </div>
+                <p className="text-red-700 text-sm mt-1">
+                  Por favor, corrige los problemas marcados antes de enviar el formulario.
+                </p>
+              </div>
+            )}
+            <CardHeader>
+              <CardTitle>
+                {editingId ? "Editar Jefe de Sección" : "Agregar Nuevo Jefe de Sección"}
+              </CardTitle>
+              <CardDescription>
+                Complete todos los campos requeridos (marcados con *)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="userName">Nombre de Usuario *</Label>
+                  <Input
+                    id="userName"
+                    placeholder="Debe empezar con letra, sin espacios, ej: carla_admin"
+                    value={formData.userName}
+                    onChange={(e) => {
+                      setFormData({ ...formData, userName: e.target.value });
+                      validateField('userName', e.target.value);
+                    }}
+                  />
+                  {fieldErrors.userName && <p className="text-red-500 text-sm mt-1">{fieldErrors.userName}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="carla@example.com"
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      validateField('email', e.target.value);
+                    }}
+                  />
+                  {fieldErrors.email && <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="password">Contraseña *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Password_123!"
+                    value={formData.password}
+                    onChange={(e) => {
+                      setFormData({ ...formData, password: e.target.value });
+                      validateField('password', e.target.value);
+                    }}
+                  />
+                  {fieldErrors.password && <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>}
+                  {!fieldErrors.password && <p className="text-xs text-gray-500 mt-1">
+                    Mínimo 8 caracteres, mayúscula, minúscula, número y carácter especial
+                  </p>}
+                </div>
+                <div>
+                  <Label htmlFor="phoneNumber">Teléfono *</Label>
+                  <Input
+                    id="phoneNumber"
+                    placeholder="Solo números, ej: 55664266"
+                    value={formData.phoneNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setFormData({ ...formData, phoneNumber: value });
+                      validateField('phoneNumber', value);
+                    }}
+                  />
+                  {fieldErrors.phoneNumber && <p className="text-red-500 text-sm mt-1">{fieldErrors.phoneNumber}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="province">Provincia *</Label>
+                  <Select
+                    value={formData.province}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, province: value, municipality: "" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVINCES.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="municipality">Municipio *</Label>
+                  <Select
+                    value={formData.municipality}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, municipality: value })
+                    }
+                    disabled={!formData.province}
+                  >
+                    <SelectTrigger disabled={!formData.province}>
+                      <SelectValue
+                        placeholder={
+                          formData.province
+                            ? "Selecciona municipio"
+                            : "Selecciona provincia primero"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formData.province &&
+                        getMunicipalitiesByProvince(formData.province).map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  className="text-white font-semibold"
+                  style={{ backgroundColor: "#0A4B8F" }}
+                  onClick={handleAddSectionResponsible}
+                  disabled={isLoading || hasValidationErrors}
+                >
+                  {isLoading
+                    ? "Procesando..."
+                    : editingId
+                    ? "Actualizar"
+                    : "Agregar"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isLoading}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Section Responsibles List */}
+        <div className="space-y-4">
+          {isLoadingData ? (
+            <Card className="border border-dashed">
+              <CardContent className="p-8 text-center">
+                <div className="animate-spin inline-block">
+                  <Users className="w-12 h-12 text-gray-300" />
+                </div>
+                <p className="text-gray-500 mt-4">Cargando jefes de sección...</p>
+              </CardContent>
+            </Card>
+          ) : sectionResponsibles.length === 0 ? (
+            <Card className="border border-dashed">
+              <CardContent className="p-8 text-center">
+                <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 mb-4">
+                  No hay jefes de sección {searchTerm ? "con esos criterios" : "agregados aún"}
+                </p>
+                {!showForm && !searchTerm && (
+                  <Button
+                    className="text-white font-semibold"
+                    style={{ backgroundColor: "#0A4B8F" }}
+                    onClick={() => setShowForm(true)}
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Agregar Primer Jefe de Sección
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+            <div className="grid gap-4">
+              {sectionResponsibles.map((responsible) => (
+                <Card
+                  key={responsible.id}
+                  className="border-0 shadow-md hover:shadow-lg transition-shadow"
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                            <ShieldCheck className="h-5 w-5" />
+                          </span>
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {responsible.userName}
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Jefe de vacunación municipal
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
+                          {/* <div>
+                            <span className="font-medium">Email:</span>{" "}
+                            {responsible.email}
+                          </div> */}
+                          <div>
+                            <span className="font-medium">Teléfono:</span>{" "}
+                            {responsible.phoneNumber}
+                          </div>
+                          <div>
+                            <span className="font-medium">Provincia:</span>{" "}
+                            {responsible.provinceName}
+                          </div>
+                          <div>
+                            <span className="font-medium">Municipio:</span>{" "}
+                            {responsible.municipalityName}
+                          </div>
+                        </div>
+                      </div>
+                      {/* <div className="flex gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(responsible)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirm(responsible.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div> */}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+   {/* PAGINACIÓN */}
+<div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+  
+  {/* Info izquierda */}
+  <div className="text-sm text-gray-600">
+    Página <span className="font-semibold">{pageNumber}</span> de{" "}
+    <span className="font-semibold">
+      {Math.ceil(totalCount / pageSize)}
+    </span>
+  </div>
+
+  {/* Controles */}
+  <div className="flex items-center gap-2">
+    
+    {/* ANTERIOR */}
+    <Button
+      variant="outline"
+      disabled={!previousPageUrl}
+      onClick={() => loadSectionResponsibles(previousPageUrl!)}
+      className="
+        flex items-center gap-2
+        px-4 py-2
+        rounded-lg
+        border-gray-300
+        text-gray-700
+        hover:bg-gray-100
+        disabled:opacity-40 disabled:cursor-not-allowed
+        transition-all
+      "
+    >
+      <span className="text-lg">←</span>
+      Anterior
+    </Button>
+
+    {/* SIGUIENTE (MEJORADO) */}
+    <Button
+      onClick={() => loadSectionResponsibles(nextPageUrl!)}
+      disabled={!nextPageUrl}
+      className="
+        flex items-center gap-2
+        px-5 py-2
+        rounded-lg
+        text-white
+        font-semibold
+        shadow-md
+        transition-all
+        disabled:opacity-40 disabled:cursor-not-allowed
+        hover:scale-[1.02]
+      "
+      style={{
+        backgroundColor: nextPageUrl ? "#0A4B8F" : "#93A4B5",
+      }}
+    >
+      Siguiente
+      <span className="text-lg">→</span>
+    </Button>
+
+  </div>
+</div>
+              </>
+
+
+
+          )}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      {/* <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar este jefe de sección? Esta acción no
+              se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-3 justify-end">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600">
+              Eliminar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog> */}
+    </div>
+  );
+}

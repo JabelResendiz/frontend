@@ -5,6 +5,7 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { PROVINCES_AND_MUNICIPALITIES, getMunicipalitiesByProvince } from "@/app/data/municipalities";
 import { FormData, UpdateFormData } from "./types";
+import { useState } from "react";
 
 interface ReporterInfoSectionProps {
   formData: FormData;
@@ -16,6 +17,128 @@ interface ReporterInfoSectionProps {
 
 export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, reporterFieldsRef, dateErrors }: ReporterInfoSectionProps) {
   const isPatient = formData.reporterRelationship === "paciente";
+  const isDoctor = formData.reporterRelationship === "medico";
+  const [reporterFieldErrors, setReporterFieldErrors] = useState<Record<string, string>>({});
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
+
+  const validatePhoneNumber = (phoneNumber: string): boolean => /^\d+$/.test(phoneNumber);
+
+  const validateIdentityNumber = (identityNumber: string): boolean => /^\d{11}$/.test(identityNumber);
+
+  const validateIdentityMatchesDate = (identityNumber: string): boolean => {
+    if (!validateIdentityNumber(identityNumber)) return false;
+    const yy = identityNumber.substring(0, 2);
+    const mm = identityNumber.substring(2, 4);
+    const dd = identityNumber.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+    
+    
+    if(month > 12 || month < 1)return false;
+    if(day > 31 || day <1) return false;
+    if([4,6,9,11].includes(month))return day<31;
+
+    if(fullYear % 4 == 0)
+    {
+      if(month==2) return day<30;
+      
+      return true;
+
+    }
+
+    if(month==2) return day<29;
+
+    return true;
+  };
+
+  const extractDateOfBirthFromIdentity = (identityNumber: string): string => {
+    const cleaned = identityNumber.replace(/\D/g, '');
+    if (cleaned.length !== 11) return "";
+
+    const yy = cleaned.substring(0, 2);
+    const mm = cleaned.substring(2, 4);
+    const dd = cleaned.substring(4, 6);
+    const year = parseInt(yy, 10);
+    const month = parseInt(mm, 10);
+    const day = parseInt(dd, 10);
+    const currentYearTwoDigits = new Date().getFullYear() % 100;
+    const fullYear = year > currentYearTwoDigits ? 1900 + year : 2000 + year;
+
+    const date = new Date(fullYear, month - 1, day);
+    if (date.getFullYear() !== fullYear || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      return "";
+    }
+
+    return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const validateReporterField = (field: string, rawValue: string, normalizedValue = rawValue) => {
+    const errors = { ...reporterFieldErrors };
+    switch (field) {
+      case 'reporterIdentityNumber':
+        if (rawValue && /\D/.test(rawValue)) {
+          errors.reporterIdentityNumber = "Solo se permiten dígitos; no se aceptan letras, espacios ni caracteres especiales.";
+        } else if (normalizedValue && normalizedValue.length !== 11) {
+          errors.reporterIdentityNumber = "Debe contener exactamente 11 dígitos.";
+        } else if (normalizedValue && !validateIdentityMatchesDate(normalizedValue)) {
+          errors.reporterIdentityNumber = "Rectifica el número de identidad porque no es válido";
+        } else {
+          delete errors.reporterIdentityNumber;
+        }
+        break;
+      case 'reporterPhoneNumber':
+        if (rawValue && !validatePhoneNumber(normalizedValue)) {
+          errors.reporterPhoneNumber = "Solo se permiten dígitos.";
+        } else {
+          delete errors.reporterPhoneNumber;
+        }
+        break;
+      case 'reporterEmail':
+        if (rawValue && !validateEmail(rawValue)) {
+          errors.reporterEmail = "Email inválido.";
+        } else {
+          delete errors.reporterEmail;
+        }
+        break;
+      case 'reporterProfessionalLicense':
+        if (isDoctor && !rawValue.trim()) {
+          errors.reporterProfessionalLicense = "EL número de registro profesional es requerida para médicos.";
+        } else {
+          delete errors.reporterProfessionalLicense;
+        }
+        break;
+      case 'reporterInstitution':
+        if (isDoctor && !rawValue.trim()) {
+          errors.reporterInstitution = "La institución es requerida para médicos.";
+        } else {
+          delete errors.reporterInstitution;
+        }
+        break;
+    }
+    setReporterFieldErrors(errors);
+  };
+
+  const handleReporterFieldChange = (field: string, value: string) => {
+    let normalizedValue = value;
+    if (field === 'reporterIdentityNumber') {
+      normalizedValue = value.replace(/\D/g, '').slice(0, 11);
+      const dateOfBirthValue = extractDateOfBirthFromIdentity(normalizedValue);
+      updateFormData("reporterDateOfBirth", dateOfBirthValue as FormData["reporterDateOfBirth"]);
+    }
+
+    if (field === 'reporterPhoneNumber') {
+      normalizedValue = value.replace(/\D/g, '');
+    }
+
+    updateFormData(field as keyof FormData, normalizedValue as FormData[typeof field]);
+    validateReporterField(field, value, normalizedValue);
+  };
 
   return (
     <div className="space-y-6" ref={reporterFieldsRef}>
@@ -31,9 +154,9 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
             <SelectValue placeholder="Seleccione" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="medico">Profesional de la salud/personal</SelectItem>
             <SelectItem value="paciente">Sujeto Vacunado (usted mismo)</SelectItem>
             <SelectItem value="familiar">Padre/Tutor/Cuidador</SelectItem>
+            <SelectItem value="medico">Médico</SelectItem>
             <SelectItem value="otro">Otro</SelectItem>
           </SelectContent>
         </Select>
@@ -63,31 +186,42 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reporterDateOfBirth">Fecha de Nacimiento *</Label>
+            <Label htmlFor="reporterIdentityNumber">Número de Identidad *</Label>
             <Input
-              id="reporterDateOfBirth"
-              type="date"
-              value={formData.reporterDateOfBirth}
-              onChange={(e) => updateFormData("reporterDateOfBirth", e.target.value)}
+              id="reporterIdentityNumber"
+              placeholder="Carnet de identidad"
+              value={formData.reporterIdentityNumber}
+              onChange={(e) => handleReporterFieldChange("reporterIdentityNumber", e.target.value)}
               disabled={isPatient}
-              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""} ${dateErrors?.reporterDateOfBirth ? "border-red-500" : ""}`}
+              inputMode="numeric"
+              maxLength={11}
+              pattern="\d*"
+              className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
             />
-            {dateErrors?.reporterDateOfBirth && !isPatient && (
-              <p className="text-sm text-red-600">{dateErrors.reporterDateOfBirth}</p>
+            {reporterFieldErrors.reporterIdentityNumber && !isPatient && (
+              <p className="text-sm text-red-600">{reporterFieldErrors.reporterIdentityNumber}</p>
+            )}
+            {formData.reporterIdentityNumber.replace(/\D/g, '').length === 11 && formData.reporterDateOfBirth && (
+              <p className="text-sm text-gray-700">
+                Fecha de nacimiento extraída: <strong>{formData.reporterDateOfBirth}</strong>
+              </p>
+            )}
+            {formData.reporterIdentityNumber.replace(/\D/g, '').length === 11 && !formData.reporterDateOfBirth && (
+              <p className="text-sm text-red-600">No se pudo extraer una fecha válida del número de identidad.</p>
             )}
           </div>
         </div>
 
-        {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="reporterGender">Sexo *</Label>
             <Select
               value={formData.reporterGender}
-              onValueChange={(value) => !isPatient && updateFormData("reporterGender", value)}
+              onValueChange={(value) => updateFormData("reporterGender", value)}
               disabled={isPatient}
             >
               <SelectTrigger className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}>
-                <SelectValue placeholder="Seleccione" />
+                <SelectValue placeholder="Seleccione sexo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="M">Masculino</SelectItem>
@@ -96,7 +230,7 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
               </SelectContent>
             </Select>
           </div>
-        </div> */}
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -158,10 +292,13 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
                 type="tel"
                 placeholder="Teléfono"
                 value={formData.reporterPhoneNumber}
-                onChange={(e) => updateFormData("reporterPhoneNumber", e.target.value)}
+                onChange={(e) => handleReporterFieldChange("reporterPhoneNumber", e.target.value)}
                 disabled={isPatient}
                 className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
               />
+              {reporterFieldErrors.reporterPhoneNumber && !isPatient && (
+                <p className="text-sm text-red-600">{reporterFieldErrors.reporterPhoneNumber}</p>
+              )}
             </div>
           </div>
 
@@ -172,12 +309,47 @@ export function ReporterInfoSection({ formData, updateFormData, isAutoFilled, re
               type="email"
               placeholder="correo@example.com"
               value={formData.reporterEmail}
-              onChange={(e) => updateFormData("reporterEmail", e.target.value)}
+              onChange={(e) => handleReporterFieldChange("reporterEmail", e.target.value)}
               disabled={isPatient}
               className={`bg-white ${isPatient ? "bg-gray-100 opacity-60 cursor-not-allowed" : ""}`}
             />
+            {reporterFieldErrors.reporterEmail && !isPatient && (
+              <p className="text-sm text-red-600">{reporterFieldErrors.reporterEmail}</p>
+            )}
           </div>
         </div>
+
+        {isDoctor && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="reporterProfessionalLicense">Número de registro profesional *</Label>
+              <Input
+                id="reporterProfessionalLicense"
+                placeholder="Número de número de registro profesional"
+                value={formData.reporterProfessionalLicense || ""}
+                onChange={(e) => handleReporterFieldChange("reporterProfessionalLicense", e.target.value)}
+                className="bg-white"
+              />
+              {reporterFieldErrors.reporterProfessionalLicense && (
+                <p className="text-sm text-red-600">{reporterFieldErrors.reporterProfessionalLicense}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reporterInstitution">Institución *</Label>
+              <Input
+                id="reporterInstitution"
+                placeholder="Institución donde trabaja"
+                value={formData.reporterInstitution || ""}
+                onChange={(e) => handleReporterFieldChange("reporterInstitution", e.target.value)}
+                className="bg-white"
+              />
+              {reporterFieldErrors.reporterInstitution && (
+                <p className="text-sm text-red-600">{reporterFieldErrors.reporterInstitution}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

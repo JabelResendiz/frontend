@@ -6,501 +6,482 @@ import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { Alert, AlertDescription } from '@/app/components/ui/alert';
-import { AlertCircle, ChevronLeft, Download } from 'lucide-react';
+import { ChevronLeft, Mail, Phone, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { reportService, AssignedReport } from '@/app/services/report.service';
+import {
+  translatePatientStatus,
+  translateAdministrationSite,
+  translateIntensity,
+} from '@/app/utils/translations';
+import { translateGender } from '@/app/utils/translations';
 
 interface ReviewReportPageProps {
   reportId?: string;
+  report?: AssignedReport;
   onNavigate: (page: string, reportId?: string) => void;
 }
 
-// Mock data - Reporte presentado por el usuario (SOLO lo que el usuario ingresa)
-const mockUserReport = {
-  id: 'AR-001',
-  patientFullName: 'Carlos López Fernández',
-  patientIdentityNumber: '12345678',
-  patientDateOfBirth: '1980-05-15',
-  patientGender: 'M',
-  patientProvince: 'La Habana',
-  patientMunicipality: 'Playa',
-  patientAddress: 'Calle 5ta No. 1234 entre 10 y 12',
-  patientPhoneNumber: '53123456',
-  patientEmail: 'carlos@example.com',
-  
-  // VACUNA - Solo lo que ingresa el usuario
-  vaccineName: 'Soberana 02',
-  vaccinationDate: '2026-03-15',
-  vaccinationSite: 'Policlínico Vedado',
-  // Nota: Usuario NO proporciona: vaccineManufacturer, vaccineBatchNumber, doseNumber
-  
-  eventDate: '2026-03-15',
-  eventTime: '14:30',
-  eventDescription: 'Después de aproximadamente 30 minutos de la vacunación, comencé a sentir dolor en el brazo donde me pusieron la inyección. Luego empecé a sentir un poco de fiebre y dolor de cabeza. Me tomé acetaminofén y después de unas horas me sentí mejor.',
-  eventSymptoms: ['Dolor en el sitio de inyección', 'Fiebre', 'Dolor de cabeza'],
-  eventOutcome: 'recovered',
-  eventHospitalization: '',
-  patientMedicalHistory: 'Hipertensión controlada',
-  currentMedications: 'Enalapril 10mg diarios',
-  allergies: 'Alergia a Penicilina',
-  otherVaccinesLastMonth: 'Ninguna',
-  eventMedicalAttention: 'No solicité atención médica',
-  eventSeverity: 'leve',
-};
-
-export const ReviewReportPage = ({ reportId, onNavigate }: ReviewReportPageProps) => {
+export const ReviewReportPage = ({ report, onNavigate }: ReviewReportPageProps) => {
   const { user } = useAuth();
-  
-  // Estados para campos que el médico completa sobre la vacuna
-  const [editedVaccineName, setEditedVaccineName] = useState(mockUserReport.vaccineName);
-  const [vaccineManufacturer, setVaccineManufacturer] = useState('');
-  const [vaccineBatchNumber, setVaccineBatchNumber] = useState('');
-  const [doseNumber, setDoseNumber] = useState('');
-  
-  // Estados para la evaluación clínica
-  const [professionalDiagnosis, setProfessionalDiagnosis] = useState('');
-  const [medicalTerminology, setMedicalTerminology] = useState('');
-  const [retClassification, setRetClassification] = useState('');
-  const [laboratoryResults, setLaboratoryResults] = useState('');
+  const [causality, setCausality] = useState('');
   const [clinicalSignificance, setClinicalSignificance] = useState('');
-  const [vaccinationFacilityType, setVaccinationFacilityType] = useState('');
-  const [contraindicationCriterion, setContraindicationCriterion] = useState('');
+  const [laboratoryResults, setLaboratoryResults] = useState('');
+  const [medDRACode, setMedDRACode] = useState('');
+  const [retClassification, setRetClassification] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!user || user.role !== 'doctor') {
+  if (!user || user.role !== 'MedicalReviewer') {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 font-semibold">Acceso denegado. Solo médicos pueden acceder.</p>
+        <p className="text-red-600 font-semibold">Acceso denegado. Solo médicos revisores pueden acceder.</p>
       </div>
     );
   }
 
-  const handleSubmitReview = () => {
-    toast.success("Reporte completado", {
-      description: "Tu revisión ha sido guardada exitosamente."
-    });
-    setTimeout(() => {
-      onNavigate('assigned-reports');
-    }, 2000);
+  if (!report) {
+    return (
+      <div className="container mx-auto py-12 px-4 text-center">
+        <p className="text-gray-700">No hay datos de reporte disponibles para revisar.</p>
+      </div>
+    );
+  }
+
+  const firstEvent = report.adverseEvents?.[0];
+  const reportIDB = report.id ?? '';
+
+  console.log(reportIDB);
+
+  const handleSubmitReview = async () => {
+    if (!causality || !clinicalSignificance) {
+      toast.error('Completa causalidad y significancia clínica antes de enviar.');
+      return;
+    }
+
+    if (!reportIDB) {
+      toast.error('Falta el ID del reporte.');
+      return;
+    }
+
+    if (!firstEvent?.id) {
+      toast.error('Falta el adverseEventId del evento adverso.');
+      return;
+    }
+
+    console.log(new Date());
+
+    const reviewedAt = new Date().toLocaleString('en-CA', {
+  timeZone: 'America/New_York',
+  hour12: false
+}).replace(',', '').replace(' ', 'T');
+
+console.log(reviewedAt);
+
+    const payload = {
+      reportId: reportIDB,
+      causality,
+      clinicalSignificance,
+      reviewedAt: reviewedAt,
+      clinicalMedicalReviews: [
+        {
+          adverseEventId: firstEvent.id,
+          laboratoryResults,
+          medDRACode,
+          retClassification,
+        },
+      ],
+    };
+
+    setIsSubmitting(true);
+    try {
+      await reportService.createMedicalReview(payload);
+      toast.success('Revisión médica enviada correctamente.');
+      setTimeout(() => onNavigate('assigned-reports'), 1200);
+    } catch (error) {
+      console.error('Error enviando revisión médica:', error);
+      toast.error('No se pudo enviar la revisión. Revisa la consola para más detalles.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDownload = () => {
-    toast.success("Descargando reporte...", {
-      description: "El archivo se está descargando."
-    });
-  };
+//   const handleDownload = () => {
+//     const txtContent = `REPORTE DE EVENTO ADVERSO - REVISIÓN MÉDICA
+// ===========================================
+
+// Fecha del Reporte: ${new Date(report.reportDate).toLocaleString('es-ES')}
+
+// PERSONA VACUNADA: ${report.vaccinatedSubject.fullName}
+
+// REPORTANTE: ${report.reporter.fullName}
+// Teléfono: ${report.reporter.phoneNumber}
+// Email: ${report.reporter.email}
+
+// VACUNACIONES:
+// ${report.vaccinations
+//       .map(
+//         (v, index) => `Vacunación #${index + 1}:
+// - Vacuna: ${v.vaccineName}
+// - Lote: ${v.lotNumber}
+// - Sitio: ${translateAdministrationSite(v.administrationSite)}
+// - Dosis: ${v.doseNumber}
+// - Fecha: ${new Date(v.administrationDate).toLocaleString('es-ES')}
+// - Centro: ${v.vaccinationCenterName}`
+//       )
+//       .join('\n\n')}
+
+// EVENTO(S) ADVERSO(S):
+// ${report.adverseEvents
+//       .map(
+//         (event, index) => `Evento #${index + 1}:
+// - Fecha de Inicio: ${new Date(event.startDate).toLocaleString('es-ES')}
+// - Estado Actual: ${translatePatientStatus(event.currentStatus)}
+// - Visitó Doctor: ${event.visitedDoctor ? 'Sí' : 'No'}
+// - Sala de Emergencias: ${event.wentToEmergencyRoom ? 'Sí' : 'No'}
+// - Discapacidad Permanente: ${event.permanentDisability ? 'Sí' : 'No'}
+// - Amenaza Vital: ${event.isLifeThreatening ? 'Sí' : 'No'}
+// - Resultó en Muerte: ${event.resultedInDeath ? 'Sí' : 'No'}
+// - Fecha de Muerte: ${event.deathDate ?? 'N/A'}
+// - Síntomas: ${event.symptom?.name}
+
+// EVALUACIÓN CLÍNICA DEL MÉDICO:
+// Causalidad: ${translateCausality(causality)}
+// Significancia Clínica: ${translateClinicalSignificance(clinicalSignificance)}
+// Resultados de Laboratorio: ${laboratoryResults}
+// MedDRA: ${medDRACode}
+// Clasificación RET: ${retClassification}
+// `.trim();
+
+
+//     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+//     const url = URL.createObjectURL(blob);
+//     const a = document.createElement('a');
+//     a.href = url;
+//     a.download = `revision-reporte-${report.id}.txt`;
+//     document.body.appendChild(a);
+//     a.click();
+//     document.body.removeChild(a);
+//     URL.revokeObjectURL(url);
+//   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onNavigate('assigned-reports')}
-              className="gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Volver
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Revisión de Reporte</h1>
-              <p className="text-gray-600">Reporte ID: {reportId}</p>
+    <div className="min-h-screen bg-slate-50 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('assigned-reports')}
+                className="gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Volver
+              </Button>
+              <h1 className="mt-1 text-3xl font-semibold text-slate-900">Revisión de Reporte</h1>
+            </div>
+
+            <p className="mt-2 text-sm text-slate-600 max-w-2xl">
+              Revisa la información clave del evento adverso, revisa la asignación y completa la evaluación clínica con claridad.
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 text-indigo-700 px-3 py-1 text-sm">
+                <strong className="font-medium">Fecha reporte:</strong>
+                <span>{new Date(report.reportDate).toLocaleString('es-ES')}</span>
+              </span>
+
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 text-sm">
+                <strong className="font-medium">Fecha asignación:</strong>
+                <span>{report.assignedDate ? new Date(report.assignedDate).toLocaleString('es-ES') : 'N/A'}</span>
+              </span>
+
+
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Descargar
-            </Button>
-          </div>
+          
         </div>
 
-        {/* Main Content */}
-        <div className="space-y-6">
-          {/* SECCIÓN 1: INFORMACIÓN DEL PACIENTE (Del usuario) */}
-          <Card>
-            <CardHeader className="bg-blue-50 border-b">
-              <CardTitle className="text-xl">📋 Información del Paciente (Reportado por Usuario)</CardTitle>
-              <CardDescription>Datos ingresados por el reportante</CardDescription>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="border-slate-200 shadow-sm border-l-4 border-indigo-400">
+            <CardHeader className="border-b border-slate-200 bg-white/80">
+              <CardTitle className="text-lg font-semibold text-slate-900">Sujeto Vacunado</CardTitle>
+              <CardDescription>Información de la persona que recibió la vacuna</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Nombre Completo</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientFullName}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Número de Identidad</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientIdentityNumber}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Fecha de Nacimiento</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientDateOfBirth}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Sexo</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientGender === 'M' ? 'Masculino' : 'Femenino'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Provincia</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientProvince}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Municipio</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientMunicipality}</p>
-                </div>
-                <div className="sm:col-span-2">
-                  <Label className="text-sm font-semibold text-gray-700">Dirección</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.patientAddress}</p>
+            <CardContent className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-slate-500" />
+                  <div>
+                    <p className="text-sm text-slate-500">Nombre</p>
+                    <p className="mt-1 text-base font-medium text-slate-900">{report.vaccinatedSubject.fullName}</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold text-gray-700 mb-3">Contacto</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <span className="text-base font-semibold">A</span>
+                  </span>
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700">Teléfono</Label>
-                    <p className="text-gray-900 mt-1">+53 {mockUserReport.patientPhoneNumber}</p>
+                    <p className="text-sm text-slate-500">Edad</p>
+                    <p className="mt-1 text-slate-900">{report.vaccinatedSubject.age ?? 'N/A'}</p>
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <span className="text-base font-semibold">G</span>
+                  </span>
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700">Email</Label>
-                    <p className="text-gray-900 mt-1">{mockUserReport.patientEmail}</p>
+                    <p className="text-sm text-slate-500">Género</p>
+                    <p className="mt-1 text-slate-900">{translateGender(report.vaccinatedSubject.gender) ?? 'N/A'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <span className="text-base font-semibold">G</span>
+                  </span>
+                  <div>
+                    <p className="text-sm text-slate-500">Embarazada</p>
+                    <p className="mt-1 text-slate-900">{report.vaccinatedSubject.ispregnant ? 'Sí' : 'No'}</p>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* SECCIÓN 2: INFORMACIÓN DE LA VACUNA */}
-          <Card>
-            <CardHeader className="bg-green-50 border-b">
-              <CardTitle className="text-xl">💉 Información de la Vacuna</CardTitle>
-              <CardDescription>Datos ingresados por el usuario + Complementación por el médico</CardDescription>
+          <Card className="border-slate-200 shadow-sm border-l-4 border-emerald-400">
+            <CardHeader className="border-b border-slate-200 bg-white/80">
+              <CardTitle className="text-lg font-semibold text-slate-900">Reportante</CardTitle>
+              <CardDescription>Datos de quien reportó el evento adverso</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              {/* Lo que el usuario ingresó - Solo lectura */}
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h4 className="font-semibold text-gray-700 mb-3">📋 Información Ingresada por el Usuario</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-slate-500" />
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700">Nombre de la Vacuna Reportado</Label>
-                    <p className="text-gray-900 mt-1 p-2 bg-white rounded border">{mockUserReport.vaccineName}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700">Fecha de Vacunación</Label>
-                    <p className="text-gray-900 mt-1 p-2 bg-white rounded border">{mockUserReport.vaccinationDate}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Label className="text-sm font-semibold text-gray-700">Sitio de Vacunación</Label>
-                    <p className="text-gray-900 mt-1 p-2 bg-white rounded border">{mockUserReport.vaccinationSite}</p>
+                    <p className="text-sm text-slate-500">Nombre</p>
+                    <p className="mt-1 text-base font-medium text-slate-900">{report.reporter.fullName}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Lo que el médico completa - Editable */}
-              <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-                <h4 className="font-semibold text-blue-900 mb-3">✏️ Complementación por el Médico</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <Phone className="w-5 h-5 text-slate-500 mt-0.5" />
                   <div>
-                    <Label htmlFor="editedVaccineName">Nombre de la Vacuna (Rectificado si es necesario) *</Label>
-                    <Select value={editedVaccineName} onValueChange={setEditedVaccineName}>
-                      <SelectTrigger className="bg-white mt-2">
-                        <SelectValue placeholder="Seleccione la vacuna" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Soberana 02">Soberana 02</SelectItem>
-                        <SelectItem value="Soberana Plus">Soberana Plus</SelectItem>
-                        <SelectItem value="Abdala">Abdala</SelectItem>
-                        <SelectItem value="Mambisa">Mambisa</SelectItem>
-                        <SelectItem value="Heberpenta-L">Heberpenta-L</SelectItem>
-                        <SelectItem value="Heberbiovac-HB">Heberbiovac-HB</SelectItem>
-                        <SelectItem value="vAA">vAA (Meningitis A)</SelectItem>
-                        <SelectItem value="vABC">vABC (Meningitis BC)</SelectItem>
-                        <SelectItem value="Otra">Otra</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-sm text-slate-500">Teléfono</p>
+                    <p className="mt-1 text-slate-900">{report.reporter.phoneNumber || 'N/A'}</p>
                   </div>
+                </div>
 
+                <div className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+                  <Mail className="w-5 h-5 text-slate-500 mt-0.5" />
                   <div>
-                    <Label htmlFor="vaccineManufacturer">Fabricante *</Label>
-                    <Input
-                      id="vaccineManufacturer"
-                      placeholder="Ej: Instituto Finlay"
-                      value={vaccineManufacturer}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVaccineManufacturer(e.target.value)}
-                      className="bg-white mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="vaccineBatchNumber">Número de Lote *</Label>
-                    <Input
-                      id="vaccineBatchNumber"
-                      placeholder="Ej: L-2024-001"
-                      value={vaccineBatchNumber}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVaccineBatchNumber(e.target.value)}
-                      className="bg-white mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="doseNumber">Número de Dosis *</Label>
-                    <Select value={doseNumber} onValueChange={setDoseNumber}>
-                      <SelectTrigger className="bg-white mt-2">
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">Primera dosis</SelectItem>
-                        <SelectItem value="2">Segunda dosis</SelectItem>
-                        <SelectItem value="3">Tercera dosis</SelectItem>
-                        <SelectItem value="refuerzo">Dosis de refuerzo</SelectItem>
-                        <SelectItem value="unica">Dosis única</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-sm text-slate-500">Email</p>
+                    <p className="mt-1 text-slate-900">{report.reporter.email || 'N/A'}</p>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* SECCIÓN 3: EVENTO ADVERSO REPORTADO */}
-          <Card>
-            <CardHeader className="bg-yellow-50 border-b">
-              <CardTitle className="text-xl">⚠️ Evento Adverso Reportado por el Usuario</CardTitle>
-              <CardDescription>Información ingresada en el formulario de reporte</CardDescription>
+        
+
+       
+
+        <div className="grid gap-6 lg:grid-cols-2 mt-6">
+          <Card className="border-slate-200 shadow-sm border-l-4 border-yellow-400">
+            <CardHeader className="border-b border-slate-200 bg-yellow-50">
+              <CardTitle className="text-lg font-semibold text-slate-900">Vacunaciones</CardTitle>
+              <CardDescription>Detalles de cada dosis aplicada</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Fecha del Evento</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.eventDate}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Hora del Evento</Label>
-                  <p className="text-gray-900 mt-1">{mockUserReport.eventTime}</p>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Síntomas Reportados</Label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {mockUserReport.eventSymptoms.map((symptom, idx) => (
-                    <span key={idx} className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                      {symptom}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Descripción del Evento</Label>
-                <p className="text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg border">{mockUserReport.eventDescription}</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Antecedentes Médicos</Label>
-                <p className="text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg border">{mockUserReport.patientMedicalHistory}</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Medicamentos Actuales</Label>
-                  <p className="text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg border text-sm">{mockUserReport.currentMedications}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-700">Alergias</Label>
-                  <p className="text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg border text-sm">{mockUserReport.allergies}</p>
-                </div>
-              </div>
+            <CardContent className="space-y-4">
+              {report.vaccinations && Array.isArray(report.vaccinations) ? (
+                report.vaccinations.map((vaccination, index) => (
+                  <div key={index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Vacunación #{index + 1}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-sm text-slate-500">Vacuna</p>
+                        <p className="mt-1 text-slate-900">{vaccination.vaccineName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Lote</p>
+                        <p className="mt-1 text-slate-900">{vaccination.lotNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Sitio</p>
+                        <p className="mt-1 text-slate-900">{translateAdministrationSite(vaccination.administrationSite)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Dosis</p>
+                        <p className="mt-1 text-slate-900">{vaccination.doseNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Fecha</p>
+                        <p className="mt-1 text-slate-900">{new Date(vaccination.administrationDate).toLocaleString('es-ES')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Centro</p>
+                        <p className="mt-1 text-slate-900">{vaccination.vaccinationCenterName}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">No hay datos de vacunación registrados</p>
+              )}
             </CardContent>
           </Card>
 
-          {/* SECCIÓN 4: DESENLACE E IMPACTO DEL EVENTO */}
-          <Card>
-            <CardHeader className="bg-red-50 border-b">
-              <CardTitle className="text-xl">📊 Desenlace e Impacto del Evento Adverso</CardTitle>
-              <CardDescription>Información sobre los resultados y consecuencias del evento reportado</CardDescription>
+          <Card className="border-slate-200 shadow-sm border-l-4 border-red-400">
+            <CardHeader className="border-b border-slate-200 bg-red-50">
+              <CardTitle className="text-lg font-semibold text-slate-900">Evento Adverso</CardTitle>
+              <CardDescription>Detalles clínicos importantes</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Estado Actual del Paciente</Label>
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
-                  {mockUserReport.eventOutcome === 'recovered' && (
-                    <p className="text-gray-900">✅ Totalmente recuperado/a</p>
-                  )}
-                  {mockUserReport.eventOutcome === 'recovering' && (
-                    <p className="text-gray-900">🔄 Aún estoy recuperándome</p>
-                  )}
-                  {mockUserReport.eventOutcome === 'sequelae' && (
-                    <p className="text-gray-900">⚠️ Recuperado/a pero con secuelas</p>
-                  )}
-                  {mockUserReport.eventOutcome === 'unchanged' && (
-                    <p className="text-gray-900">➖ Sin cambios</p>
-                  )}
-                  {mockUserReport.eventOutcome === 'unknown' && (
-                    <p className="text-gray-900">❓ Desconocido</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Impacto del Evento - Atención Médica Requerida</Label>
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                    <span className="text-lg">👨‍⚕️</span>
-                    <span className="text-gray-900">
-                      {mockUserReport.eventHospitalization.includes('doctor') ? '✅ Visitó al médico o clínica' : '❌ No visitó al médico'}
-                    </span>
+            <CardContent className="space-y-4">
+              {report.adverseEvents && Array.isArray(report.adverseEvents) ? (
+                report.adverseEvents.map((event, index) => (
+                  <div key={index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-slate-500">Evento #{index + 1}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-sm text-slate-500">Fecha de Inicio</p>
+                        <p className="mt-1 text-slate-900">{new Date(event.startDate).toLocaleString('es-ES')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Estado</p>
+                        <p className="mt-1 text-slate-900">{translatePatientStatus(event.currentStatus)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Intensidad</p>
+                        <p className="mt-1 text-slate-900">{translateIntensity(event.intensity)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Visitó Doctor</p>
+                        <p className="mt-1 text-slate-900">{event.visitedDoctor ? 'Sí' : 'No'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Emergencias</p>
+                        <p className="mt-1 text-slate-900">{event.wentToEmergencyRoom ? 'Sí' : 'No'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-500">Amenaza Vital</p>
+                        <p className="mt-1 text-slate-900">{event.isLifeThreatening ? 'Sí' : 'No'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm text-slate-500">Síntomas</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {event.symptom ? (
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+                            {event.symptom.name}
+                          </span>
+                        ) : event.symptoms && Array.isArray(event.symptoms) ? (
+                          event.symptoms.map((symptom) => (
+                            <span key={symptom.id} className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm text-red-800">
+                              {symptom.name}
+                            </span>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-500">No hay síntomas registrados</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                    <span className="text-lg">🚨</span>
-                    <span className="text-gray-900">
-                      {mockUserReport.eventHospitalization.includes('emergency') ? '✅ Fue a sala de emergencias' : '❌ No fue a sala de emergencias'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                    <span className="text-lg">🏥</span>
-                    <span className="text-gray-900">
-                      {mockUserReport.eventHospitalization.includes('hospitalized') ? '✅ Fue hospitalizado' : '❌ No fue hospitalizado'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                    <span className="text-lg">♿</span>
-                    <span className="text-gray-900">
-                      {mockUserReport.eventHospitalization.includes('disability') ? '✅ Quedó con discapacidad/limitación permanente' : '❌ Sin discapacidad permanente'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Tratamiento Recibido</Label>
-                <p className="text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg border">{mockUserReport.eventMedicalAttention || 'No especificado'}</p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-semibold text-gray-700">Otras Vacunas en el Mes Anterior</Label>
-                <p className="text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg border">{mockUserReport.otherVaccinesLastMonth}</p>
-              </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">No hay eventos adversos registrados</p>
+              )}
             </CardContent>
           </Card>
+        </div>
 
-          {/* SECCIÓN 5: EVALUACIÓN CLÍNICA DEL MÉDICO */}
-          <Card>
-            <CardHeader className="bg-purple-50 border-b">
-              <CardTitle className="text-xl">🏥 Tu Evaluación Clínica</CardTitle>
-              <CardDescription>Completa los siguientes campos con tu análisis profesional</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <Alert className="border-purple-200 bg-purple-50">
-                <AlertCircle className="h-4 w-4 text-purple-600" />
-                <AlertDescription className="text-sm text-purple-800">
-                  <strong>Importante:</strong> Proporciona tu diagnóstico profesional, clasificación según MedDRA, 
-                  y resultados de laboratorio cuando sea aplicable.
-                </AlertDescription>
-              </Alert>
+        <Card className="border-slate-200 shadow-sm mt-6 border-l-4 border-indigo-500">
+          <CardHeader className="border-b border-slate-200 bg-indigo-50">
+            <CardTitle className="text-lg font-semibold text-slate-900">Evaluación Clínica</CardTitle>
+            <CardDescription>Completa el análisis médico y envía la revisión</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-6">
+            
 
-              <div className="space-y-2">
-                <Label htmlFor="professionalDiagnosis">Diagnóstico Clínico Profesional *</Label>
-                <Textarea
-                  id="professionalDiagnosis"
-                  placeholder="Diagnóstico basado en síntomas, antecedentes clínicos, hallazgos del examen físico..."
-                  value={professionalDiagnosis}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProfessionalDiagnosis(e.target.value)}
-                  className="bg-white min-h-[100px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="medicalTerminology">Terminología Médica Estándar (MedDRA) *</Label>
-                <Textarea
-                  id="medicalTerminology"
-                  placeholder="Expresar el evento en términos médicos estándar (ej: Anafilaxia, Síncope vasovagal, etc...)"
-                  value={medicalTerminology}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMedicalTerminology(e.target.value)}
-                  className="bg-white min-h-[80px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="retClassification">Clasificación RET (Relación Evento-Temporal) *</Label>
-                <Select value={retClassification} onValueChange={setRetClassification}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Seleccione la clasificación RET" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="causality">Causalidad *</Label>
+                <Select value={causality} onValueChange={setCausality}>
+                  <SelectTrigger className="bg-white mt-2">
+                    <SelectValue placeholder="Seleccione causalidad" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="temporal">Temporal (T)</SelectItem>
-                    <SelectItem value="no-temporal">No Temporal (NT)</SelectItem>
-                    <SelectItem value="uncertain">Incierto (I)</SelectItem>
+                    <SelectItem value="Definitive">Definitiva</SelectItem>
+                    <SelectItem value="Probable">Probable</SelectItem>
+                    <SelectItem value="Possible">Posible</SelectItem>
+                    <SelectItem value="Improbable">Improbable / No relacionada</SelectItem>
+                    <SelectItem value="NotEvaluable">No evaluable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              <div>
+                <Label htmlFor="clinicalSignificance">Significancia Clínica *</Label>
+                <Select value={clinicalSignificance} onValueChange={setClinicalSignificance}>
+                  <SelectTrigger className="bg-white mt-2">
+                    <SelectValue placeholder="Seleccione significancia clínica" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ClinicallySignificantAndUnexpected">Clínicamente significativo e inesperado</SelectItem>
+                    <SelectItem value="ExpectedEvent">Evento esperado</SelectItem>
+                    <SelectItem value="SeriousOrLifeThreatening">Evento serio o potencialmente mortal</SelectItem>
+                    <SelectItem value="MinorEvent">Evento menor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="laboratoryResults">Resultados de Laboratorio</Label>
                 <Textarea
                   id="laboratoryResults"
-                  placeholder="Hemograma, química sanguínea, otras pruebas relevantes..."
+                  placeholder="Ej: Hemograma normal, función hepática sin alteraciones..."
                   value={laboratoryResults}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setLaboratoryResults(e.target.value)}
-                  className="bg-white min-h-[80px]"
+                  className="bg-white min-h-[120px]"
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="clinicalSignificance">Significancia Clínica</Label>
-                <Textarea
-                  id="clinicalSignificance"
-                  placeholder="Análisis de la importancia clínica del evento..."
-                  value={clinicalSignificance}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setClinicalSignificance(e.target.value)}
-                  className="bg-white min-h-[80px]"
+                <Label htmlFor="medDRACode">Código MedDRA</Label>
+                <Input
+                  id="medDRACode"
+                  placeholder="Ej: 23232323"
+                  value={medDRACode}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMedDRACode(e.target.value)}
+                  className="bg-white mt-2"
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="vaccinationFacilityType">Tipo de Establecimiento de Vacunación</Label>
-                <Select value={vaccinationFacilityType} onValueChange={setVaccinationFacilityType}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Seleccione el tipo de establecimiento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hospital">Hospital</SelectItem>
-                    <SelectItem value="policlinico">Policlínico</SelectItem>
-                    <SelectItem value="clinica-privada">Clínica Privada</SelectItem>
-                    <SelectItem value="centro-salud">Centro de Salud</SelectItem>
-                    <SelectItem value="farmacia">Farmacia</SelectItem>
-                    <SelectItem value="otro">Otro</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="retClassification">Clasificación RET</Label>
+                <Input
+                  id="retClassification"
+                  placeholder="Ej: Posiblemente nada"
+                  value={retClassification}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRetClassification(e.target.value)}
+                  className="bg-white mt-2"
+                />
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="contraindicationCriterion">Criterio de Contraindicación</Label>
-                <Select value={contraindicationCriterion} onValueChange={setContraindicationCriterion}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Seleccione si hay contraindicación" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="absolute">Contraindicación Absoluta</SelectItem>
-                    <SelectItem value="relative">Contraindicación Relativa</SelectItem>
-                    <SelectItem value="none">Sin Contraindicación</SelectItem>
-                    <SelectItem value="unclear">Incierto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Botones de Acción */}
-          <div className="flex gap-4 sticky bottom-0 bg-white p-4 rounded-lg shadow-lg">
+        <div className="sticky bottom-0 z-10 mt-6 rounded-t-3xl border border-slate-200 border-b-0 bg-white/95 p-4 backdrop-blur-sm shadow-lg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
             <Button
               variant="outline"
               onClick={() => onNavigate('assigned-reports')}
@@ -511,7 +492,8 @@ export const ReviewReportPage = ({ reportId, onNavigate }: ReviewReportPageProps
             </Button>
             <Button
               onClick={handleSubmitReview}
-              className="flex-1 gap-2"
+              className="flex-1 sm:flex-none gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+              disabled={isSubmitting}
             >
               Guardar Evaluación
             </Button>

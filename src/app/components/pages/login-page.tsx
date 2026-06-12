@@ -1,60 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
   contextAction?: string;
 }
 
-export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
-  const { login, register } = useAuth();
+export const LoginPage = ({ onNavigate }: LoginPageProps) => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isRegister, setIsRegister] = useState(false);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<'doctor' | 'admin' | 'responsable-seccion'>('doctor');
-
-  // Si viene del contexto de reportar, pre-seleccionar como médico y mostrar registro
-  useEffect(() => {
-    if (contextAction === 'registerAsDoctor') {
-      setIsRegister(true);
-      setRole('doctor');
-    }
-  }, [contextAction]);
+  const captchaRef = useRef<ReCAPTCHA | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
-
-    try {
-      await login(email, password);
-      onNavigate('home');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
+    if (!captchaValue) {
+      setError('Por favor completa el captcha antes de iniciar sesión.');
+      return;
     }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
-      await register(email, password, name, role);
+      await login(email, password, captchaValue);
       onNavigate('home');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrarse');
+    } catch (err: any) {
+      const responseData = err?.response?.data;
+      const isInvalidCredentials =
+        responseData?.type === 'ValidationError' &&
+        responseData?.message?.includes('invalid credentials');
+
+      const errorMessage = isInvalidCredentials
+        ? 'Correo electrónico o contraseña incorrectos.'
+        : err instanceof Error
+        ? err.message
+        : 'Error al iniciar sesión';
+
+      setError(errorMessage);
+      setCaptchaValue(null);
+      (captchaRef.current as any)?.reset();
     } finally {
       setLoading(false);
     }
@@ -65,12 +58,10 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            {isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
+            Iniciar Sesión
           </CardTitle>
           <CardDescription className="text-center">
-            {isRegister
-              ? 'Regístrate para crear tu cuenta'
-              : 'Ingresa tus credenciales para continuar'}
+            Ingresa tus credenciales para continuar
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -80,20 +71,7 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
             </Alert>
           )}
 
-          <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
-            {isRegister && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre Completo</Label>
-                <Input
-                  id="name"
-                  placeholder="Tu nombre"
-                  value={name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -118,55 +96,28 @@ export const LoginPage = ({ onNavigate, contextAction }: LoginPageProps) => {
               />
             </div>
 
-            {isRegister && (
-              <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Select value={role} onValueChange={(value: any) => setRole(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="doctor">Médico</SelectItem>
-                    <SelectItem value="responsable-seccion">Responsable de Sección</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg bg-slate-50">
+                <p className="text-sm text-gray-600 mb-3">Por favor verifica que no eres un robot:</p>
+                <div className="flex justify-center">
+                  <ReCAPTCHA
+                    ref={captchaRef}
+                    sitekey={((import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY as string) || ''}
+                    onChange={(value: string | null) => setCaptchaValue(value)}
+                  />
+                </div>
               </div>
-            )}
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading
-                ? isRegister
-                  ? 'Registrando...'
-                  : 'Iniciando sesión...'
-                : isRegister
-                ? 'Registrarse'
-                : 'Iniciar Sesión'}
-            </Button>
-          </form>
-
-          <div className="mt-4 pt-4 border-t">
-            <p className="text-center text-sm text-gray-600">
-              {isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
-              <button
-                onClick={() => {
-                  setIsRegister(!isRegister);
-                  setError('');
-                  setEmail('');
-                  setPassword('');
-                  setName('');
-                  setRole('doctor');
-                }}
-                className="ml-1 text-indigo-600 hover:text-indigo-700 font-semibold"
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || !captchaValue}
+                title={!captchaValue ? 'Completa el captcha antes de iniciar sesión' : undefined}
               >
-                {isRegister ? 'Inicia sesión' : 'Regístrate'}
-              </button>
-            </p>
-          </div>
+                {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

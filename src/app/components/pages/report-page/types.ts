@@ -1,18 +1,42 @@
+export interface AdverseEvent {
+  eventDate: string;
+  eventFinishDate: string;
+  eventDescription: string;
+  eventSymptom: string;
+  eventOutcome: string;
+  eventHospitalization: string;
+  eventMedicalAttention: string;
+  eventIntensity: string;
+  eventSeverityLevel: string;
+  deathDateType?: "full" | "partial";
+  deathDate?: string;
+  // Doctor specific
+  professionalDiagnosis?: string;
+  medicalTerminology?: string;
+  retClassification?: string;
+  laboratoryResults?: string;
+  clinicalSignificance?: string;
+  vaccinationFacilityType?: string;
+  contraindicationCriterion?: string;
+}
+
 export interface FormData {
   // Reportante info
   reporterFullName: string;
-  reporterDateOfBirth: string;
+  reporterDateOfBirth:string;
   reporterGender: string;
   reporterProvince: string;
   reporterMunicipality: string;
   reporterPhoneNumber: string;
   reporterEmail: string;
   reporterRelationship: string;
+  reporterProfessionalLicense?: string;
+  reporterInstitution?: string;
 
   // Patient (VaccinatedSubject) info
   patientFullName: string;
+  patientDateOfBirth:string;
   patientIdentityNumber: string;
-  patientDateOfBirth: string;
   patientGender: string;
   patientProvince: string;
   patientMunicipality: string;
@@ -23,58 +47,40 @@ export interface FormData {
   patientAge: string;
 
   // Vaccine info
-  // vaccineName: string;
-  // vaccineManufacturer: string;
-  // vaccineBatchNumber: string;
-  // vaccinationDate: string;
-  // vaccinationSite: string;
-  // doseNumber: string;
   vaccinations: VaccinationProcess[];
 
-  // Event info - General
-  eventDate: string;
-  eventTime: string;
-  eventDescription: string;
-  eventSymptoms: string[];
-  eventOutcome: string;
-  eventHospitalization: string;
-  eventMedicalAttention: string;
+  // Adverse Events
+  adverseEvents: AdverseEvent[];
 
-  // Event info - Reportante specific
-  eventSeverity: string;
+  // Patient Medical History (moved from event)
   patientMedicalHistory: string;
   currentMedications: string;
   allergies: string;
   otherVaccinesLastMonth: string;
-  deathDateType?: "full" | "partial";
-  deathDate?:string;
-
-  // Event info - Doctor specific
-  professionalDiagnosis: string;
-  medicalTerminology: string;
-  retClassification: string;
-  laboratoryResults: string;
-  clinicalSignificance: string;
-  vaccinationFacilityType: string;
-  contraindicationCriterion: string;
 
   // Reporter info (final step - required)
   reporterType: string;
-  reporterCI: string;
+  reporterIdentityNumber: string;
+  confidentialityAgreed: boolean;
 }
 
 export interface VaccinationProcess {
-  vaccineName :string;
-  vaccineManufacturer?: string;
-  vaccineBatchNumber?: string;
+  vaccineId :string;
+
+  vaccinationLotId?: string;
   vaccinationDate: string;
-  vaccinationSite: string;
+
   doseNumber?: string;
 
   administrationRoute?: string;
+  administrationSite?: string; 
+  
+  // Vaccination center location
+  vaccinationProvince?: string;
+  vaccinationMunicipality?: string;
+  vaccinationCenterId?: string;
 }
 
-// export type UpdateFormData = (field: keyof FormData, value: any) => void;
 
 export type UpdateFormData = <K extends keyof FormData>(
   field: K,

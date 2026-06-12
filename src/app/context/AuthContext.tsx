@@ -1,84 +1,139 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authService } from '../services/auth.service';
+import { setAccessToken, clearAccessToken } from '../services/token-manager';
+import { registerLogoutHandler } from '../services/api';
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'doctor' | 'admin' | 'patient';
+  role: 'Admin' | 'MedicalReviewer' | 'SectionResponsible';
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: 'doctor' | 'admin' | 'patient') => Promise<void>;
-  logout: () => void;
+  isLoading: boolean;
+  login: (email: string, password: string, token?: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const parseJwt = <T extends Record<string, any>>(token: string): T | null => {
+  try {
+    const base64Payload = token.split('.')[1];
+    const payload = atob(base64Payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(decodeURIComponent(
+      payload.split('').map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`).join('')
+    ));
+  } catch {
+    return null;
+  }
+};
+
+const getUserFromToken = (token: string): User | null => {
+  const payload = parseJwt<Record<string, any>>(token);
+  if (!payload) return null;
+
+  const roleClaim = payload.role || payload.roles || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+  const role = Array.isArray(roleClaim)
+    ? roleClaim[0]
+    : typeof roleClaim === 'string'
+    ? roleClaim
+    : undefined;
+
+  const user: User = {
+    id: payload.sub || payload.nameid || payload.uid || '',
+    email: payload.email || payload.unique_name || '',
+    name: payload.given_name || payload.name || payload.email || 'Usuario',
+    role: role === 'Admin'
+      ? 'Admin'
+      : role === 'SectionResponsible'
+      ? 'SectionResponsible'
+      : 'MedicalReviewer',
+  };
+
+  return user;
+};
+
+export const AuthProvider = ({ children }: any) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Restaurar sesión desde localStorage
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    // Simulamos una llamada a la API
-    // En producción, esto sería una llamada real a tu backend
-    const users = JSON.parse(localStorage.getItem('allUsers') || '[]');
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
-
-    if (!foundUser) {
-      throw new Error('Email o contraseña inválidos');
+  const handleLogout = useCallback(async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Ignorar errores en el logout, el estado local debe limpiarse de todas formas
     }
 
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-  };
-
-  const register = async (email: string, password: string, name: string, role: 'doctor' | 'admin' | 'patient') => {
-    // Verificar si el usuario ya existe
-    const users = JSON.parse(localStorage.getItem('allUsers') || '[]');
-    if (users.some((u: any) => u.email === email)) {
-      throw new Error('El email ya está registrado');
-    }
-
-    const newUser = {
-      id: Date.now().toString(),
-      email,
-      password,
-      name,
-      role,
-    };
-
-    users.push(newUser);
-    localStorage.setItem('allUsers', JSON.stringify(users));
-
-    // Auto-login después del registro
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-  };
-
-  const logout = () => {
+    clearAccessToken();
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('user');
+  }, []);
+
+  useEffect(() => {
+    registerLogoutHandler(handleLogout);
+  }, [handleLogout]);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const token = await authService.refreshToken();
+        setAccessToken(token);
+
+        const restoredUser = getUserFromToken(token);
+        if (restoredUser) {
+          setUser(restoredUser);
+          setIsAuthenticated(true);
+        }
+      } catch {
+        clearAccessToken();
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    restoreSession();
+  }, []);
+
+  const login = async (email: string, password: string, token?: string) => {
+    const data = await authService.login(email, password, token);
+    const authToken = data.token || data.accessToken;
+
+    if (!authToken) {
+      throw new Error('No se recibió access token del backend');
+    }
+
+    setAccessToken(authToken);
+
+    const loggedUser = data.id && data.userName && data.userRole
+      ? {
+          id: data.id.toString(),
+          name: data.userName,
+          email,
+          role: data.userRole as User['role'],
+        }
+      : getUserFromToken(authToken);
+
+    if (!loggedUser) {
+      throw new Error('No se pudo obtener información del usuario desde el token');
+    }
+
+    setUser(loggedUser);
+    setIsAuthenticated(true);
+  };
+
+  const logout = async () => {
+    await handleLogout();
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -86,8 +141,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth debe ser usado dentro de AuthProvider');
   }
+
   return context;
 };
