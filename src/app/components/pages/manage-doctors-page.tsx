@@ -35,7 +35,7 @@ const generatePassword = (): string => {
   return password.sort(() => Math.random() - 0.5).join("");
 };
 
-export function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
+export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   void onNavigate;
   const [medicalReviewers, setMedicalReviewers] = useState<MedicalReviewer[]>([]);
   const [showForm, setShowForm] = useState(false);

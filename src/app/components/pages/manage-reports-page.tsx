@@ -31,7 +31,7 @@ const getSeverityLevel = (report: AssignedReport): 'critical' | 'warning' | 'nor
   return 'normal';
 };
 
-export function ManageReportsPage(_: ManageReportsPageProps) {
+export default function ManageReportsPage(_: ManageReportsPageProps) {
   const [reports, setReports] = useState<AssignedReport[]>([]);
   const [pageNumber, setPageNumber] = useState(1);
   const [totalCount, setTotalCount] = useState(0);

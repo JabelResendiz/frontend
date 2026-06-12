@@ -94,7 +94,7 @@ interface DetailReport {
   } | null;
 }
 
-export function DetailPage({ reportId, onNavigate }: DetailPageProps) {
+export default function DetailPage({ reportId, onNavigate }: DetailPageProps) {
   const [detail, setDetail] = useState<DetailReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

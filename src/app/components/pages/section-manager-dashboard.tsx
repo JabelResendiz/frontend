@@ -32,7 +32,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { toast } from "sonner";
 
-export function SectionManagerDashboard() {
+export default function SectionManagerDashboard() {
   // Data States
   const [overview, setOverview] = useState<MunicipalOverview | null>(null);
   const [doctorsPerformance, setDoctorsPerformance] = useState<DoctorPerformance[]>([]);

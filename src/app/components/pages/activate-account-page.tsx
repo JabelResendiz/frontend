@@ -10,7 +10,7 @@ interface ActivateAccountPageProps {
   onNavigate: (page: string) => void;
 }
 
-export const ActivateAccountPage = ({ onNavigate }: ActivateAccountPageProps) => {
+const ActivateAccountPageComponent = ({ onNavigate }: ActivateAccountPageProps) => {
   const [professionalNumber, setProfessionalNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -145,3 +145,5 @@ export const ActivateAccountPage = ({ onNavigate }: ActivateAccountPageProps) =>
     </div>
   );
 };
+
+export default ActivateAccountPageComponent;

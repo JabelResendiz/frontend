@@ -31,7 +31,7 @@ interface ManageSectionResponsiblePageProps {
 
 
 
-export function ManageSectionResponsiblePage(_: ManageSectionResponsiblePageProps) {
+export default function ManageSectionResponsiblePage(_: ManageSectionResponsiblePageProps) {
   const [sectionResponsibles, setSectionResponsibles] = useState<SectionResponsible[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

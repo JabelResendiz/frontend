@@ -22,7 +22,7 @@ interface ReviewReportPageProps {
   onNavigate: (page: string, reportId?: string) => void;
 }
 
-export const ReviewReportPage = ({ report, onNavigate }: ReviewReportPageProps) => {
+const ReviewReportPageComponent = ({ report, onNavigate }: ReviewReportPageProps) => {
   const { user } = useAuth();
   const [causality, setCausality] = useState('');
   const [clinicalSignificance, setClinicalSignificance] = useState('');

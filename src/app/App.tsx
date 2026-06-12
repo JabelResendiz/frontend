@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/app/context/AuthContext";
 import { ReportProvider } from "@/app/context/ReportContext";
@@ -6,26 +6,42 @@ import { Navigation } from "@/app/components/navigation";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { Footer } from "@/app/components/footer";
 import { HomePage } from "@/app/components/pages/home-page";
-import { ReportPage } from "@/app/components/pages/report-page";
-import { ConsultationPage } from "@/app/components/pages/consultation-page";
-import { DetailPage } from "@/app/components/pages/detail-page";
-import { DashboardPage } from "@/app/components/pages/dashboard-page";
 import { InformationPage } from "@/app/components/pages/information-page";
 import { LoginPage } from "@/app/components/pages/login-page";
-import { DoctorDashboard } from "@/app/components/pages/doctor-dashboard";
-import { EditReportPage } from "@/app/components/pages/edit-report-page";
-import { AdminDashboard } from "@/app/components/pages/admin-dashboard";
-import { ManageDoctorsPage } from "@/app/components/pages/manage-doctors-page";
-import { ManageReportsPage } from "@/app/components/pages/manage-reports-page";
-import { SectionManagerDashboard } from "@/app/components/pages/section-manager-dashboard";
-import { AssignedReportsPage } from "@/app/components/pages/assigned-reports-page";
-import { ReviewReportPage } from "@/app/components/pages/review-report-page";
-import { ActivateAccountPage } from "@/app/components/pages/activate-account-page";
 import { AssignedReport } from "@/app/services/report.service";
-import { ManageCatalogPage } from "@/app/components/pages/manage-catalog-page";
-import { ManageSectionResponsiblePage } from "@/app/components/pages/manage-section-responsible-page";
-import { TrackReportPage } from "@/app/components/pages/track-report-page";
 import { Toaster } from "@/app/components/ui/sonner";
+
+// Lazy load heavy pages to reduce initial bundle and improve LCP
+const ReportPage = lazy(() => import("@/app/components/pages/report-page"));
+const TrackReportPage = lazy(() => import("@/app/components/pages/track-report-page"));
+const ConsultationPage = lazy(() => import("@/app/components/pages/consultation-page"));
+const DetailPage = lazy(() => import("@/app/components/pages/detail-page"));
+const DashboardPage = lazy(() => import("@/app/components/pages/dashboard-page"));
+const DoctorDashboard = lazy(() => import("@/app/components/pages/doctor-dashboard"));
+const EditReportPage = lazy(() => import("@/app/components/pages/edit-report-page"));
+const AdminDashboard = lazy(() => import("@/app/components/pages/admin-dashboard"));
+const ManageDoctorsPage = lazy(() => import("@/app/components/pages/manage-doctors-page"));
+const ManageReportsPage = lazy(() => import("@/app/components/pages/manage-reports-page"));
+const SectionManagerDashboard = lazy(() => import("@/app/components/pages/section-manager-dashboard"));
+const AssignedReportsPage = lazy(() => import("@/app/components/pages/assigned-reports-page"));
+const ReviewReportPage = lazy(() => import("@/app/components/pages/review-report-page"));
+const ActivateAccountPage = lazy(() => import("@/app/components/pages/activate-account-page"));
+const ManageCatalogPage = lazy(() => import("@/app/components/pages/manage-catalog-page"));
+const ManageSectionResponsiblePage = lazy(() => import("@/app/components/pages/manage-section-responsible-page"));
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center text-gray-600">Cargando...</div>
+    </div>
+  );
+}
+
+// Suspense wrapper for route transitions
+function RouteWrapper({ children }: { children: React.ReactElement }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
 
 function AppContent() {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -85,47 +101,47 @@ function AppContent() {
           <Route path="/" element={<HomePage onNavigate={handleNavigate} />} />
           <Route path="/home" element={<HomePage onNavigate={handleNavigate} />} />
           <Route path="/login" element={<LoginPage onNavigate={handleNavigate} />} />
-          <Route path="/report" element={<ReportPage onNavigate={handleNavigate} />} />
-          <Route path="/track-report" element={<TrackReportPage onNavigate={handleNavigate} />} />
+          <Route path="/report" element={<RouteWrapper><ReportPage onNavigate={handleNavigate} /></RouteWrapper>} />
+          <Route path="/track-report" element={<RouteWrapper><TrackReportPage onNavigate={handleNavigate} /></RouteWrapper>} />
           <Route path="/information" element={<InformationPage />} />
-          <Route path="/activate-account" element={<ActivateAccountPage onNavigate={handleNavigate} />} />
+          <Route path="/activate-account" element={<RouteWrapper><ActivateAccountPage onNavigate={handleNavigate} /></RouteWrapper>} />
 
           <Route
             path="/consultation"
-            element={<ProtectedRoute><ConsultationPage onNavigate={handleNavigate} /></ProtectedRoute>}
+            element={<ProtectedRoute><RouteWrapper><ConsultationPage onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>}
           />
 
           <Route
             path="/detail"
-            element={<ProtectedRoute><DetailPage reportId={selectedReportId} onNavigate={handleNavigate} /></ProtectedRoute>}
+            element={<ProtectedRoute><RouteWrapper><DetailPage reportId={selectedReportId} onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>}
           />
 
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><RouteWrapper><DashboardPage /></RouteWrapper></ProtectedRoute>} />
 
           <Route
             path="/doctor-dashboard"
-            element={<ProtectedRoute roles={["MedicalReviewer"]}><DoctorDashboard onNavigate={handleNavigate} /></ProtectedRoute>}
+            element={<ProtectedRoute roles={["MedicalReviewer"]}><RouteWrapper><DoctorDashboard onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>}
           />
 
           <Route
             path="/assigned-reports"
-            element={<ProtectedRoute roles={["MedicalReviewer"]}><AssignedReportsPage onNavigate={handleNavigate} /></ProtectedRoute>}
+            element={<ProtectedRoute roles={["MedicalReviewer"]}><RouteWrapper><AssignedReportsPage onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>}
           />
 
           <Route
             path="/review-report"
-            element={<ProtectedRoute roles={["MedicalReviewer"]}><ReviewReportPage reportId={selectedReportId} report={selectedReport} onNavigate={handleNavigate} /></ProtectedRoute>}
+            element={<ProtectedRoute roles={["MedicalReviewer"]}><RouteWrapper><ReviewReportPage reportId={selectedReportId} report={selectedReport} onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>}
           />
 
-          <Route path="/admin-dashboard" element={<ProtectedRoute roles={["Admin"]}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/manage-catalog" element={<ProtectedRoute roles={["Admin"]}><ManageCatalogPage /></ProtectedRoute>} />
-          <Route path="/manage-section-responsible" element={<ProtectedRoute roles={["Admin"]}><ManageSectionResponsiblePage onNavigate={handleNavigate} /></ProtectedRoute>} />
+          <Route path="/admin-dashboard" element={<ProtectedRoute roles={["Admin"]}><RouteWrapper><AdminDashboard /></RouteWrapper></ProtectedRoute>} />
+          <Route path="/manage-catalog" element={<ProtectedRoute roles={["Admin"]}><RouteWrapper><ManageCatalogPage /></RouteWrapper></ProtectedRoute>} />
+          <Route path="/manage-section-responsible" element={<ProtectedRoute roles={["Admin"]}><RouteWrapper><ManageSectionResponsiblePage onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>} />
 
-          <Route path="/manage-doctors" element={<ProtectedRoute roles={["SectionResponsible"]}><ManageDoctorsPage onNavigate={handleNavigate} /></ProtectedRoute>} />
-          <Route path="/manage-reports" element={<ProtectedRoute roles={["SectionResponsible"]}><ManageReportsPage onNavigate={handleNavigate} /></ProtectedRoute>} />
-          <Route path="/section-manager-dashboard" element={<ProtectedRoute roles={["SectionResponsible"]}><SectionManagerDashboard /></ProtectedRoute>} />
+          <Route path="/manage-doctors" element={<ProtectedRoute roles={["SectionResponsible"]}><RouteWrapper><ManageDoctorsPage onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>} />
+          <Route path="/manage-reports" element={<ProtectedRoute roles={["SectionResponsible"]}><RouteWrapper><ManageReportsPage onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>} />
+          <Route path="/section-manager-dashboard" element={<ProtectedRoute roles={["SectionResponsible"]}><RouteWrapper><SectionManagerDashboard /></RouteWrapper></ProtectedRoute>} />
 
-          <Route path="/edit-report" element={<ProtectedRoute><EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} /></ProtectedRoute>} />
+          <Route path="/edit-report" element={<ProtectedRoute><RouteWrapper><EditReportPage reportId={selectedReportId} onNavigate={handleNavigate} /></RouteWrapper></ProtectedRoute>} />
 
           {/* fallback to home for unknown routes */}
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -12,7 +12,7 @@ interface AssignedReportsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string, payload?: AssignedReport) => void;
 }
 
-export const AssignedReportsPage = ({ onNavigate }: AssignedReportsPageProps) => {
+const AssignedReportsPageComponent = ({ onNavigate }: AssignedReportsPageProps) => {
   const { user } = useAuth();
   const [reports, setReports] = useState<AssignedReport[]>([]);
   const [loading, setLoading] = useState(true);

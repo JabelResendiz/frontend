@@ -31,7 +31,7 @@ interface ReportData {
   }>;
 }
 
-export function TrackReportPage({ onNavigate }: TrackReportPageProps) {
+export default function TrackReportPage({ onNavigate }: TrackReportPageProps) {
   const [notificationNumber, setNotificationNumber] = useState("");
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

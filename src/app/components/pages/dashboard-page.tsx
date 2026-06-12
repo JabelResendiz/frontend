@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-export function DashboardPage() {
+export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState("6months");
 
   // Mock KPI data

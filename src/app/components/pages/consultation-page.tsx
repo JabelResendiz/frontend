@@ -45,7 +45,7 @@ interface ApiResponse {
   previousPageUrl?: string;
 }
 
-export function ConsultationPage({ onNavigate }: ConsultationPageProps) {
+export default function ConsultationPage({ onNavigate }: ConsultationPageProps) {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);

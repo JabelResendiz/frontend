@@ -2,7 +2,7 @@
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Progress } from "@/app/components/ui/progress";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@/app/components/ui/alert";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Shield } from "lucide-react";
 import { toast } from "sonner";
@@ -82,7 +82,7 @@ const initialFormData: FormData = {
   confidentialityAgreed: false
 };
 
-export function ReportPage({ onNavigate }: ReportPageProps) {
+export default function ReportPage({ onNavigate }: ReportPageProps) {
   const { user } = useAuth();
   const isDoctor = user?.role === "MedicalReviewer" || user?.role === "Admin";
   const [currentStep, setCurrentStep] = useState(1);
@@ -1005,17 +1005,17 @@ export function ReportPage({ onNavigate }: ReportPageProps) {
 
         <Alert className="mb-6 border-blue-200 bg-blue-50">
           <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertTitle>Confidencialidad garantizada</AlertTitle>
           <AlertDescription className="text-sm text-gray-700">
-            <strong>Confidencialidad garantizada:</strong> Todos los datos son anónimos y se manejan
-            según las normas éticas de investigación. La información solo se usa para fines de
-            farmacovigilancia.
+            Todos los datos son anónimos y se manejan según las normas éticas de investigación. La información solo se usa para fines de farmacovigilancia.
           </AlertDescription>
         </Alert>
 
         <Alert className="mb-6 border-yellow-200 bg-yellow-50">
           <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle>Campos obligatorios</AlertTitle>
           <AlertDescription className="text-sm text-gray-700">
-            <strong>Campos obligatorios:</strong> Los campos marcados con asterisco (*) son obligatorios y deben completarse para enviar el reporte.
+            Los campos marcados con asterisco (*) son obligatorios y deben completarse para enviar el reporte.
           </AlertDescription>
         </Alert>
 
