@@ -2,7 +2,7 @@ import { Shield, FileText, BarChart3, Info, Menu, X, LogOut } from "lucide-react
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { useAuth } from "@/app/context/AuthContext";
-import logo from "@/assets/images/logo.png";
+import logo from "@/assets/images/logo.webp";
 import { translateRole } from "../utils/translations";
 
 interface NavigationProps {
