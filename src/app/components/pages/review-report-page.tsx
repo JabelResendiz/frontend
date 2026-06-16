@@ -503,3 +503,5 @@ console.log(reviewedAt);
     </div>
   );
 };
+
+export default ReviewReportPageComponent;

@@ -424,3 +424,5 @@ Evento ${idx + 1}:
     </div>
   );
 };
+
+export default AssignedReportsPageComponent;

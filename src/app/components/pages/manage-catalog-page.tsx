@@ -1128,14 +1128,7 @@ export const ManageCatalogPage = () => {
   );
 };
 
-
-
-
-
-
-
-
-
+export default ManageCatalogPage;
 
 
 

@@ -84,7 +84,7 @@ const ActivateAccountPageComponent = ({ onNavigate }: ActivateAccountPageProps) 
             </Alert>
           )}
           {success && (
-            <Alert className="mb-4">
+            <Alert variant="success" className="mb-4">
               <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}

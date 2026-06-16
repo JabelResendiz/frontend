@@ -278,3 +278,5 @@ export const EditReportPage = ({ reportId, onNavigate }: EditReportPageProps) =>
     </div>
   );
 };
+
+export default EditReportPage;
