@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/app/context/AuthContext";
+import { isAuditMode } from "@/app/config/audit";
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
@@ -10,6 +11,9 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
+
+  // If audit mode is enabled, bypass route protection entirely.
+  if (isAuditMode()) return children;
 
   if (isLoading) return null;
 

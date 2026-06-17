@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { authService } from '../services/auth.service';
 import { setAccessToken, clearAccessToken } from '../services/token-manager';
 import { registerLogoutHandler } from '../services/api';
+import { isAuditMode, getAuditUser } from '../config/audit';
 
 export interface User {
   id: string;
@@ -80,6 +81,16 @@ export const AuthProvider = ({ children }: any) => {
 
   useEffect(() => {
     const restoreSession = async () => {
+      // Audit mode: bypass normal session restore and set a lightweight audit user.
+      if (isAuditMode()) {
+        const audit = getAuditUser();
+        // don't set a real token by default; some components only need `user` and `isAuthenticated`.
+        setAccessToken(null);
+        setUser(audit);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return;
+      }
       try {
         const token = await authService.refreshToken();
         setAccessToken(token);
@@ -97,7 +108,7 @@ export const AuthProvider = ({ children }: any) => {
         setIsLoading(false);
       }
     };
-    
+
     restoreSession();
   }, []);
 
