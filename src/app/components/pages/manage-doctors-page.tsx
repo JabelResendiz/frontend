@@ -15,25 +15,6 @@ interface ManageDoctorsPageProps {
   onNavigate: (page: string, reportId?: string, action?: string) => void;
 }
 
-const generatePassword = (): string => {
-  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lower = "abcdefghijklmnopqrstuvwxyz";
-  const digits = "0123456789";
-  const symbols = "!@#$%";
-  const allChars = upper + lower + digits + symbols;
-
-  const required = [
-    digits.charAt(Math.floor(Math.random() * digits.length)),
-    symbols.charAt(Math.floor(Math.random() * symbols.length)),
-  ];
-
-  let password = [...required];
-  for (let i = 0; i < 10; i++) {
-    password.push(allChars.charAt(Math.floor(Math.random() * allChars.length)));
-  }
-
-  return password.sort(() => Math.random() - 0.5).join("");
-};
 
 export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps) {
   void onNavigate;
@@ -117,15 +98,8 @@ export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps
   ];
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
 
   const validateEmail = (email: string): boolean => EMAIL_REGEX.test(email.trim());
-
-  const validatePassword = (password: string): boolean => {
-    const hasDigit = /\d/.test(password);
-    const hasSpecial = SPECIAL_CHAR_REGEX.test(password);
-    return password.length >= 8 && hasDigit && hasSpecial;
-  };
 
   const validateIdentityNumber = (identityNumber: string): boolean =>/^\d{11}$/.test(identityNumber);
 
@@ -216,13 +190,6 @@ export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps
           delete errors.email;
         }
         break;
-      case 'password':
-        if (value && !validatePassword(value)) {
-          errors.password = "Debe tener al menos 8 caracteres, un número y un carácter especial.";
-        } else {
-          delete errors.password;
-        }
-        break;
       case 'phoneNumber':
         if (value && !validatePhoneNumber(value)) {
           errors.phoneNumber = "Solo se permiten dígitos sin espacios.";
@@ -259,18 +226,11 @@ export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps
     setHasValidationErrors(Object.keys(errors).length > 0);
   };
 
-  const handleGeneratePassword = () => {
-    const newPassword = generatePassword();
-    setFormData({ ...formData, password: newPassword });
-    validateField('password', newPassword);
-    toast.success("Contraseña generada");
-  };
-
   const handleAddDoctor = async () => {
     // Clear previous errors
     setFieldErrors({});
 
-    if (!formData.userName || !formData.email || !formData.password || !formData.phoneNumber ||
+    if (!formData.userName || !formData.email || !formData.phoneNumber ||
         !formData.institution || !formData.professionalLicense || !formData.identityNumber || !formData.specialty) {
       toast.error("Por favor completa todos los campos requeridos");
       return;
@@ -279,11 +239,9 @@ export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps
     // Validate all fields
     const errors: Record<string, string> = {};
     if (!validateEmail(formData.email)) errors.email = "Email inválido";
-    if (!validatePassword(formData.password)) errors.password = "La contraseña debe tener al menos 8 caracteres, incluir al menos un número y un carácter especial.";
     if (!validatePhoneNumber(formData.phoneNumber)) errors.phoneNumber = "Teléfono inválido. Solo se permiten dígitos sin espacios.";
     if (!validateInstitution(formData.institution)) errors.institution = "La institución debe comenzar con una letra.";
     if (!validateIdentityNumber(formData.identityNumber)) errors.identityNumber = "La cédula de identidad debe contener exactamente 11 dígitos sin espacios.";
-
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -296,7 +254,7 @@ export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps
       const registrationData: DoctorRegistrationData = {
         userName: formData.userName,
         email: formData.email.trim(),
-        password: formData.password,
+        password: "Passwrod_123!",
         phoneNumber: formData.phoneNumber,
         institution: formData.institution.trim(),
         professionalLicense: formData.professionalLicense.trim(),
@@ -549,29 +507,6 @@ export default function ManageDoctorsPage({ onNavigate }: ManageDoctorsPageProps
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="password">Contraseña *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="password"
-                      type="text"
-                      placeholder="Generar o escribir contraseña"
-                      value={formData.password}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                        setFormData({ ...formData, password: e.target.value });
-                        validateField('password', e.target.value);
-                      }}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={handleGeneratePassword}
-                      type="button"
-                    >
-                      Generar
-                    </Button>
-                  </div>
-                  {fieldErrors.password && <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>}
-                </div>
                 <div>
                   <Label htmlFor="phoneNumber">Teléfono *</Label>
                   <Input

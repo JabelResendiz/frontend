@@ -1194,3 +1194,5 @@ map.fitBounds(
     </div>
   );
 };
+
+export default AdminDashboard;
