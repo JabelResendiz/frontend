@@ -143,7 +143,7 @@ const resolveProvinceKey = (value: string) => {
 };
 
 export const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'report' | 'performance' | 'vaccines'>('report');
+  const [activeTab, setActiveTab] = useState<'report' | 'performance' | 'vaccines'>('performance');
   const [reportData, setReportData] = useState<AdminReportData | null>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -631,8 +631,8 @@ map.fitBounds(
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 gap-2 mb-6">
-            <TabsTrigger value="report">Reporte</TabsTrigger>
             <TabsTrigger value="performance">Rendimiento</TabsTrigger>
+            <TabsTrigger value="report">Reporte</TabsTrigger>
             <TabsTrigger value="vaccines">Vacunas</TabsTrigger>
           </TabsList>
 
