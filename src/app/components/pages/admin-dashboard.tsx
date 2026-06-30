@@ -407,7 +407,15 @@ export const AdminDashboard = () => {
       try {
         const response = await api.get('/AdminDashboard/vaccines');
         if (!mounted) return;
-        setVaccineData(response.data?.result ?? response.data);
+        const payload = response.data?.result ?? response.data;
+
+        // Normalizar respuesta: el backend puede devolver `vaccines` o `vaccinesDistribution`.
+        const mapped = {
+          vaccines: payload?.vaccines ?? payload?.vaccinesDistribution ?? [],
+          symptomDistribution: payload?.symptomDistribution ?? payload?.symptomsDistribution ?? [],
+        } as AdminVaccineData;
+
+        setVaccineData(mapped);
         setVaccinesError(null);
       } catch (error: any) {
         if (!mounted) return;
@@ -642,7 +650,7 @@ map.fitBounds(
                 <h2 className="text-2xl font-bold" style={{ color: '#0A4B8F' }}>
                   Reporte
                 </h2>
-                <p className="text-gray-600 text-sm mt-1">Datos del endpoint /api/AdminDashboard/report con información territorial, severidad, causalidad y significancia.</p>
+                <p className="text-gray-600 text-sm mt-1">Datos con información territorial, severidad, causalidad y significancia.</p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -852,7 +860,7 @@ map.fitBounds(
                 <h2 className="text-2xl font-bold" style={{ color: '#0A4B8F' }}>
                   Rendimiento
                 </h2>
-                <p className="text-gray-600 text-sm mt-1">Métricas de rendimiento basadas en el endpoint /api/AdminDashboard/performance.</p>
+                <p className="text-gray-600 text-sm mt-1">Métricas de rendimiento.</p>
               </div>
 
               {performanceError && (
@@ -1063,7 +1071,7 @@ map.fitBounds(
                 <h2 className="text-2xl font-bold" style={{ color: '#0A4B8F' }}>
                   Vacunas
                 </h2>
-                <p className="text-gray-600 text-sm mt-1">Análisis de vacunas y síntomas basado en el endpoint /api/AdminDashboard/vaccines.</p>
+                <p className="text-gray-600 text-sm mt-1">Análisis de vacunas y síntomas.</p>
               </div>
 
               {vaccinesError && (

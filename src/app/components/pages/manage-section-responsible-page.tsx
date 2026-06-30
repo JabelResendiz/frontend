@@ -15,6 +15,7 @@ import {
   getMunicipalityNameById,
 } from "@/app/data/municipalities";
 import { api } from "@/app/services/api";
+import { translateBackendErrorMessage } from '@/app/utils/backend-error-translator';
 
 interface SectionResponsible {
   id: string;
@@ -277,7 +278,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
       const response = await api.post("/SectionResponsible/register", payload);
 
       if (response.data.success) {
-        toast.success("Jefe de sección agregado exitosamente");
+        toast.success("Jefe municipal agregado exitosamente");
         setFormData({
           userName: "",
           email: "",
@@ -293,10 +294,12 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
         setPageNumber(1);
         loadSectionResponsibles();
       } else {
-        toast.error(response.data.message || "Error al agregar jefe de sección");
+        const translatedMessage = translateBackendErrorMessage(response.data.message) || "Error al agregar jefe municipal";
+        toast.error(translatedMessage);
       }
     } catch (error: any) {
-      const errorMessage = error.backendData?.message || error.message || "Error desconocido";
+      const rawErrorMessage = error.backendData?.message || error.message;
+      const errorMessage = translateBackendErrorMessage(rawErrorMessage) || rawErrorMessage || "Error desconocido";
       toast.error(errorMessage);
       console.error("Error adding section responsible:", error);
     } finally {
@@ -353,10 +356,10 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold mb-2" style={{ color: "#0A4B8F" }}>
-                Gestionar Jefes de Sección
+                Gestionar Jefes Municipales
               </h1>
               <p className="text-gray-600">
-                Administra los jefes de sección del sistema
+                Administra los jefes municipales del sistema
               </p>
             </div>
             {!showForm && (
@@ -366,7 +369,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                 onClick={() => setShowForm(true)}
               >
                 <Plus className="w-5 h-5 mr-2" />
-                Agregar Jefe de Sección
+                Agregar Jefe municipal
               </Button>
             )}
           </div>
@@ -484,7 +487,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
             )}
             <CardHeader>
               <CardTitle>
-                {editingId ? "Editar Jefe de Sección" : "Agregar Nuevo Jefe de Sección"}
+                {editingId ? "Editar Jefe municipal" : "Agregar Nuevo Jefe municipal"}
               </CardTitle>
               <CardDescription>
                 Complete todos los campos requeridos (marcados con *)
@@ -656,7 +659,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
                     onClick={() => setShowForm(true)}
                   >
                     <Plus className="w-5 h-5 mr-2" />
-                    Agregar Primer Jefe de Sección
+                    Agregar Primer Jefe municipal
                   </Button>
                 )}
               </CardContent>
@@ -799,7 +802,7 @@ const loadSectionResponsibles = async (url?: string, provinceNameOverride?: stri
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar este jefe de sección? Esta acción no
+              ¿Estás seguro de que deseas eliminar este Jefe municipal? Esta acción no
               se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>

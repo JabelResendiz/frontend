@@ -26,7 +26,8 @@ export const enumTranslations = {
     Completed: "Completado",
     Approved: "Aprobado", 
     Rejected: "Rechazado",
-    Closed: "Cerrado"
+    Closed: "Cerrado",
+    Draft : "Borrador"
   },
 
   // estado de la asignación
@@ -100,6 +101,10 @@ export const enumTranslations = {
     ExpectedEvent: "Evento esperado",
     SeriousOrLifeThreatening: "Evento serio o potencialmente mortal",
     MinorEvent : "Evento menor"
+  },
+
+  possibleDuplicate : {
+    IsPossibleDuplicate : "Posible duplicado"
   }
 };
 
@@ -126,7 +131,6 @@ export const translateReviewAssignmentStatus = (review: string) =>
 
 export const translateRole = (role: string) => 
 {
-  console.log(role);
   return translateEnum(role, 'role', role);
 }
   
@@ -142,6 +146,18 @@ export const translateReportStatus = (status: string) => {
   }
 
   return translateEnum(status, 'reportStatus', status);
+};
+
+export const translatePossibleDuplicate = (status: string) => {
+  const normalizedKey = Object.keys(enumTranslations.possibleDuplicate).find(
+    (key) => key.toLowerCase() === status.toLowerCase()
+  );
+
+  if (normalizedKey) {
+    return enumTranslations.possibleDuplicate[normalizedKey as keyof typeof enumTranslations['possibleDuplicate']];
+  }
+
+  return translateEnum(status, 'possibleDuplicate', status);
 };
 
 export const translateGender = (gender: string) => 

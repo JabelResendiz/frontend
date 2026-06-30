@@ -5,7 +5,9 @@ import { Card, CardContent } from "@/app/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { reportService, type DuplicateDetailResponse } from "@/app/services/report.service";
-import { translateReportStatus, translateSeverity } from "@/app/utils/translations";
+import { translateReportStatus, translateSeverity, translateGender, translatePossibleDuplicate,
+  translatePatientStatus
+ } from "@/app/utils/translations";
 
 interface DuplicateDetailDialogProps {
   isOpen: boolean;
@@ -64,7 +66,7 @@ export function DuplicateDetailDialog({
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <p className="text-sm text-slate-700">
-                    <span className="font-semibold">Tipo de duplicado:</span> {duplicateData.enumReportDuplicate}
+                    <span className="font-semibold">Tipo de duplicado:</span> {translatePossibleDuplicate(duplicateData.enumReportDuplicate)}
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
@@ -91,14 +93,14 @@ export function DuplicateDetailDialog({
                     <div className="font-semibold uppercase text-slate-500">Original</div>
                     <div className="text-slate-900">{duplicateData.aefiReportOriginal.vaccinatedSubject.fullName}</div>
                     <div className="text-slate-900">{duplicateData.aefiReportOriginal.vaccinatedSubject.age} años</div>
-                    <div className="text-slate-900">{duplicateData.aefiReportOriginal.vaccinatedSubject.gender}</div>
+                    <div className="text-slate-900">{translateGender(duplicateData.aefiReportOriginal.vaccinatedSubject.gender)}</div>
                     <div className="text-slate-900">{duplicateData.aefiReportOriginal.vaccinatedSubject.isPregnant ? 'Sí' : 'No'}</div>
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="font-semibold uppercase text-slate-500">Copia</div>
                     <div className="text-slate-900">{duplicateData.aefiReportCopy.vaccinatedSubject.fullName}</div>
                     <div className="text-slate-900">{duplicateData.aefiReportCopy.vaccinatedSubject.age} años</div>
-                    <div className="text-slate-900">{duplicateData.aefiReportCopy.vaccinatedSubject.gender}</div>
+                    <div className="text-slate-900">{translateGender(duplicateData.aefiReportCopy.vaccinatedSubject.gender)}</div>
                     <div className="text-slate-900">{duplicateData.aefiReportCopy.vaccinatedSubject.isPregnant ? 'Sí' : 'No'}</div>
                   </div>
                 </div>
@@ -118,14 +120,14 @@ export function DuplicateDetailDialog({
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="font-semibold uppercase text-slate-500">Original</div>
-                    <div className="text-slate-900 font-mono text-xs break-all">{duplicateData.aefiReportOriginal.id}</div>
+                    <div className="text-slate-900 font-mono text-xs break-all">{duplicateData.aefiReportOriginal.notificationNumber}</div>
                     <div className="text-slate-900">{translateReportStatus(duplicateData.aefiReportOriginal.status)}</div>
                     <div className="text-slate-900">{translateSeverity(duplicateData.aefiReportOriginal.globalSeverityLevel)}</div>
                     <div className="text-slate-900">{duplicateData.aefiReportOriginal.lastDoctorName || 'No asignado'}</div>
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="font-semibold uppercase text-slate-500">Copia</div>
-                    <div className="text-slate-900 font-mono text-xs break-all">{duplicateData.aefiReportCopy.id}</div>
+                    <div className="text-slate-900 font-mono text-xs break-all">{duplicateData.aefiReportCopy.notificationNumber}</div>
                     <div className="text-slate-900">{translateReportStatus(duplicateData.aefiReportCopy.status)}</div>
                     <div className="text-slate-900">{translateSeverity(duplicateData.aefiReportCopy.globalSeverityLevel)}</div>
                     <div className="text-slate-900">{duplicateData.aefiReportCopy.lastDoctorName || 'No asignado'}</div>
@@ -181,8 +183,8 @@ export function DuplicateDetailDialog({
                       <div key={idx} className="rounded-2xl border border-red-200 bg-red-50 p-3">
                         <p className="font-medium text-red-900">Inicio: {new Date(event.startDate).toLocaleString('es-ES')}</p>
                         <p className="text-slate-700">Fin: {event.finishDate ? new Date(event.finishDate).toLocaleString('es-ES') : 'Pendiente'}</p>
-                        <p className="text-slate-700">Estado: {event.currentStatus}</p>
-                        <p className="text-slate-700">Severidad: {event.severityLevel}</p>
+                        <p className="text-slate-700">Estado: {translatePatientStatus(event.currentStatus)}</p>
+                        <p className="text-slate-700">Severidad: {translateSeverity(event.severityLevel)}</p>
                         <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
                           <span>Doctor: {event.visitedDoctor ? 'Sí' : 'No'}</span>
                           <span>Emergencia: {event.wentToEmergencyRoom ? 'Sí' : 'No'}</span>
@@ -205,8 +207,8 @@ export function DuplicateDetailDialog({
                       <div key={idx} className="rounded-2xl border border-red-200 bg-red-50 p-3">
                         <p className="font-medium text-red-900">Inicio: {new Date(event.startDate).toLocaleString('es-ES')}</p>
                         <p className="text-slate-700">Fin: {event.finishDate ? new Date(event.finishDate).toLocaleString('es-ES') : 'Pendiente'}</p>
-                        <p className="text-slate-700">Estado: {event.currentStatus}</p>
-                        <p className="text-slate-700">Severidad: {event.severityLevel}</p>
+                        <p className="text-slate-700">Estado: {translatePatientStatus(event.currentStatus)}</p>
+                        <p className="text-slate-700">Severidad: {translateSeverity(event.severityLevel)}</p>
                         <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
                           <span>Doctor: {event.visitedDoctor ? 'Sí' : 'No'}</span>
                           <span>Emergencia: {event.wentToEmergencyRoom ? 'Sí' : 'No'}</span>

@@ -330,7 +330,7 @@ export default function SectionManagerDashboard() {
                   Resumen General
                 </h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  Estado actual de los reportes en tu municipio, basado en datos del endpoint de overview.
+                  Estado actual de los reportes en tu municipio.
                 </p>
               </div>
 

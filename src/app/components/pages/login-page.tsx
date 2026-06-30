@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { FriendlyCaptcha, FriendlyCaptchaRef } from '@/app/components/ui/friendly-captcha';
 import { useAuth } from '@/app/context/AuthContext';
+import { toast } from 'sonner';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -21,6 +22,11 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
   const [loading, setLoading] = useState(false);
   const captchaRef = useRef<FriendlyCaptchaRef | null>(null);
 
+  const resetCaptcha = () => {
+    setCaptchaValue(null);
+    captchaRef.current?.reset();
+  };
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -31,7 +37,19 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
     setLoading(true);
 
     try {
-      await login(email, password, captchaValue);
+      const loggedUser = await login(email, password, captchaValue);
+
+      // Map role to a professional title
+      const roleTitle =
+        loggedUser.role === 'MedicalReviewer' ? 'Dr.' :
+        loggedUser.role === 'Admin' ? 'Administrador' :
+        loggedUser.role === 'SectionResponsible' ? 'Jefe' : '';
+
+      const greeting = `${roleTitle} ${loggedUser.name}`.trim();
+
+      // Brief, professional toast on successful login
+      toast.success(`Bienvenido ${greeting}`);
+
       onNavigate('home');
     } catch (err: any) {
       const responseData = err?.response?.data;
@@ -46,8 +64,7 @@ export const LoginPage = ({ onNavigate }: LoginPageProps) => {
         : 'Error al iniciar sesión';
 
       setError(errorMessage);
-      setCaptchaValue(null);
-      captchaRef.current?.reset();
+      resetCaptcha();
     } finally {
       setLoading(false);
     }

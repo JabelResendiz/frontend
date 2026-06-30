@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: frontend:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    # If you have a backend service, you can add networks and links here.

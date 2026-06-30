@@ -232,6 +232,7 @@ export interface AefiReportDetail {
   reportDate: string;
   status: string;
   globalSeverityLevel: string;
+  notificationNumber: string;
   vaccinatedSubject: {
     fullName: string;
     age: number;

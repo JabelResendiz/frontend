@@ -577,19 +577,17 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
         return `La fecha de inicio del evento adverso #${i + 1} es obligatoria`;
       }
 
-      if (!event.eventFinishDate) {
-        return `La fecha final del evento adverso #${i + 1} es obligatoria`;
-      }
+      if (event.eventFinishDate) {
+        const eventStartDate = parseDateOnly(event.eventDate);
+        const eventFinishDate = parseDateOnly(event.eventFinishDate);
 
-      const eventStartDate = parseDateOnly(event.eventDate);
-      const eventFinishDate = parseDateOnly(event.eventFinishDate);
+        if (eventFinishDate < eventStartDate) {
+          return `La fecha final del evento #${i + 1} debe ser posterior o igual a la fecha de inicio`;
+        }
 
-      if (eventFinishDate < eventStartDate) {
-        return `La fecha final del evento #${i + 1} debe ser posterior o igual a la fecha de inicio`;
-      }
-
-      if (eventFinishDate > today) {
-        return `La fecha final del evento #${i + 1} no puede ser posterior a la fecha actual`;
+        if (eventFinishDate > today) {
+          return `La fecha final del evento #${i + 1} no puede ser posterior a la fecha actual`;
+        }
       }
 
       // Validar fecha de muerte si aplica para este evento
@@ -687,7 +685,6 @@ export default function ReportPage({ onNavigate }: ReportPageProps) {
         // Validar cada evento
         formData.adverseEvents.forEach((event, index) => {
           if (!event.eventDate) missing.push(`Fecha del evento adverso #${index + 1}`);
-          if (!event.eventFinishDate) missing.push(`Fecha final del evento adverso #${index + 1}`);
           if (!event.eventOutcome) missing.push(`Estado actual del paciente - Evento #${index + 1}`);
           if (!event.eventIntensity) missing.push(`Intensidad del evento adverso #${index + 1}`);
           if (!event.eventSeverityLevel) missing.push(`Nivel de gravedad del evento adverso #${index + 1}`);

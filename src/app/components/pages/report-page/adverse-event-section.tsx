@@ -51,7 +51,6 @@ export function AdverseEventSection({ userRole, formData, updateFormData, dateEr
   const isEventComplete = (): boolean => {
     const requiredFields = [
       currentEvent.eventDate,
-      currentEvent.eventFinishDate,
       currentEvent.eventSymptom,
       currentEvent.eventIntensity,
       currentEvent.eventSeverityLevel,
@@ -180,7 +179,7 @@ useEffect(() => {
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="eventFinishDate">Fecha Final del Evento Adverso *</Label>
+            <Label htmlFor="eventFinishDate">Fecha Final del Evento Adverso </Label>
             <Input
               id="eventFinishDate"
               type="date"
@@ -448,7 +447,7 @@ useEffect(() => {
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="eventFinishDate">Fecha Final del Evento Adverso *</Label>
+            <Label htmlFor="eventFinishDate">Fecha Final del Evento Adverso</Label>
             <Input id="eventFinishDate" type="date" value={currentEvent.eventFinishDate} onChange={(e) => updateFormData("eventFinishDate", e.target.value)} className={`bg-white ${dateErrors?.eventFinishDate ? "border-red-500" : ""}`} />
             {dateErrors?.eventFinishDate && (
               <p className="text-sm text-red-600">{dateErrors.eventFinishDate}</p>

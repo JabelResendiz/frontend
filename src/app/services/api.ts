@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { getAccessToken, setAccessToken, clearAccessToken } from './token-manager';
 import { authService } from './auth.service';
+import { translateBackendErrorMessage } from '@/app/utils/backend-error-translator';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5137';
 const timeout = Number(import.meta.env.VITE_API_TIMEOUT) || 5000;
@@ -57,9 +58,13 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     const status = error.response?.status;
-    const message =
+    const rawBackendMessage =
       error.response?.data?.message ||
       error.response?.data?.error ||
+      undefined;
+    const message =
+      translateBackendErrorMessage(rawBackendMessage) ||
+      rawBackendMessage ||
       error.message ||
       'Error desconocido';
 
